@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "670520182043",
+    "project_id": "toda-hotline-79698",
+    "storage_bucket": "toda-hotline-79698.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:670520182043:android:5b2f4e287811ef5cd67fbe",
+        "android_client_info": {
+          "package_name": "com.todahotline"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "670520182043-n0pl3vge3a5oql7usrbsfpjr7lf1u268.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrg6yEtho-O0wXS5OIbxEvshMYyXo3BV0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "670520182043-n0pl3vge3a5oql7usrbsfpjr7lf1u268.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
