@@ -62,6 +62,7 @@ export default function DienThoai() {
     const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
     const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
     const [calls, setCalls] = useState({}); // callKeep uuid: number
+    var sdt = "637";
 
     const log = (text) => {
         console.info(text);
@@ -91,6 +92,7 @@ export default function DienThoai() {
 
     const displayIncomingCall = (number) => {
         const callUUID = getNewUuid();
+        sdt = number;
         addCall(callUUID, number);
 
         storeData.setStoreDataValue('soDienThoai', number);
@@ -110,6 +112,7 @@ export default function DienThoai() {
     };
 
     const answerCall = async ({ callUUID }) => {
+        console.log(calls);
         const soDienThoai = await storeData.getStoreDataValue('soDienThoai');
         const number = calls[callUUID];
         console.log('calls', calls);

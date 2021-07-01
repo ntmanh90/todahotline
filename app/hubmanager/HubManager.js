@@ -1,18 +1,24 @@
 import { hubUrl, local_hubUrl, https_url } from './SignalConfig';
 import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-//import storeData from '../hooks/storeData';
+import storeData from '../hooks/storeData';
 
 
-let hub = new HubConnectionBuilder().withUrl(https_url, {
-    accessTokenFactory: () => {
-        storeData.getStoreDataValue('TokenSip').then((TokenSip) => {
-            return TokenSip
-        })
-    }
-}).build();
+// let hub = new HubConnectionBuilder().withUrl(https_url, {
+//     accessTokenFactory: () => {
+//         storeData.getStoreDataValue('TokenSip').then((TokenSip) => {
+//             return TokenSip
+//         })
+//     }
+// }).build();
+
+let hub = new HubConnectionBuilder()
+    .withUrl(https_url)
+    .configureLogging(LogLevel.Information)
+    .build();
 
 
 function connectServer() {
+    console.log('client call Join to Server');
     try {
         hub
             .start()
@@ -38,7 +44,7 @@ function connectServer() {
 }
 
 function reconnectServer() {
-
+    console.log('client call ReJoin to Server');
     try {
         var sipUser = JSON.parse(json);
         console.log('sip_user: ', sipUser);

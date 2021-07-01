@@ -13,10 +13,7 @@ import storeData from './app/hooks/storeData';
 
 BackgroundTimer.start();
 
-const getNewUuid = () => uuid.v4().toLowerCase();
 const getRandomNumber = () => String(Math.floor(Math.random() * 100000));
-
-
 // Register background handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
     //let soDienThoai = remoteMessage.data.songuon;

@@ -1,17 +1,178 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet, Text, View
+  StyleSheet, Text, View, DeviceEventEmitter, Platform
 } from 'react-native';
+import uuid from 'uuid';
+import BackgroundTimer from 'react-native-background-timer';
 import PushNotificationIOS from "@react-native-community/push-notification-ios";
 import PushNotification from "react-native-push-notification";
 import messaging from "@react-native-firebase/messaging";
 import AppNavigation from './app/navigation/AppNavigation';
+import AccountNavigation from './app/navigation/AccountNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
+import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
+import { getHub, connectServer, reconnectServer } from './app/hubmanager/HubManager';
 
+const getNewUuid = () => uuid.v4().toLowerCase();
+
+const format = uuid => uuid.split('-')[0];
+
+const isIOS = Platform.OS === 'ios';
+
+var conn = getHub();
+
+RNCallKeep.setup({
+  ios: {
+    appName: 'CallKeepDemo',
+  },
+  android: {
+    alertTitle: 'Permissions required',
+    alertDescription: 'This application needs to access your phone accounts',
+    cancelButton: 'Cancel',
+    okButton: 'ok',
+  },
+});
+RNCallKeep.backToForeground();
 
 const App = (props) => {
+  const [isLogin, setIsLogin] = useState(false);
+  const [logText, setLog] = useState('');
+  const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
+  const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
+  const [calls, setCalls] = useState({}); // callKeep uuid: number
+
+  const log = (text) => {
+    console.info(text);
+    setLog(logText + "\n" + text);
+  };
+
+  const addCall = (callUUID, number) => {
+    setHeldCalls({ ...heldCalls, [callUUID]: false });
+    setCalls({ ...calls, [callUUID]: number });
+  };
+
+  const removeCall = (callUUID) => {
+    const { [callUUID]: _, ...updated } = calls;
+    const { [callUUID]: __, ...updatedHeldCalls } = heldCalls;
+
+    setCalls(updated);
+    setCalls(updatedHeldCalls);
+  };
+
+  const setCallHeld = (callUUID, held) => {
+    setHeldCalls({ ...heldCalls, [callUUID]: held });
+  };
+
+  const setCallMuted = (callUUID, muted) => {
+    setMutedCalls({ ...mutedCalls, [callUUID]: muted });
+  };
+
+  const displayIncomingCall = async () => {
+    console.log('da gọi vào hàm hiển thị cuoc goi');
+    const callUUID = getNewUuid();
+    console.log('callUUID', callUUID);
+    console.log('callUUID', callUUID);
+    const number = await storeData.getStoreDataValue('soDienThoai');
+    console.log('number', number);
+    addCall(callUUID, number);
+
+    log(`[displayIncomingCall] ${format(callUUID)}, number: ${number}`);
+
+    RNCallKeep.displayIncomingCall(callUUID, number, number, 'number', false);
+  };
+
+  const answerCall = async ({ callUUID }) => {
+
+    const number = calls[callUUID];
+    console.log('calls', calls);
+    log(`[answerCall] ${format(callUUID)}, number: ${number}`);
+
+    RNCallKeep.startCall(callUUID, number, number);
+
+    BackgroundTimer.setTimeout(() => {
+      log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
+      RNCallKeep.setCurrentCallActive(callUUID);
+    }, 1000);
+  };
+
+  const didPerformDTMFAction = ({ callUUID, digits }) => {
+    const number = calls[callUUID];
+    log(`[didPerformDTMFAction] ${format(callUUID)}, number: ${number} (${digits})`);
+  };
+
+  const didReceiveStartCallAction = ({ handle }) => {
+    if (!handle) {
+      // @TODO: sometime we receive `didReceiveStartCallAction` with handle` undefined`
+      return;
+    }
+    const callUUID = getNewUuid();
+    addCall(callUUID, handle);
+
+    log(`[didReceiveStartCallAction] ${callUUID}, number: ${handle}`);
+
+    RNCallKeep.startCall(callUUID, handle, handle);
+
+    BackgroundTimer.setTimeout(() => {
+      log(`[setCurrentCallActive] ${format(callUUID)}, number: ${handle}`);
+      RNCallKeep.setCurrentCallActive(callUUID);
+    }, 1000);
+  };
+
+  const didPerformSetMutedCallAction = ({ muted, callUUID }) => {
+    const number = calls[callUUID];
+    log(`[didPerformSetMutedCallAction] ${format(callUUID)}, number: ${number} (${muted})`);
+
+    setCallMuted(callUUID, muted);
+  };
+
+  const didToggleHoldCallAction = ({ hold, callUUID }) => {
+    const number = calls[callUUID];
+    log(`[didToggleHoldCallAction] ${format(callUUID)}, number: ${number} (${hold})`);
+
+    setCallHeld(callUUID, hold);
+  };
+
+  const endCall = ({ callUUID }) => {
+    const handle = calls[callUUID];
+    log(`[endCall] ${format(callUUID)}, number: ${handle}`);
+
+    removeCall(callUUID);
+  };
+
+  const hangup = (callUUID) => {
+    RNCallKeep.endCall(callUUID);
+    removeCall(callUUID);
+  };
+
+  const setOnHold = (callUUID, held) => {
+    const handle = calls[callUUID];
+    RNCallKeep.setOnHold(callUUID, held);
+    log(`[setOnHold: ${held}] ${format(callUUID)}, number: ${handle}`);
+
+    setCallHeld(callUUID, held);
+  };
+
+  const setOnMute = (callUUID, muted) => {
+    const handle = calls[callUUID];
+    RNCallKeep.setMutedCall(callUUID, muted);
+    log(`[setMutedCall: ${muted}] ${format(callUUID)}, number: ${handle}`);
+
+    setCallMuted(callUUID, muted);
+  };
+
+  const updateDisplay = (callUUID) => {
+    const number = calls[callUUID];
+    // Workaround because Android doesn't display well displayName, se we have to switch ...
+    if (isIOS) {
+      RNCallKeep.updateDisplay(callUUID, 'New Name', number);
+    } else {
+      RNCallKeep.updateDisplay(callUUID, number, 'New Name');
+    }
+
+    log(`[updateDisplay: ${number}] ${format(callUUID)}`);
+  };
 
   const requestUserPermission = async () => {
     const authStatus = await messaging().requestPermission();
@@ -24,26 +185,21 @@ const App = (props) => {
     }
   }
 
-  const checkHasPhoneAccount = async () => {
-    if (!isIOS) {
-      RNCallKeep.backToForeground();
-
-      const options = {
-        alertTitle: 'Chưa xét tài khoản mặc định',
-        alertDescription: 'Vui lòng đặt tài khoản điện thoại mặc định'
-      };
-
-      RNCallKeep.hasDefaultPhoneAccount(options);
-      let checkPhoneAccount = await RNCallKeep.hasPhoneAccount();
-      if (!checkPhoneAccount)
-        alert('Vui lòng cấp quyền truy cập vào tài khoản cuộc gọi.');
+  const checkLogin = async () => {
+    let isLogin = await storeData.getStoreDataValue('isLogin');
+    if (isLogin === 'true') {
+      setIsLogin(true);
     }
   }
 
-  useEffect(() => {
+  /// Xử lý kết nối signalR /// 
 
+
+  /// Kết thúc xử lý kết nối signalR ////
+
+  useEffect(() => {
+    checkLogin();
     requestUserPermission();
-    checkHasPhoneAccount();
 
     PushNotification.configure({
       // (optional) Called when Token is generated (iOS and Android)
@@ -95,12 +251,34 @@ const App = (props) => {
       requestPermissions: true,
     });
 
+    let subscription = DeviceEventEmitter.addListener('displayIncomingCallEvent', displayIncomingCall);
+
+    RNCallKeep.addEventListener('answerCall', answerCall);
+    RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
+    RNCallKeep.addEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+    RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+    RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+    RNCallKeep.addEventListener('endCall', endCall);
+
+    return () => {
+      RNCallKeep.removeEventListener('answerCall', answerCall);
+      RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
+      RNCallKeep.removeEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
+      RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+      RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+      RNCallKeep.removeEventListener('endCall', endCall);
+      subscription.remove();
+    }
 
   }, []);
+  if (!isLogin) {
+    return (
+      <AccountNavigation />
+    );
+  }
 
   return (
     <AppNavigation />
-
   );
 
 };
