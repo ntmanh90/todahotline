@@ -16,15 +16,6 @@ BackgroundTimer.start();
 const getNewUuid = () => uuid.v4().toLowerCase();
 const getRandomNumber = () => String(Math.floor(Math.random() * 100000));
 
-const displayIncomingCall = (number) => {
-    const callUUID = getNewUuid();
-    let hoten = getRandomNumber();
-
-    storeData.setStoreDataValue('hoTen', hoten);
-    console.log('Cuội gọi đến: ', callUUID, number, hoten);
-    storeData.setStoreDataValue('callUUID', callUUID);
-    RNCallKeep.displayIncomingCall(callUUID, number, hoten, 'number', true);
-};
 
 // Register background handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
@@ -32,8 +23,8 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
     let soDienThoai = getRandomNumber();
     storeData.setStoreDataValue('soDienThoai', soDienThoai);
     BackgroundTimer.setTimeout(() => {
-        displayIncomingCall(soDienThoai);
-    }, 2000);
+        DeviceEventEmitter.emit('displayIncomingCallEvent');
+    }, 1000);
 
     console.log('Message handled in the background!', remoteMessage);
 });
