@@ -1,6 +1,6 @@
 import { hubUrl, local_hubUrl, https_url } from './SignalConfig';
 import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import storeData from '../hooks/storeData';
+//import storeData from '../hooks/storeData';
 
 
 let hub = new HubConnectionBuilder().withUrl(https_url, {

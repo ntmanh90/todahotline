@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet, Text, View, ScrollView,
-
+  StyleSheet, Text, View
 } from 'react-native';
 import PushNotificationIOS from "@react-native-community/push-notification-ios";
 import PushNotification from "react-native-push-notification";
 import messaging from "@react-native-firebase/messaging";
+import AppNavigation from './app/navigation/AppNavigation';
 import RNCallKeep from 'react-native-callkeep';
-import TabCuocGoiNavigation from './app/navigation/TabCuocGoiNavigation';
+import storeData from './app/hooks/storeData';
 
-const App = () => {
+
+const App = (props) => {
 
   const requestUserPermission = async () => {
     const authStatus = await messaging().requestPermission();
@@ -23,25 +24,26 @@ const App = () => {
     }
   }
 
-  // const checkHasPhoneAccount = async () => {
-  //   if (!isIOS) {
-  //     RNCallKeep.backToForeground();
+  const checkHasPhoneAccount = async () => {
+    if (!isIOS) {
+      RNCallKeep.backToForeground();
 
-  //     const options = {
-  //       alertTitle: 'Chưa xét tài khoản mặc định',
-  //       alertDescription: 'Vui lòng đặt tài khoản điện thoại mặc định'
-  //     };
+      const options = {
+        alertTitle: 'Chưa xét tài khoản mặc định',
+        alertDescription: 'Vui lòng đặt tài khoản điện thoại mặc định'
+      };
 
-  //     RNCallKeep.hasDefaultPhoneAccount(options);
-  //     let checkPhoneAccount = await RNCallKeep.hasPhoneAccount();
-  //     if (!checkPhoneAccount)
-  //       alert('Vui lòng cấp quyền truy cập vào tài khoản cuộc gọi.');
-  //   }
-  // }
+      RNCallKeep.hasDefaultPhoneAccount(options);
+      let checkPhoneAccount = await RNCallKeep.hasPhoneAccount();
+      if (!checkPhoneAccount)
+        alert('Vui lòng cấp quyền truy cập vào tài khoản cuộc gọi.');
+    }
+  }
 
   useEffect(() => {
+
     requestUserPermission();
-    // checkHasPhoneAccount();
+    checkHasPhoneAccount();
 
     PushNotification.configure({
       // (optional) Called when Token is generated (iOS and Android)
@@ -94,43 +96,14 @@ const App = () => {
     });
 
 
-  }, [])
+  }, []);
 
   return (
-    // <TabCuocGoiNavigation />
-    <View>
-      <Text> App</Text>
-    </View>
+    <AppNavigation />
+
   );
 
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    marginTop: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  button: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  callButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 30,
-    width: '100%',
-  },
-  logContainer: {
-    flex: 3,
-    width: '100%',
-    backgroundColor: '#D9D9D9',
-  },
-  log: {
-    fontSize: 10,
-  }
-});
 
 export default App;

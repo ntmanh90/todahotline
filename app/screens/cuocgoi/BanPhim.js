@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 
-function BanPhim(props) {
+function BanPhim({ navigation }) {
     return (
         <View style={styles.container}>
-            <Text>Bàn phím</Text>
+            <Text onPress={() => { navigation.navigate('DienThoai') }}>Bàn phím</Text>
         </View>
     );
 }
