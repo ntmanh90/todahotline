@@ -9,9 +9,9 @@ import AppApi from '../api/Client';
 
 const removeDataLogin = () => {
     console.log('gọi hàm removeDataLogin');
-    storeData.setStoreDataObject('sip_user', JSON.stringify(null));
-    storeData.setStoreDataValue('tennhanvien', null);
-    storeData.setStoreDataValue('isLogin', JSON.stringify(false));
+    storeData.setStoreDataObject('sip_user', {});
+    storeData.setStoreDataValue('tennhanvien', '');
+    storeData.setStoreDataValue('isLogin', false);
 }
 export default useLogout = () => {
     const [error, setError] = useState(true);
@@ -39,20 +39,23 @@ export default useLogout = () => {
             idnhanvien: idnhanvien,
             token: '',
         };
-
-        AppApi.RequestPOST(url, params, '', (err, json) => {
-            console.log('Error logout: ');
-
-            if (!err) {
-                if (json.data.status) {
-                    setError(false);
-                    removeDataLogin();
-                    // RNCallKeep.endAllCalls();
-                    // conn.invoke('SignOut', somayle).catch();
-                    // conn.stop();
-                }
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params)
+        }).then((responce) => {
+            console.log('json', responce);
+            if (responce.status) {
+                setError(false);
+                removeDataLogin();
+                // RNCallKeep.endAllCalls();
+                // conn.invoke('SignOut', somayle).catch();
+                // conn.stop();
             }
-        });
+        })
     }
 
     return { error, logOut };

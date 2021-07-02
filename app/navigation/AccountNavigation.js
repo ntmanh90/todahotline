@@ -8,7 +8,7 @@ const Stack = createStackNavigator();
 
 const AccountNavigation = () => (
   <Stack.Navigator>
-    <Stack.Screen name="Login" component={Login} />
+    {/* <Stack.Screen name="Login1" component={Login} /> */}
   </Stack.Navigator>
 );
 

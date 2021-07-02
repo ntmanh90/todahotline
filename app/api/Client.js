@@ -19,6 +19,7 @@ const RequestGET = async (url, callback) => {
         })
         .finally();
 }
+
 const RequestPOST = async (url, params, callback) => {
     console.log("url: ", url);
     console.log("params: ", params)
@@ -42,7 +43,8 @@ const RequestPOST = async (url, params, callback) => {
         .finally();
 }
 
+
 export default {
     RequestGET,
-    RequestPOST
+    RequestPOST,
 }

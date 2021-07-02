@@ -9,7 +9,7 @@ import PushNotificationIOS from "@react-native-community/push-notification-ios";
 import PushNotification from "react-native-push-notification";
 import messaging from "@react-native-firebase/messaging";
 import AppNavigation from './app/navigation/AppNavigation';
-import RootNavigation from './app/navigation/RootNavigation';
+import * as RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
 import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
@@ -197,6 +197,7 @@ const App = (props) => {
     let isLoginData = await storeData.getStoreDataValue('isLogin');
     console.log('isLoginData', isLoginData);
     if (isLoginData !== 'true') {
+      console.log('chuyển đến trang login');
       RootNavigation.navigate('Login');
     }
   }

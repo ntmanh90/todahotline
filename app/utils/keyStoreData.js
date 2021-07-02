@@ -1,0 +1,15 @@
+export default {
+    soDienThoai: 'soDienThoai',
+    sip_user: 'sip_user',
+    tennhanvien: 'tennhanvien',
+    isLogin: 'isLogin',
+    Registered: 'Registered',
+    SessionCallId: 'SessionCallId',
+    somayle: 'somayle',
+    tendangnhap: 'tendangnhap',
+    idnhanvien: 'idnhanvien',
+    chucvu: 'chucvu',
+    idct: 'idct',
+    quyenGoiRa: 'quyenGoiRa',
+    Prefix: 'Prefix',
+}

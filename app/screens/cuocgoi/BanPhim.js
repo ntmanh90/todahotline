@@ -5,6 +5,7 @@ import storeData from '../../hooks/storeData';
 import { Input, Button } from 'react-native-elements';
 import { getHub } from '../../hubmanager/HubManager';
 import useLogout from '../../hooks/useLogout';
+import * as RootNavigation from '../../navigation/RootNavigation';
 
 var conn = getHub();
 
@@ -12,8 +13,9 @@ function BanPhim({ navigation }) {
     const useLogoutHook = useLogout();
 
     const handleLogout = () => {
-
-        useLogoutHook.logOut();
+        useLogoutHook.logOut().then(() => {
+            RootNavigation.navigate('Login');
+        });
     }
 
     useEffect(() => {
