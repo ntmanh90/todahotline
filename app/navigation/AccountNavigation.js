@@ -7,11 +7,9 @@ import Login from "../screens/Account/Login";
 const Stack = createStackNavigator();
 
 const AccountNavigation = () => (
-  <NavigationContainer>
-    <Stack.Navigator>
-      <Stack.Screen name="Login" component={Login} />
-    </Stack.Navigator>
-  </NavigationContainer>
+  <Stack.Navigator>
+    <Stack.Screen name="Login" component={Login} />
+  </Stack.Navigator>
 );
 
 export default AccountNavigation;

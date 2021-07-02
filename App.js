@@ -9,7 +9,7 @@ import PushNotificationIOS from "@react-native-community/push-notification-ios";
 import PushNotification from "react-native-push-notification";
 import messaging from "@react-native-firebase/messaging";
 import AppNavigation from './app/navigation/AppNavigation';
-import AccountNavigation from './app/navigation/AccountNavigation';
+import RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
 import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
@@ -22,6 +22,15 @@ const format = uuid => uuid.split('-')[0];
 const isIOS = Platform.OS === 'ios';
 
 var conn = getHub();
+
+conn.on('Ping', () => {
+  //console.log('Ping server goi ve');
+  // try {
+  //   conn.invoke("ConfirmPing", "Reconnect");
+  // } catch (error) {
+  //   console.log('Error ConfirmEvent SignalR_Ping', error);
+  // }
+})
 
 RNCallKeep.setup({
   ios: {
@@ -37,7 +46,6 @@ RNCallKeep.setup({
 RNCallKeep.backToForeground();
 
 const App = (props) => {
-  const [isLogin, setIsLogin] = useState(false);
   const [logText, setLog] = useState('');
   const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
   const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
@@ -186,9 +194,10 @@ const App = (props) => {
   }
 
   const checkLogin = async () => {
-    let isLogin = await storeData.getStoreDataValue('isLogin');
-    if (isLogin === 'true') {
-      setIsLogin(true);
+    let isLoginData = await storeData.getStoreDataValue('isLogin');
+    console.log('isLoginData', isLoginData);
+    if (isLoginData !== 'true') {
+      RootNavigation.navigate('Login');
     }
   }
 
@@ -271,11 +280,6 @@ const App = (props) => {
     }
 
   }, []);
-  if (!isLogin) {
-    return (
-      <AccountNavigation />
-    );
-  }
 
   return (
     <AppNavigation />

@@ -3,19 +3,10 @@ import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@mi
 import storeData from '../hooks/storeData';
 
 
-// let hub = new HubConnectionBuilder().withUrl(https_url, {
-//     accessTokenFactory: () => {
-//         storeData.getStoreDataValue('TokenSip').then((TokenSip) => {
-//             return TokenSip
-//         })
-//     }
-// }).build();
-
 let hub = new HubConnectionBuilder()
     .withUrl(https_url)
     .configureLogging(LogLevel.Information)
     .build();
-
 
 function connectServer() {
     console.log('client call Join to Server');
@@ -23,15 +14,17 @@ function connectServer() {
         hub
             .start()
             .then(() => {
-                console.log('start sip');
-                try {
-                    hub.invoke('Join',
-                        '637',
-                        'lachong'
-                    ).catch();
-                } catch (error) {
-                    console.log('Hub Error: ', error);
-                }
+                storeData.getStoreDataObject('sip_user').then((sipUser) => {
+                    console.log('start sip', sipUser);
+                    try {
+                        hub.invoke('Join',
+                            sipUser.user,
+                            sipUser.mact
+                        ).catch();
+                    } catch (error) {
+                        console.log('Hub Error: ', error);
+                    }
+                });
 
             })
             .catch((err) => {
@@ -46,17 +39,17 @@ function connectServer() {
 function reconnectServer() {
     console.log('client call ReJoin to Server');
     try {
-        var sipUser = JSON.parse(json);
-        console.log('sip_user: ', sipUser);
-        try {
-            hub.invoke('Join',
-                '637',
-                'lachong'
-            ).catch();
-        } catch (error) {
-            console.log('Hub Error: ', error);
-        }
-
+        storeData.getStoreDataObject('sip_user').then((sipUser) => {
+            console.log('sip_user: ', sipUser);
+            try {
+                hub.invoke('ReJoin',
+                    sipUser.user,
+                    sipUser.mact
+                ).catch();
+            } catch (error) {
+                console.log('Hub Error: ', error);
+            }
+        });
 
     } catch (ex) {
         console.log(ex);
@@ -64,6 +57,40 @@ function reconnectServer() {
 }
 
 function getHub() {
+    if (hub.state === HubConnectionState.Disconnected) {
+        hub.start().then(() => {
+            connectServer();
+            hub.off('Registered');
+            hub.on('Registered', (number, id) => {
+                console.log('server call Registered: (number, id)', number, id);
+                try {
+                    conn.invoke("ConfirmEvent", "Registered");
+                } catch (error) {
+                    console.log('Error ConfirmEvent SignalR_Registered', error);
+                }
+                storeData.setStoreDataValue('Registered', JSON.stringify(true))
+                storeData.setStoreDataValue('MainID', JSON.stringify(id))
+            });
+
+        });
+
+    }
+    else {
+        reconnectServer();
+
+        hub.off('Registered');
+        hub.on('Registered', (number, id) => {
+            console.log('server call Registered: (number, id)', number, id);
+            try {
+                conn.invoke("ConfirmEvent", "Registered");
+            } catch (error) {
+                console.log('Error ConfirmEvent SignalR_Registered', error);
+            }
+            storeData.setStoreDataValue('Registered', JSON.stringify(true))
+            storeData.setStoreDataValue('MainID', JSON.stringify(id))
+        });
+
+    }
     return hub
 }
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Platform, View, SafeAreaView, StyleSheet, Text, Button } from 'react-native';
-import { Input } from 'react-native-elements';
+import { Platform, View, SafeAreaView, StyleSheet, Text } from 'react-native';
+import { Input, Button } from 'react-native-elements';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import messaging from "@react-native-firebase/messaging";
 import DeviceInfo from 'react-native-device-info';
@@ -53,7 +53,7 @@ function Login({ navigation }) {
                     console.log('sipUser', decodedUser);
                     decodedUser.idct = String(json.data.data.idct)
                     decodedUser.mact = maCongTy
-                    storeData.setStoreDataObject('sip_user', JSON.stringify(decodedUser));
+                    storeData.setStoreDataObject('sip_user', decodedUser);
                     console.log('Idnhanvien', json.data.data.idnhanvien);
                     storeData.setStoreDataValue('tennhanvien', json.data.data.tennhanvien);
                     storeData.setStoreDataValue('somayle', json.data.data.somayle);
@@ -64,7 +64,7 @@ function Login({ navigation }) {
                     // storeData.setStoreDataValue('isCheck', JSON.stringify(this.state.remember));
                     storeData.setStoreDataValue('quyenGoiRa', String(json.data.data.ChoPhepGoiRa));
                     storeData.setStoreDataValue('Prefix', json.data.data.Prefix);
-                    storeData.setStoreDataValue('isLogin', JSON.stringify(true));
+                    storeData.setStoreDataValue('isLogin', true);
                     // DefaultPreference.set('Prefix', JSON.stringify({ data: json.data.data.Prefix })).then((value) => { console.log("DefaultPreference Contacts: ", value) })
                     AppApi.RequestGET("https://signaltest.ksmart.vn/api/Token/" + json.data.data.somayle, "", (err, json) => {
                         if (!err) {
