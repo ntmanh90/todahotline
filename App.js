@@ -21,7 +21,17 @@ var conn = getHub();
 
 BackgroundTimer.start();
 
-
+const configuration = {
+  iceServers: [
+    { url: 'stun:stun.voipbuster.com' },
+    { url: 'stun:42.112.31.62:3478' },
+    {
+      url: 'turn:42.112.31.62:3478',
+      username: 'lachong',
+      credential: 'axy@789',
+    },
+  ],
+};
 var Januscandidates = new Array();
 const webrtcConstraints = { audio: true, video: false };
 
