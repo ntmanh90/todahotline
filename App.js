@@ -12,25 +12,18 @@ import AppNavigation from './app/navigation/AppNavigation';
 import * as RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
-import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { getHub, connectServer, reconnectServer } from './app/hubmanager/HubManager';
-
-const getNewUuid = () => uuid.v4().toLowerCase();
-
-const format = uuid => uuid.split('-')[0];
-
-const isIOS = Platform.OS === 'ios';
+import logSignalR from './app/utils/customLogSignalR';
+import keyStoreData from './app/utils/keyStoreData';
+import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
+import { getHub } from './app/hubmanager/HubManager';
 
 var conn = getHub();
 
-conn.on('Ping', () => {
-  //console.log('Ping server goi ve');
-  // try {
-  //   conn.invoke("ConfirmPing", "Reconnect");
-  // } catch (error) {
-  //   console.log('Error ConfirmEvent SignalR_Ping', error);
-  // }
-})
+BackgroundTimer.start();
+
+
+var Januscandidates = new Array();
+const webrtcConstraints = { audio: true, video: false };
 
 RNCallKeep.setup({
   ios: {
@@ -45,11 +38,30 @@ RNCallKeep.setup({
 });
 RNCallKeep.backToForeground();
 
+const getNewUuid = () => uuid.v4().toLowerCase();
+
+const format = uuid => uuid.split('-')[0];
+
+const isIOS = Platform.OS === 'ios';
+var connectionRTC = null;
+
 const App = (props) => {
   const [logText, setLog] = useState('');
   const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
   const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
   const [calls, setCalls] = useState({}); // callKeep uuid: number
+  const [callUUIDHienTai, setCallUUIDHienTai] = useState();
+  //const [connectionRTC, setConnectionRTC] = useState();
+
+  const resetState = () => {
+    setCalls({});
+    setLog('');
+    setHeldCalls({});
+    setMutedCalls({});
+    setCallUUIDHienTai('');
+    connectionRTC = null;
+    //setConnectionRTC(null);
+  }
 
   const log = (text) => {
     console.info(text);
@@ -80,29 +92,26 @@ const App = (props) => {
   const displayIncomingCall = async () => {
     console.log('da gọi vào hàm hiển thị cuoc goi');
     const callUUID = getNewUuid();
-    console.log('callUUID', callUUID);
-    console.log('callUUID', callUUID);
+    setCallUUIDHienTai(callUUID);
     const number = await storeData.getStoreDataValue('soDienThoai');
-    console.log('number', number);
     addCall(callUUID, number);
 
     log(`[displayIncomingCall] ${format(callUUID)}, number: ${number}`);
-
     RNCallKeep.displayIncomingCall(callUUID, number, number, 'number', false);
   };
 
   const answerCall = async ({ callUUID }) => {
-
     const number = calls[callUUID];
-    console.log('calls', calls);
     log(`[answerCall] ${format(callUUID)}, number: ${number}`);
-
+    let signalData = await storeData.getStoreDataObject(keyStoreData.signalWebRTC);
+    let callid = await storeData.getStoreDataValue(keyStoreData.callid);
+    let SessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+    incomingcall(new RTCSessionDescription(signalData.sdp), SessionCallId);
     RNCallKeep.startCall(callUUID, number, number);
-
     BackgroundTimer.setTimeout(() => {
       log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
       RNCallKeep.setCurrentCallActive(callUUID);
-    }, 1000);
+    }, 500);
   };
 
   const didPerformDTMFAction = ({ callUUID, digits }) => {
@@ -142,16 +151,23 @@ const App = (props) => {
     setCallHeld(callUUID, hold);
   };
 
-  const endCall = ({ callUUID }) => {
+  const endCall = async ({ callUUID }) => {
+    console.log('endCall');
     const handle = calls[callUUID];
     log(`[endCall] ${format(callUUID)}, number: ${handle}`);
-
+    let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+    conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).catch();
     removeCall(callUUID);
+    resetState();
   };
 
-  const hangup = (callUUID) => {
+  const hangup = async (callUUID) => {
+    console.log('Từ trối cuộc gọi');
+    let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+    conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).catch();
     RNCallKeep.endCall(callUUID);
     removeCall(callUUID);
+    resetState();
   };
 
   const setOnHold = (callUUID, held) => {
@@ -202,12 +218,95 @@ const App = (props) => {
     }
   }
 
-  /// Xử lý kết nối signalR /// 
+  //Handle WebRTC
+  const callbackIceCandidateJanus = (evt, callid) => {
+    if (evt.candidate) {
+      //Found a new candidate
+      Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
+      console.log('Januscandidates', Januscandidates);
+    } else {
+      try {
+        logSignalR.clientCallServer('SendCandidate');
+        console.log('callid', callid);
+        conn.invoke('SendCandidate', Januscandidates, callid);
+      } catch (error) {
+        console.log('Call server Error callbackIceCandidateJanus Error: ', error);
+      }
+      Januscandidates = new Array();
+    }
+  };
 
+  const callbackIceCandidateJanusError = (err) => {
+    if (err) {
+      console.log(err);
+    }
+  };
+
+  const incomingcall = async (sdp, callid) => {
+    let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+    let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+    var connection = new RTCPeerConnection(configuration);
+    connection.onicecandidate = (evt) =>
+      callbackIceCandidateJanus(evt, callid); // ICE Candidate Callback
+    connection.onicecandidateerror = (error) =>
+      callbackIceCandidateJanusError(error);
+    connection.addStream(stream);
+    connection.setRemoteDescription(sdp).then(() => {
+      try {
+        console.log('connectionRTC', connectionRTC);
+        connection.createAnswer().then((jsep) => {
+          connection.setLocalDescription(jsep).then(() => {
+            try {
+              logSignalR.clientCallServer('AnswerCallAsterisk')
+              conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCallId);
+            } catch (error) {
+              console.log('AnswerCallAsterisk Error call out', error);
+            }
+          });
+        });
+
+      }
+      catch (error) {
+        logSignalR.clientCallServerError('AnswerCallAsterisk', error);
+      }
+    })
+
+
+    //setConnectionRTC(connection);
+    //connectionRTC = connection;
+
+  }
+
+  //End handle WebRTC
+
+  /// Xử lý kết nối signalR /// 
+  conn.off('Ping');
+  conn.on('Ping', () => { });
+
+  conn.off('IncomingCallAsterisk')
+  conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
+    logSignalR.serverCallClient('IncomingCallAsterisk');
+    storeData.setStoreDataValue(keyStoreData.soDienThoai, number);
+    var signal = JSON.parse(data);
+    storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
+    storeData.setStoreDataValue(keyStoreData.callid, callid);
+    BackgroundTimer.setTimeout(() => {
+      displayIncomingCall();
+    }, 1000);
+  });
+
+  conn.off('callEnded')
+  conn.on('callEnded', (callid, code, reason, id) => {
+    logSignalR.serverCallClient('callEnded');
+    console.log('callUUIDHienTai', callUUIDHienTai);
+    resetState();
+    RNCallKeep.endCall(callUUIDHienTai);
+  });
 
   /// Kết thúc xử lý kết nối signalR ////
 
   useEffect(() => {
+    //RNCallKeep.endAllCalls();
     checkLogin();
     requestUserPermission();
 
