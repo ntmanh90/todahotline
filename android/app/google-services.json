@@ -1,34 +1,202 @@
 {
   "project_info": {
-    "project_number": "670520182043",
-    "project_id": "toda-hotline-79698",
-    "storage_bucket": "toda-hotline-79698.appspot.com"
+    "project_number": "377831802375",
+    "firebase_url": "https://toda-hotline.firebaseio.com",
+    "project_id": "toda-hotline",
+    "storage_bucket": "toda-hotline.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:670520182043:android:5b2f4e287811ef5cd67fbe",
+        "mobilesdk_app_id": "1:377831802375:android:57c9d778d6913bb1",
         "android_client_info": {
           "package_name": "com.todahotline"
         }
       },
       "oauth_client": [
         {
-          "client_id": "670520182043-n0pl3vge3a5oql7usrbsfpjr7lf1u268.apps.googleusercontent.com",
+          "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyCrg6yEtho-O0wXS5OIbxEvshMYyXo3BV0"
+          "current_key": "AIzaSyAdY518XB1K2QED6FdGPhlia9KHxOc930g"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "670520182043-n0pl3vge3a5oql7usrbsfpjr7lf1u268.apps.googleusercontent.com",
+              "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "377831802375-paee33f7d86vftt9h7eng4jst6gdb01i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.LH.SipSoftPhone-Toda-Swift"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377831802375:android:7c637b9b405a90a927cca2",
+        "android_client_info": {
+          "package_name": "com.todaphone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdY518XB1K2QED6FdGPhlia9KHxOc930g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "377831802375-paee33f7d86vftt9h7eng4jst6gdb01i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.LH.SipSoftPhone-Toda-Swift"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377831802375:android:336eeed56c0ae167",
+        "android_client_info": {
+          "package_name": "vn.lachong.todaphone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377831802375-q0mcv691q2cldgn6gecbbmgounbm2b6d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.lachong.todaphone",
+            "certificate_hash": "29cad4295879e4fcfa0d6507f8ee0886b101aab7"
+          }
+        },
+        {
+          "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdY518XB1K2QED6FdGPhlia9KHxOc930g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "377831802375-paee33f7d86vftt9h7eng4jst6gdb01i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.LH.SipSoftPhone-Toda-Swift"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377831802375:android:b8efb180ac893ee9",
+        "android_client_info": {
+          "package_name": "vn.lachong.todaphone.debug"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377831802375-mmnamtjepn0ijue7p8ehpvth5smdgdqi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.lachong.todaphone.debug",
+            "certificate_hash": "29cad4295879e4fcfa0d6507f8ee0886b101aab7"
+          }
+        },
+        {
+          "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdY518XB1K2QED6FdGPhlia9KHxOc930g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "377831802375-paee33f7d86vftt9h7eng4jst6gdb01i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.LH.SipSoftPhone-Toda-Swift"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377831802375:android:ccc9721ca069a9ba",
+        "android_client_info": {
+          "package_name": "vn.lachongmedia.toda"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdY518XB1K2QED6FdGPhlia9KHxOc930g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377831802375-rhf18o4g3vvc7pnukl624duv9che35lb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "377831802375-paee33f7d86vftt9h7eng4jst6gdb01i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.LH.SipSoftPhone-Toda-Swift"
+              }
             }
           ]
         }

@@ -1,4 +1,8 @@
 export default {
+    tenct: 'tenct',
+    UserName: 'UserName',
+    PassWord: 'PassWord',
+    urlApi: 'urlApi',
     soDienThoai: 'soDienThoai',
     sip_user: 'sip_user',
     tennhanvien: 'tennhanvien',
@@ -12,4 +16,8 @@ export default {
     idct: 'idct',
     quyenGoiRa: 'quyenGoiRa',
     Prefix: 'Prefix',
+    IncomingSignalData: 'IncomingSignalData',
+    callid: 'callid',
+    signalWebRTC: 'signalWebRTC',
+    isAnswerCall: 'isAnswerCall',
 }

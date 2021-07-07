@@ -7,7 +7,10 @@ import { getHub } from '../hubmanager/HubManager';
 import deviceInfoModule from 'react-native-device-info';
 import AppApi from '../api/Client';
 
+var conn = getHub();
+
 const removeDataLogin = () => {
+
     console.log('gọi hàm removeDataLogin');
     storeData.setStoreDataObject('sip_user', {});
     storeData.setStoreDataValue('tennhanvien', '');
@@ -50,6 +53,8 @@ export default useLogout = () => {
             console.log('json', responce);
             if (responce.status) {
                 setError(false);
+                conn.invoke('SignOut').catch();
+                conn.stop();
                 removeDataLogin();
                 // RNCallKeep.endAllCalls();
                 // conn.invoke('SignOut', somayle).catch();

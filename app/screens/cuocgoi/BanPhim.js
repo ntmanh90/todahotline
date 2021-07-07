@@ -1,15 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import storeData from '../../hooks/storeData';
 import { Input, Button } from 'react-native-elements';
-import { getHub } from '../../hubmanager/HubManager';
+import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
 import useLogout from '../../hooks/useLogout';
 import * as RootNavigation from '../../navigation/RootNavigation';
+import keyStoreData from '../../utils/keyStoreData';
 
-var conn = getHub();
+var conn = getHubAndReconnect();
 
 function BanPhim({ navigation }) {
+    const [soDienThoai, setSoDienThoai] = useState('');
+    const [sdt, setSdt] = useState('');
     const useLogoutHook = useLogout();
 
     const handleLogout = () => {
@@ -18,15 +21,37 @@ function BanPhim({ navigation }) {
         });
     }
 
-    useEffect(() => {
-        //connectServer();
-    }, [])
+    const getSDT = async () => {
+        let sip_user = await storeData.getStoreDataObject(keyStoreData.sip_user);
+        console.log(sip_user);
+        setSdt(sip_user.user);
+    }
+
+    const cuocGoiDi = () => {
+        if (soDienThoai.length < 3) {
+            alert('Số điện thoại không đúng định dạng');
+        }
+        else {
+            storeData.setStoreDataValue(keyStoreData.soDienThoai, soDienThoai);
+            navigation.navigate('CuocGoiDi', { soDienThoai: soDienThoai, hoTen: soDienThoai });
+        }
+    }
+
+    React.useEffect(() => {
+        conn = getHubAndReconnect();
+        const unsubscribe = navigation.addListener('focus', () => {
+            getSDT();
+        });
+
+        return unsubscribe;
+    }, [navigation]);
+
     return (
         <View style={styles.container}>
-
+            <Text>Số của bạn: {sdt}</Text>
             <Text>Số điện thoại</Text>
             <Input
-                onChangeText={(value) => setMaCongTy(value)}
+                onChangeText={(value) => setSoDienThoai(value)}
                 placeholder='Nhập số gọi ra'
                 leftIcon={
                     <Icon
@@ -36,7 +61,7 @@ function BanPhim({ navigation }) {
                     />
                 }
             />
-            <Button title='Call' />
+            <Button onPress={cuocGoiDi} title='Call' />
             <View style={{ marginTop: 40 }}>
                 <Button onPress={handleLogout} title='Đăng xuất' />
             </View>

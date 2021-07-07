@@ -1,11 +1,12 @@
 import { hubUrl, local_hubUrl, https_url } from './SignalConfig';
 import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import storeData from '../hooks/storeData';
+import LogSignalR from '../utils/customLogSignalR';
 
 
 let hub = new HubConnectionBuilder()
     .withUrl(https_url)
-    .configureLogging(LogLevel.Information)
+    //.configureLogging(LogLevel.Information)
     .build();
 
 function connectServer() {
@@ -20,6 +21,7 @@ function connectServer() {
                 ).catch();
             } catch (error) {
                 console.log('Hub Error: ', error);
+                LogSignalR.clientCallServerError('Join', error);
             }
         });
     } catch (ex) {
@@ -39,6 +41,7 @@ function reconnectServer() {
                 ).catch();
             } catch (error) {
                 console.log('Hub Error: ', error);
+                LogSignalR.clientCallServerError('Join', error);
             }
         });
 
@@ -48,41 +51,27 @@ function reconnectServer() {
 }
 
 function getHub() {
+    return hub
+}
+
+function getHubAndReconnect() {
     if (hub.state === HubConnectionState.Disconnected) {
         hub.start().then(() => {
-            connectServer();
+            reconnectServer();
             hub.off('Registered');
             hub.on('Registered', (number, id) => {
-                console.log('server call Registered: (number, id)', number, id);
+                LogSignalR.serverCallClient('Registered');
                 try {
                     hub.invoke("ConfirmEvent", "Registered");
                 } catch (error) {
-                    console.log('Error ConfirmEvent SignalR_Registered', error);
+                    LogSignalR.clientCallServerError('Registered', error)
                 }
-                storeData.setStoreDataValue('Registered', JSON.stringify(true))
-                storeData.setStoreDataValue('SessionCallId', JSON.stringify(id))
+                storeData.setStoreDataValue('Registered', true)
+                storeData.setStoreDataValue('SessionCallId', id)
             });
-
         });
-
-    }
-    else {
-        reconnectServer();
-
-        hub.off('Registered');
-        hub.on('Registered', (number, id) => {
-            console.log('server call Registered: (number, id)', number, id);
-            try {
-                hub.invoke("ConfirmEvent", "Registered");
-            } catch (error) {
-                console.log('Error ConfirmEvent SignalR_Registered', error);
-            }
-            storeData.setStoreDataValue('Registered', JSON.stringify(true))
-            storeData.setStoreDataValue('SessionCallId', JSON.stringify(id))
-        });
-
     }
     return hub
 }
 
-export { getHub, connectServer, reconnectServer }
+export { getHub, connectServer, reconnectServer, getHubAndReconnect }

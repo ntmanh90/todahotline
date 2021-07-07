@@ -18,7 +18,7 @@ var Januscandidates = new Array();
 
 const webrtcConstraints = { audio: true, video: false };
 
-callbackIceCandidateJanus = (evt, conn, callid) => {
+const callbackIceCandidateJanus = (evt, conn, callid) => {
     if (evt.candidate) {
         //Found a new candidate
         Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
@@ -34,44 +34,41 @@ callbackIceCandidateJanus = (evt, conn, callid) => {
     }
 };
 
-callbackIceCandidateJanusState = (evt) => {
+const callbackIceCandidateJanusState = (evt) => {
     if (evt) {
         //Found a new candidate
         console.log(evt);
     }
 };
-callbackIceCandidateJanusError = (err) => {
+const callbackIceCandidateJanusError = (err) => {
     if (err) {
         console.log(err);
     }
 };
 
-const outgoingCall = (conn, number, sessionId) => {
-    mediaDevices.getUserMedia(webrtcConstraints)
-        .then((stream) => {
-            var connection = new RTCPeerConnection(configuration);
-            connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, conn, sessionId); // ICE Candidate Callback
-            connection.onicecandidateerror = (error) => callbackIceCandidateJanusError(error);
-            connection.oniceconnectionstatechange = (evt) => callbackIceCandidateJanusState(evt);
-            connection.addStream(stream);
-            connection.createOffer().then((offer) => {
-                connection.setLocalDescription(offer)
-                    .then(() => {
-                        console.log(offer);
-                        try {
-                            conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionId);
-                        } catch (error) {
-                            console.log('CallAsterisk Error call out', error);
-                        }
-                    })
-                    .catch();
-            }).catch();
+const outgoingCall = async (conn, number, sessionCallId, callback) => {
+    console.log('param', conn, number, sessionCallId);
+    let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+    var connection = new RTCPeerConnection(configuration);
 
-            // initiateSDP(route.params.phoneNumber, stream);
+    connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, conn, sessionCallId); // ICE Candidate Callback
+    connection.onicecandidateerror = (error) => callbackIceCandidateJanusError(error);
+    connection.oniceconnectionstatechange = (evt) => callbackIceCandidateJanusState(evt);
+    connection.addStream(stream);
+    let offer = await connection.createOffer();
+    connection.setLocalDescription(offer)
+        .then(() => {
+            try {
+                conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCallId);
+                callback(connection, stream);
+            } catch (error) {
+                console.log('CallAsterisk Error call out', error);
+            }
         })
-        .catch(function (error) {
-            console.log('Stream error: ' + error);
-        });
+        .catch(error)
+    {
+        console.log('CallAsterisk Error setLocalDescription', error);
+    }
 }
 
 const incomingcall = (conn, sdp, callid, callback) => {
@@ -89,21 +86,21 @@ const incomingcall = (conn, sdp, callid, callback) => {
                     connection.setLocalDescription(jsep).then(() => {
                         try {
                             conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, callid).catch();
+                            callback(connection, stream);
                         } catch (error) {
                             console.log('AnswerCallAsterisk Error call out', error);
                         }
-                        callback(connection, 2, stream)
-
                     });
                 });
             });
+
         })
         .catch(function (error) {
             console.log('Stream error: ' + error.message);
         });
 }
 
-const updatecall = (conn, sdp, callid, session_id, callback) => {
+const updatecall = (conn, sdp, callid, sessionId, callback) => {
     console.log("updatecall sdp1: ", sdp)
     mediaDevices.getUserMedia(webrtcConstraints)
         .then((stream) => {
@@ -121,7 +118,7 @@ const updatecall = (conn, sdp, callid, session_id, callback) => {
                 connection.setLocalDescription(offer).then(() => {
 
                     console.log("updatecall sdp2: ", connection.localDescription.sdp)
-                    conn.invoke('UpdateOffer', connection.localDescription.sdp, session_id).catch();
+                    conn.invoke('UpdateOffer', connection.localDescription.sdp, sessionId).catch();
                     callback(connection, 2, stream)
 
                 });

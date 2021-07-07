@@ -9,7 +9,10 @@ import md5 from 'md5';
 import jwt_decode from 'jwt-decode';
 import storeData from '../../hooks/storeData';
 import AppApi from '../../api/Client';
+import { getHub, connectServer } from '../../hubmanager/HubManager';
+import BackgroundTimer from 'react-native-background-timer';
 
+BackgroundTimer.start();
 
 function Login({ navigation }) {
     const [maCongTy, setMaCongTy] = useState('');
@@ -17,7 +20,12 @@ function Login({ navigation }) {
     const [matKhau, setMatKhau] = useState('');
 
     const handleLogin = async () => {
+        storeData.setStoreDataValue('tenct', maCongTy);
+        storeData.setStoreDataValue('UserName', tenDangNhap);
+        storeData.setStoreDataValue('PassWord', matKhau);
+
         let idpush = await messaging().getToken();
+        console.log('idpush', idpush);
         let idpushkit = ''
         if (Platform.OS == 'ios') {
             idpushkit = await storeData.getStoreDataValue('tokenPuskit') ?? '';
@@ -71,6 +79,10 @@ function Login({ navigation }) {
                             console.log("Token: ", json)
                         }
                     })
+                    BackgroundTimer.setTimeout(() => {
+                        connectServer()
+                    }, 300);
+                    connectServer();
 
                     navigation.navigate('BanPhim');
 
