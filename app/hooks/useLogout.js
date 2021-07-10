@@ -52,6 +52,7 @@ export default useLogout = () => {
         }).then((responce) => {
             console.log('json', responce);
             if (responce.status) {
+                console.log('đã gửi api logout thành công');
                 setError(false);
                 conn.invoke('SignOut').catch();
                 conn.stop();

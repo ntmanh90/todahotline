@@ -15,6 +15,8 @@ import logSignalR from './app/utils/customLogSignalR';
 import keyStoreData from './app/utils/keyStoreData';
 import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
 import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
+import logData from './app/utils/logData';
+import useCheckPermistion from './app/hooks/useCheckPermistion';
 
 var conn = getHubAndReconnect();
 
@@ -44,7 +46,7 @@ RNCallKeep.setup({
     cancelButton: 'Cancel',
     okButton: 'ok',
     //Add bổ xung giống bản của mr khánh
-    additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
+    //additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
     foregroundService: {
       channelId: 'com.lachong.toda',
       channelName: 'Foreground service for my app',
@@ -73,6 +75,7 @@ const App = (props) => {
   const [calls, setCalls] = useState({}); // callKeep uuid: number
   const [callUUIDHienTai, setCallUUIDHienTai] = useState();
 
+  const check_Permission = useCheckPermistion();
   const resetState = () => {
     setCalls({});
     setLog('');
@@ -108,12 +111,19 @@ const App = (props) => {
   };
 
   const displayIncomingCall = async () => {
+    await check_Permission.checkAllPermissions();
+    await check_Permission.requestReadPhoneStatePermission();
+    if (!check_Permission.checkPermissions) {
+      alert('Chưa cấp đủ quyền cho ứng dụng');
+      RootNavigation.navigate('BanPhim');
+    }
     conn = getHubAndReconnect();
-
+    logData.writeLogData('Đã hiển thị màn hình cuộc gọi: displayIncomingCall');
     console.log('da gọi vào hàm hiển thị cuoc goi');
     const callUUID = getNewUuid();
     setCallUUIDHienTai(callUUID);
     const number = await storeData.getStoreDataValue('soDienThoai');
+    console.log('soDienThoai incoming call', number);
     addCall(callUUID, number);
 
     log(`[displayIncomingCall] ${format(callUUID)}, number: ${number}`);
@@ -148,13 +158,13 @@ const App = (props) => {
     addCall(callUUID, handle);
 
     log(`[didReceiveStartCallAction] ${callUUID}, number: ${handle}`);
+    RootNavigation.navigate('CuocGoiDi', { soDienThoai: handle, hoTen: handle })
+    // RNCallKeep.startCall(callUUID, handle, handle);
 
-    RNCallKeep.startCall(callUUID, handle, handle);
-
-    BackgroundTimer.setTimeout(() => {
-      log(`[setCurrentCallActive] ${format(callUUID)}, number: ${handle}`);
-      RNCallKeep.setCurrentCallActive(callUUID);
-    }, 1000);
+    // BackgroundTimer.setTimeout(() => {
+    //   log(`[setCurrentCallActive] ${format(callUUID)}, number: ${handle}`);
+    //   RNCallKeep.setCurrentCallActive(callUUID);
+    // }, 1000);
   };
 
   const didPerformSetMutedCallAction = ({ muted, callUUID }) => {
@@ -179,10 +189,14 @@ const App = (props) => {
     let isAnswerCall = await storeData.getStoreDataValue(keyStoreData.isAnswerCall);
     console.log('isAnswerCall', isAnswerCall);
     if (isAnswerCall === 'true')
-      conn.invoke('hangUp', sessionCallId).catch((error) => console.log(error));
+      conn.invoke('hangUp', sessionCallId).then(() => {
+        logData.writeLogData('Invoke: hangUp | App');
+      }).catch((error) => console.log(error));
     else {
       console.log('AnswerCallAsterisk App');
-      conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).catch();
+      conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).then(() => {
+        logData.writeLogData('endCall -> Invoke: AnswerCallAsterisk | App: false từ chối cuộc gọi.');
+      }).catch();
     }
 
     RNCallKeep.endCall(callUUID);
@@ -196,7 +210,9 @@ const App = (props) => {
 
     RNCallKeep.endCall(callUUID);
     let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-    conn.invoke('hangUp', sessionCallId).catch((error) => console.log(error));
+    conn.invoke('hangUp', sessionCallId).then(() => {
+      logData.writeLogData('hangup -> invoke: hangup | App ');
+    }).catch((error) => console.log(error));
     removeCall(callUUID);
     resetState();
   };
@@ -229,6 +245,9 @@ const App = (props) => {
     log(`[updateDisplay: ${number}] ${format(callUUID)}`);
   };
 
+
+
+
   const requestUserPermission = async () => {
     const authStatus = await messaging().requestPermission();
     const enabled =
@@ -260,7 +279,9 @@ const App = (props) => {
       try {
         logSignalR.clientCallServer('SendCandidate');
         console.log('callid', callid);
-        conn.invoke('SendCandidate', Januscandidates, callid);
+        conn.invoke('SendCandidate', Januscandidates, callid).then(() => {
+          logData.writeLogData('invoke: SendCandidate | App ');
+        });
       } catch (error) {
         console.log('Call server Error callbackIceCandidateJanus Error: ', error);
       }
@@ -291,7 +312,9 @@ const App = (props) => {
           connection.setLocalDescription(jsep).then(() => {
             try {
               logSignalR.clientCallServer('AnswerCallAsterisk')
-              conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall);
+              conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
+                logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi');
+              });
             } catch (error) {
               console.log('AnswerCallAsterisk Error call out', error);
             }
@@ -319,8 +342,16 @@ const App = (props) => {
 
   conn.off('IncomingCallAsterisk')
   conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
+    logData.writeLogData('Cuộc gọi đến IncomingCallAsterisk | App');
     logSignalR.serverCallClient('IncomingCallAsterisk');
-    storeData.setStoreDataValue(keyStoreData.soDienThoai, number);
+    let sdt_incoming = number;
+    storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
+      console.log('prefix: ', prefix);
+      sdt_incoming = number.replace(prefix, "");
+      console.log('sdt_incoming: ', sdt_incoming);
+      storeData.setStoreDataValue(keyStoreData.soDienThoai, sdt_incoming);
+    });
+
     var signal = JSON.parse(data);
     storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
     storeData.setStoreDataValue(keyStoreData.callid, callid);
@@ -329,6 +360,7 @@ const App = (props) => {
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
+    logData.writeLogData('server call client event: callEnded | App');
     logSignalR.serverCallClient('callEnded');
     console.log('callUUIDHienTai', callUUIDHienTai);
     resetState();
@@ -337,13 +369,14 @@ const App = (props) => {
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
+    logData.writeLogData('server call client event: MissedCall | App');
     console.log('bạn có cuộc gọi nhỡ: ', number, name);
   });
-
 
   /// Kết thúc xử lý kết nối signalR ////
   useEffect(() => {
     //RNCallKeep.endAllCalls();
+
     checkLogin();
     requestUserPermission();
 

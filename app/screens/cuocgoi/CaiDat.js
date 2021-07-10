@@ -1,10 +1,28 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Button } from 'react-native';
+import useLogout from '../../hooks/useLogout';
+import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
 
-function CaiDat(props) {
+var conn = getHubAndReconnect();
+
+function CaiDat({ navigation }) {
+    const useLogoutHook = useLogout();
+
+    const handleLogout = () => {
+        useLogoutHook.logOut().then(() => {
+            console.log('đã xử lý xong vấn đề logout');
+            navigation.navigate('Login');
+        });
+    }
+
     return (
         <View style={styles.container}>
-            <Text>Cài đặt</Text>
+            <View style={{ marginTop: 40 }}>
+                <Button onPress={handleLogout} title='Đăng xuất' />
+            </View>
+            <View style={{ marginTop: 40 }}>
+                <Button onPress={() => navigation.navigate('LogScreen')} title='Show Log' />
+            </View>
         </View>
     );
 }

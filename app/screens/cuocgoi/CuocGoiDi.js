@@ -7,10 +7,12 @@ import DeviceInfo from 'react-native-device-info';
 import storeData from '../../hooks/storeData';
 import keyStoreData from '../../utils/keyStoreData';
 import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
-import { getHub } from '../../hubmanager/HubManager';
+import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
 import logSignalR from '../../utils/customLogSignalR';
+import logData from '../../utils/logData';
+import useCheckPermistion from '../../hooks/useCheckPermistion';
 
-var conn = getHub();
+var conn = getHubAndReconnect();
 
 BackgroundTimer.start();
 const configuration = {
@@ -95,6 +97,8 @@ export default function DienThoai({ navigation, route }) {
     const [callUUIDHienTai, setCallUUIDHienTai] = useState();
     const [connectionRTC, setConnectionRTC] = useState(null);
 
+    const check_Permission = useCheckPermistion();
+
     const { soDienThoai } = route.params ?? '';
     const { hoTen } = route.params;
     console.log(route.params);
@@ -136,6 +140,13 @@ export default function DienThoai({ navigation, route }) {
     };
 
     const startCall = async () => {
+        await check_Permission.checkAllPermissions();
+        await check_Permission.requestReadPhoneStatePermission();
+        if (!check_Permission.checkPermissions) {
+            alert('Chưa cấp đủ quyền cho ứng dụng');
+            navigation.navigate('BanPhim');
+        }
+        conn = getHubAndReconnect();
         const callUUID = getNewUuid();
         let number = await storeData.getStoreDataValue(keyStoreData.soDienThoai)
         setCallUUIDHienTai(callUUID);
@@ -205,7 +216,9 @@ export default function DienThoai({ navigation, route }) {
         const handle = calls[callUUID];
         log(`[endCall] ${format(callUUID)}, number: ${handle}`);
         let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        conn.invoke('hangUp', sessionCallId).catch((error) => console.log(error));
+        conn.invoke('hangUp', sessionCallId).then(() => {
+            logData.writeLogData('invoke: hangUp');
+        }).catch((error) => console.log(error));
         removeCall(callUUID);
         resetState();
     };
@@ -213,7 +226,9 @@ export default function DienThoai({ navigation, route }) {
     const hangup = async (callUUID) => {
         RNCallKeep.endCall(callUUID);
         let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        conn.invoke('hangUp', sessionCallId).catch((error) => console.log(error));
+        conn.invoke('hangUp', sessionCallId).then(() => {
+            logData.writeLogData('invoke: hangUp');
+        }).catch((error) => console.log(error));
         removeCall(callUUID);
         resetState();
     };
@@ -255,7 +270,9 @@ export default function DienThoai({ navigation, route }) {
         } else {
             try {
                 logSignalR.clientCallServer('SendCandidate');
-                conn.invoke('SendCandidate', Januscandidates, callid);
+                conn.invoke('SendCandidate', Januscandidates, callid).then(() => {
+                    logData.writeLogData('invoke: SendCandidate ')
+                });
             } catch (error) {
                 console.log('Call server Error callbackIceCandidateJanus Error: ', error);
             }
@@ -288,7 +305,9 @@ export default function DienThoai({ navigation, route }) {
         connection.setLocalDescription(offer)
             .then(() => {
                 try {
-                    conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCall);
+                    conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCall).then(() => {
+                        logData.writeLogData('invoke: CallAsterisk ');
+                    });
                     setConnectionRTC(connection);
                 } catch (error) {
                     console.log('CallAsterisk Error call out', error);
@@ -318,6 +337,7 @@ export default function DienThoai({ navigation, route }) {
     conn.off('Calling')
     conn.on("Calling", (callid, msg, id) => {
         logSignalR.serverCallClient('Calling');
+        logData.writeLogData('server call client: Calling ');
         try {
             conn.invoke("ConfirmEvent", "Calling");
         } catch (error) {
@@ -330,6 +350,7 @@ export default function DienThoai({ navigation, route }) {
     conn.off('receiveSignal')
     conn.on('receiveSignal', (signal, id) => {
         logSignalR.serverCallClient('receiveSignal');
+        logData.writeLogData('server call client: receiveSignal ');
         try {
             conn.invoke("ConfirmEvent", "receiveSignal");
 
@@ -343,6 +364,7 @@ export default function DienThoai({ navigation, route }) {
     conn.off('Ringing')
     conn.on('Ringing', (id) => {
         logSignalR.serverCallClient('Ringing');
+        logData.writeLogData('server call client: Ringing');
         try {
             conn.invoke("ConfirmEvent", "Ringing");
 
@@ -354,7 +376,7 @@ export default function DienThoai({ navigation, route }) {
 
     conn.off('callAccepted')
     conn.on('callAccepted', (id) => {
-
+        logData.writeLogData('Server call client: callAccepted');
         logSignalR.serverCallClient('callAccepted');
         var date0 = new Date();
         var ngay0 = date0.getDate().toString() + '/' + (date0.getMonth() + 1).toString() + '/' + date0.getFullYear().toString();
@@ -376,6 +398,7 @@ export default function DienThoai({ navigation, route }) {
 
     conn.off('callDeclined')
     conn.on('callDeclined', (callid, code, reason, id) => {
+        logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
         resetState();
         RNCallKeep.endCall(callUUIDHienTai);
@@ -383,6 +406,7 @@ export default function DienThoai({ navigation, route }) {
 
     conn.off('callEnded')
     conn.on('callEnded', (callid, code, reason, id) => {
+        logData.writeLogData('Server call client: callEnded');
         logSignalR.serverCallClient('callEnded');
         resetState();
         RNCallKeep.endCall(callUUIDHienTai);
@@ -392,6 +416,7 @@ export default function DienThoai({ navigation, route }) {
 
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
+            check_Permission.checkAllPermissions();
             startCall();
         });
 

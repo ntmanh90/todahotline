@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Platform, View, SafeAreaView, StyleSheet, Text } from 'react-native';
+import { Platform, View, SafeAreaView, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
 import { Input, Button } from 'react-native-elements';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import messaging from "@react-native-firebase/messaging";
 import DeviceInfo from 'react-native-device-info';
 import BaseUrl from '../../utils/BaseURL';
@@ -11,6 +10,10 @@ import storeData from '../../hooks/storeData';
 import AppApi from '../../api/Client';
 import { getHub, connectServer } from '../../hubmanager/HubManager';
 import BackgroundTimer from 'react-native-background-timer';
+import TextImage from '../../components/TextImage';
+import Toast from 'react-native-simple-toast';
+import BaseURL from '../../utils/BaseURL';
+import ProgressApp from '../../components/ProgressApp';
 
 BackgroundTimer.start();
 
@@ -18,6 +21,7 @@ function Login({ navigation }) {
     const [maCongTy, setMaCongTy] = useState('');
     const [tenDangNhap, setTenDangNhap] = useState('');
     const [matKhau, setMatKhau] = useState('');
+    const [renderProcess, setRenderProcess] = useState(false);
 
     const handleLogin = async () => {
         storeData.setStoreDataValue('tenct', maCongTy);
@@ -87,19 +91,28 @@ function Login({ navigation }) {
                     navigation.navigate('BanPhim');
 
                 } else {
-                    alert('Kết nối thất bại kiểm tra lại mã công ty !!!');
+
+                    Toast.showWithGravity('Thông tin đăng nhập không đúng.', Toast.LONG, Toast.TOP);
                 }
             } else {
                 this.setState({ showProcess: false });
                 alert('Vui lòng kiểm tra lại internet !!!');
             }
-
+            setRenderProcess(false);
         });
     }
 
 
     const LoginApi = async () => {
-        console.log('vapf');
+        if (
+            tenDangNhap.length == 0 ||
+            matKhau.length == 0 ||
+            maCongTy.length == 0
+        ) {
+            Toast.showWithGravity('Xin mời nhập đầy đủ thông tin.', Toast.LONG, Toast.TOP);
+            return;
+        }
+        setRenderProcess(true);
         var params = 'idct=' + maCongTy;
         var url = BaseUrl.URL_LOGININFO + params;
         console.log(url);
@@ -112,74 +125,155 @@ function Login({ navigation }) {
         })
             .then((response) => response.json())
             .then((responseJson) => {
-                var maurl = responseJson.data.serviceURL;
-                var link = maurl.split('').reverse().join('');
-                var decoded = jwt_decode(link);
-                var url = decoded.ServiceURL;
-                storeData.setStoreDataValue('urlApi', url);
+                console.log('responseJson', responseJson.data);
+                if (responseJson.data) {
+                    var maurl = responseJson.data.serviceURL;
+                    var link = maurl.split('').reverse().join('');
+                    var decoded = jwt_decode(link);
+                    var url = decoded.ServiceURL;
+                    storeData.setStoreDataValue('urlApi', url);
 
-                handleLogin();
+                    handleLogin();
+                }
+                else {
+                    Toast.showWithGravity('Mã công ty không đúng.', Toast.LONG, Toast.TOP);
+                }
+
             })
             .catch((error) => {
+                Toast.show('Vui lòng kiểm tra lại internet !!!', Toast.LONG, Toast.TOP);
                 callback(error, null);
             })
             .finally();
-
-
-
+        setRenderProcess(false);
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <Text>Mã công ty</Text>
-            <Input
-                onChangeText={(value) => setMaCongTy(value)}
-                placeholder='Nhập mã công ty'
-                leftIcon={
-                    <Icon
-                        name='home'
-                        size={24}
-                        color='black'
-                    />
-                }
-            />
-            <Text>Tên đăng nhập</Text>
-            <Input
-                onChangeText={(value) => setTenDangNhap(value)}
-                placeholder='Nhập tên đăng nhập'
-                leftIcon={
-                    <Icon
-                        name='user'
-                        size={24}
-                        color='black'
-                    />
-                }
-            />
-            <Text>Mật khẩu</Text>
-            <Input
-                onChangeText={(value) => setMatKhau(value)}
-                placeholder='Nhập mật khẩu'
-                secureTextEntry={true}
-                leftIcon={
-                    <Icon
-                        name='lock'
-                        size={24}
-                        color='black'
-                    />
-                }
-            />
+        <>
 
-            <Button
-                title="Đăng nhập"
-                onPress={LoginApi}
-            />
-        </SafeAreaView>
+            <View style={styles.container}>
+                {renderProcess === true && (<ProgressApp />)}
+                <View
+                    style={{
+                        marginTop: 0,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}>
+                    <Image
+                        source={require('../../Toda_Images/logo.png')}
+                        style={{
+                            width: 200,
+                            height: 100,
+                            resizeMode: 'contain',
+                            marginBottom: 10,
+                        }}
+                    />
+                </View>
+
+                <TextImage
+                    name="home"
+                    text={maCongTy}
+                    placeholder={'Nhập mã công ty'}
+                    onChangeText={(value) => {
+                        setMaCongTy(value);
+                    }}
+                />
+
+                <TextImage
+                    name="person"
+                    text={tenDangNhap}
+                    placeholder={'Nhập tên đăng nhập'}
+                    onChangeText={(value) => {
+                        setTenDangNhap(value);
+                    }}
+                />
+                <TextImage
+                    secureText={true}
+                    name="md-lock-closed-outline"
+                    text={matKhau}
+                    eye={true}
+                    placeholder={'Nhập mật khẩu'}
+                    onChangeText={(value) => {
+                        setMatKhau(value);
+                    }}
+                />
+
+                <Button title="Đăng nhập" onPress={LoginApi} containerStyle={{ borderRadius: 20, marginTop: 30 }} />
+
+                <Text
+                    style={[
+                        styles.text,
+                        {
+                            fontSize: 14,
+                            color: '#ABB4BD',
+                            textAlign: 'center',
+                            marginTop: 24,
+                        },
+                    ]}>
+                    <Text style={[styles.text, styles.link]}>Phiên bản {BaseURL.VERSION}</Text>
+                </Text>
+
+            </View>
+        </>
     );
 }
 
 
-const styles = StyleSheet.create({
-    container: { margin: 20, }
+var styles = StyleSheet.create({
+    container: {
+        justifyContent: 'center',
+        flex: 1,
+        backgroundColor: '#fff',
+        paddingHorizontal: 15,
+    },
+    text: {
+        marginBottom: 5,
+        fontFamily: 'Avenir Next',
+        color: '#1976d2',
+    },
+    socialButton: {
+        flexDirection: 'row',
+        marginHorizontal: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderWidth: 20,
+        borderColor: 'rgba(171, 180, 189, 0.65)',
+        borderRadius: 4,
+        backgroundColor: '#fff',
+        shadowColor: 'rgba(171, 180, 189, 0.35)',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 1,
+        shadowRadius: 20,
+        elevation: 5,
+    },
+    socialLogo: {
+        width: 16,
+        height: 16,
+        marginRight: 8,
+    },
+    link: {
+        color: '#1976d2',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    submitContainer: {
+        backgroundColor: '#1976d2',
+        fontSize: 16,
+        borderRadius: 15,
+        paddingVertical: 12,
+        marginRight: 20,
+        marginLeft: 20,
+        marginTop: 25,
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#FFF',
+        shadowColor: 'rgba(255, 22, 84, 0.24)',
+        shadowOffset: { width: 0, height: 9 },
+        shadowOpacity: 1,
+        shadowRadius: 20,
+        elevation: 5,
+    },
+
 });
 
 export default Login;

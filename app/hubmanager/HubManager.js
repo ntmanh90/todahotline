@@ -51,7 +51,8 @@ function reconnectServer() {
 }
 
 function getHub() {
-    return hub
+    // hub.serverTimeoutInMilliseconds = 120000;
+    return hub;
 }
 
 function getHubAndReconnect() {
