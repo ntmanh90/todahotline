@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Platform, View, SafeAreaView, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
 import { Input, Button } from 'react-native-elements';
 import messaging from "@react-native-firebase/messaging";
@@ -14,6 +14,7 @@ import TextImage from '../../components/TextImage';
 import Toast from 'react-native-simple-toast';
 import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
+import CuocgoiDB from '../../database/CuocGoi';
 
 BackgroundTimer.start();
 
@@ -147,6 +148,10 @@ function Login({ navigation }) {
             .finally();
         setRenderProcess(false);
     }
+
+    useEffect(() => {
+        CuocgoiDB.addCuocGoi();
+    }, []);
 
     return (
         <>

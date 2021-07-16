@@ -4,14 +4,12 @@ import messaging from '@react-native-firebase/messaging';
 import { name as appName } from './app.json';
 import BackgroundTimer from 'react-native-background-timer';
 import storeData from './app/hooks/storeData';
-import AppApi from './app/api/Client';
 import keyStoreData from './app/utils/keyStoreData';
 import DeviceInfo from 'react-native-device-info';
 import NetInfo from '@react-native-community/netinfo';
 import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import BaseURL from './app/utils/BaseURL';
 import logData from './app/utils/logData';
-import * as RootNavigation from './app/navigation/RootNavigation';
 import { HubConnectionState } from '@microsoft/signalr';
 
 var conn = getHubAndReconnect();
@@ -19,13 +17,13 @@ BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
 conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    logData.writeLogData('Server call client: event IncomingCallAsterisk index');
+    logData.writeLogData('Server call client: event IncomingCallAsterisk index, số điện thoại gọi đến: ' + number);
     let sdt_incoming = number;
     storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
         console.log('prefix: ', prefix);
         sdt_incoming = number.replace(prefix, "");
         console.log('sdt_incoming: ', sdt_incoming);
-        storeData.setStoreDataValue(keyStoreData.soDienThoai, sdt_incoming);
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
     });
 
     var signal = JSON.parse(data);
@@ -37,8 +35,8 @@ conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
 
 // Register background handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
+    conn = getHubAndReconnect();
     if (remoteMessage.data.type == "wakeup") {
-        conn = getHubAndReconnect();
         logData.writeLogData('Nhận được firebase: số gọi đến ' + remoteMessage.data.songuon);
 
         if (conn.state === HubConnectionState.Disconnected) {

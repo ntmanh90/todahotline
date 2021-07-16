@@ -3,11 +3,11 @@ import React, { useState } from 'react';
 import storeData from './storeData';
 import BaseURL from '../utils/BaseURL';
 import RNCallKeep from 'react-native-callkeep';
-import { getHub } from '../hubmanager/HubManager';
+import { getHub, getHubAndReconnect } from '../hubmanager/HubManager';
 import deviceInfoModule from 'react-native-device-info';
 import AppApi from '../api/Client';
 
-var conn = getHub();
+var conn = getHubAndReconnect();
 
 const removeDataLogin = () => {
 
@@ -57,6 +57,7 @@ export default useLogout = () => {
                 conn.invoke('SignOut').catch();
                 conn.stop();
                 removeDataLogin();
+                console.log('đăng xuất thành công');
                 // RNCallKeep.endAllCalls();
                 // conn.invoke('SignOut', somayle).catch();
                 // conn.stop();

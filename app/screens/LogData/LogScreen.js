@@ -1,15 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList } from 'react-native';
-import storeData from '../../hooks/storeData';
+import { openDatabase } from 'react-native-sqlite-storage';
+import moment from 'moment';
+
+var db = openDatabase({ name: 'UserDatabase.db' });
 
 function LogScreen({ navigation }) {
     const [data, setData] = useState([]);
 
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-            storeData.getStoreDataObject('dataLog').then((dataLog) => {
-                setData(dataLog.reverse());
-            })
+
+            db.transaction((tx) => {
+                tx.executeSql(
+                    'SELECT * FROM Log ORDER BY id DESC',
+                    [],
+                    (tx, { rows }) => {
+                        console.log('Results list Log', rows.length);
+                        if (rows.length > 0) {
+                            let term = [];
+                            for (let i = 0; i < rows.length; i++) {
+                                let date = new Date(rows.item(i).logTime);
+                                console.log('date', date);
+                                rows.item(i).logTime = moment(date).format('DD/mm/yyyy HH:mm:ss SSS');
+                                term.push(rows.item(i));
+                            }
+                            setData(term);
+                        }
+                    },
+                    (tx, error) => {
+                        console.log('error list Log', tx, error);;
+                    },
+                );
+            });
+
         });
 
         return unsubscribe;

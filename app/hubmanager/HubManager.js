@@ -10,15 +10,38 @@ let hub = new HubConnectionBuilder()
     .build();
 
 function connectServer() {
-    console.log('client call Join to Server');
+
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('start sip', sipUser);
             try {
-                hub.invoke('Join',
-                    sipUser.user,
-                    sipUser.mact
-                ).catch();
+                if (hub.state === HubConnectionState.Disconnected) {
+                    console.log('đã vào hàm reconnect');
+                    reconnectServer();
+                }
+                else {
+                    console.log('bắt đầu gọi hềm kết nối server');
+                    hub.start().then(() => {
+                        hub.invoke('Join',
+                            sipUser.user,
+                            sipUser.mact,
+                            2
+                        ).catch();
+                    });
+                }
+
+                hub.off('Registered');
+                hub.on('Registered', (number, id) => {
+                    LogSignalR.serverCallClient('Registered');
+                    try {
+                        hub.invoke("ConfirmEvent", "Registered");
+                    } catch (error) {
+                        LogSignalR.clientCallServerError('Registered', error)
+                    }
+                    storeData.setStoreDataValue('Registered', true)
+                    storeData.setStoreDataValue('SessionCallId', id)
+                });
+
             } catch (error) {
                 console.log('Hub Error: ', error);
                 LogSignalR.clientCallServerError('Join', error);
@@ -37,7 +60,8 @@ function reconnectServer() {
             try {
                 hub.invoke('ReJoin',
                     sipUser.user,
-                    sipUser.mact
+                    sipUser.mact,
+                    2
                 ).catch();
             } catch (error) {
                 console.log('Hub Error: ', error);
@@ -51,28 +75,32 @@ function reconnectServer() {
 }
 
 function getHub() {
-    // hub.serverTimeoutInMilliseconds = 120000;
+    hub.serverTimeoutInMilliseconds = 120000;
     return hub;
 }
 
 function getHubAndReconnect() {
+    console.log('hub.state: ', hub.state);
     if (hub.state === HubConnectionState.Disconnected) {
+        console.log('hub is disconnnect');
         hub.start().then(() => {
             reconnectServer();
-            hub.off('Registered');
-            hub.on('Registered', (number, id) => {
-                LogSignalR.serverCallClient('Registered');
-                try {
-                    hub.invoke("ConfirmEvent", "Registered");
-                } catch (error) {
-                    LogSignalR.clientCallServerError('Registered', error)
-                }
-                storeData.setStoreDataValue('Registered', true)
-                storeData.setStoreDataValue('SessionCallId', id)
-            });
+        });
+
+        hub.off('Registered');
+        hub.on('Registered', (number, id) => {
+            LogSignalR.serverCallClient('Registered');
+            try {
+                hub.invoke("ConfirmEvent", "Registered");
+            } catch (error) {
+                LogSignalR.clientCallServerError('Registered', error)
+            }
+            storeData.setStoreDataValue('Registered', true)
+            storeData.setStoreDataValue('SessionCallId', id)
         });
     }
-    return hub
+    hub.serverTimeoutInMilliseconds = 120000;
+    return hub;
 }
 
 export { getHub, connectServer, reconnectServer, getHubAndReconnect }

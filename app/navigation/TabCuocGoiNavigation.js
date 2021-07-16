@@ -6,6 +6,8 @@ import LichSuCuocGoi from '../screens/cuocgoi/LichSuCuocGoi';
 import LienHe from '../screens/cuocgoi/LienHe';
 import CaiDat from '../screens/cuocgoi/CaiDat';
 import { Text, StyleSheet } from 'react-native';
+import colors from '../theme/colors';
+import phoneBookScreen from '../screens/PhoneBook/phoneBookScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -21,17 +23,17 @@ export default function TabCuocGoiNavigation() {
 
                     if (route.name === 'BanPhim') {
                         iconName = focused
-                            ? 'home'
-                            : 'home-outline';
+                            ? 'keypad'
+                            : 'keypad-outline';
                     }
                     else if (route.name === 'LichSuCuocGoi') {
-                        iconName = focused ? 'book' : 'book-outline';
+                        iconName = focused ? 'time' : 'time-outline';
                     }
-                    else if (route.name === 'LienHe') {
-                        iconName = focused ? 'heart-circle' : 'heart-circle-outline';
+                    else if (route.name === 'phoneBookScreen') {
+                        iconName = focused ? 'ios-people-sharp' : 'ios-people-outline';
                     }
                     else if (route.name === 'CaiDat') {
-                        iconName = focused ? 'heart-circle' : 'heart-circle-outline';
+                        iconName = focused ? 'ios-settings' : 'ios-settings-outline';
                     }
 
                     // You can return any component that you like here!
@@ -40,7 +42,7 @@ export default function TabCuocGoiNavigation() {
             })}
 
             tabBarOptions={{
-                activeTintColor: '#fa784a',
+                activeTintColor: '#0061a8',
                 inactiveTintColor: 'gray',
                 labelStyle: {
                     marginBottom: 5,
@@ -68,8 +70,8 @@ export default function TabCuocGoiNavigation() {
                 }}
             />
             <Tab.Screen
-                name="LienHe"
-                component={LienHe}
+                name="phoneBookScreen"
+                component={phoneBookScreen}
                 onPress={() => console.log('click LienHe')}
                 options={{
                     tabBarLabel: 'Liên hệ',

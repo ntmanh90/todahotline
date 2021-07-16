@@ -20,4 +20,9 @@ export default {
     callid: 'callid',
     signalWebRTC: 'signalWebRTC',
     isAnswerCall: 'isAnswerCall',
+    checkThemDanhBa: 'checkThemDanhBa',
+    checkThemDanhBaHeThong: 'checkThemDanhBaHeThong',
+    intervalIdApp: 'intervalIdApp',
+    soDienThoaiDen: 'soDienThoaiDen',
+    hoTenDienThoaiDen: 'hoTenDienThoaiDen',
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet, Text, View, DeviceEventEmitter, Platform, PermissionsAndroid
+  DeviceEventEmitter, Platform, View
 } from 'react-native';
 import uuid from 'uuid';
 import BackgroundTimer from 'react-native-background-timer';
@@ -16,9 +16,20 @@ import keyStoreData from './app/utils/keyStoreData';
 import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
 import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import logData from './app/utils/logData';
-import useCheckPermistion from './app/hooks/useCheckPermistion';
+import cuocGoi from './app/database/CuocGoi';
+import CallTypeEnum from './app/hubmanager/CallTypeEnum';
+import NetInfo from "@react-native-community/netinfo";
+import MaterialCommunityIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { HubConnectionState } from '@microsoft/signalr';
+import { openDatabase } from 'react-native-sqlite-storage';
 
+const isIOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
+var db = openDatabase({ name: 'UserDatabase.db' });
+var interValBitRateApp = 0;
+var bitratePrew = 0;
+var pearConnection = null;
+var callUUIDHienTai = '';
 
 BackgroundTimer.start();
 
@@ -55,34 +66,33 @@ RNCallKeep.setup({
     },
   },
 });
-RNCallKeep.backToForeground();
-
-RNCallKeep.registerPhoneAccount();
-RNCallKeep.registerAndroidEvents();
-RNCallKeep.setAvailable(true);
+if (!isIOS) {
+  RNCallKeep.backToForeground();
+  RNCallKeep.registerPhoneAccount();
+  RNCallKeep.registerAndroidEvents();
+  RNCallKeep.setAvailable(true);
+}
 
 const getNewUuid = () => uuid.v4().toLowerCase();
 
 const format = uuid => uuid.split('-')[0];
-
-const isIOS = Platform.OS === 'ios';
-
 
 const App = (props) => {
   const [logText, setLog] = useState('');
   const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
   const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
   const [calls, setCalls] = useState({}); // callKeep uuid: number
-  const [callUUIDHienTai, setCallUUIDHienTai] = useState();
+  const [disSignal, setDisSignal] = useState(false);
+  const [weakSignal, setWeakSignal] = useState(false);
 
-  const check_Permission = useCheckPermistion();
   const resetState = () => {
     setCalls({});
     setLog('');
     setHeldCalls({});
     setMutedCalls({});
-    setCallUUIDHienTai('');
+    callUUIDHienTai = '';
   }
+
 
   const log = (text) => {
     console.info(text);
@@ -111,37 +121,70 @@ const App = (props) => {
   };
 
   const displayIncomingCall = async () => {
-    await check_Permission.checkAllPermissions();
-    await check_Permission.requestReadPhoneStatePermission();
-    if (!check_Permission.checkPermissions) {
-      alert('Chưa cấp đủ quyền cho ứng dụng');
-      RootNavigation.navigate('BanPhim');
-    }
     conn = getHubAndReconnect();
-    logData.writeLogData('Đã hiển thị màn hình cuộc gọi: displayIncomingCall');
+
+    if (interValBitRateApp != 0)
+      BackgroundTimer.clearInterval(interValBitRateApp);
+
     console.log('da gọi vào hàm hiển thị cuoc goi');
     const callUUID = getNewUuid();
-    setCallUUIDHienTai(callUUID);
-    const number = await storeData.getStoreDataValue('soDienThoai');
+    callUUIDHienTai = callUUID;
+
+    const number = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
+    logData.writeLogData('Đã hiển thị màn hình cuộc gọi: displayIncomingCall, số gọi đến: ' + number);
+    let hoTen = number;
+
+    db.transaction((tx) => {
+      tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [number],
+        (tx, { rows }) => {
+          console.log('getHoTenTheoSoDienThoai', rows);
+          if (rows.length > 0) {
+            hoTen = rows.item(0).ho_ten;
+            storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, hoTen);
+          }
+          else {
+            storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, hoTen);
+          }
+        },
+        (tx, error) => {
+          console.log('Error list cuoc goi: ', error, tx);
+        }
+      );
+    });
+
     console.log('soDienThoai incoming call', number);
     addCall(callUUID, number);
 
     log(`[displayIncomingCall] ${format(callUUID)}, number: ${number}`);
-    RNCallKeep.displayIncomingCall(callUUID, number, number, 'number', false);
+    RNCallKeep.displayIncomingCall(callUUID, number, hoTen, 'number', false);
   };
 
   const answerCall = async ({ callUUID }) => {
+
     const number = calls[callUUID];
+    logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
+    //const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
+    const hoTen = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDen);
+
+    cuocGoi.addCuocGoi(hoTen, number, CallTypeEnum.IncomingCall);
     log(`[answerCall] ${format(callUUID)}, number: ${number}`);
     let signalData = await storeData.getStoreDataObject(keyStoreData.signalWebRTC);
     let SessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
     incomingcall(new RTCSessionDescription(signalData.sdp), SessionCallId);
-    RNCallKeep.startCall(callUUID, number, number);
+    RNCallKeep.startCall(callUUID, number, hoTen);
     BackgroundTimer.setTimeout(() => {
       log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
       RNCallKeep.setCurrentCallActive(callUUID);
     }, 500);
+
+    if (interValBitRateApp != 0)
+      BackgroundTimer.clearInterval(interValBitRateApp);
+    interValBitRateApp = BackgroundTimer.setInterval(() => {
+      if (pearConnection) {
+        getTinHieu();
+      }
+    }, 1500);
   };
 
   const didPerformDTMFAction = ({ callUUID, digits }) => {
@@ -158,7 +201,7 @@ const App = (props) => {
     addCall(callUUID, handle);
 
     log(`[didReceiveStartCallAction] ${callUUID}, number: ${handle}`);
-    RootNavigation.navigate('CuocGoiDi', { soDienThoai: handle, hoTen: handle })
+    RootNavigation.navigate('CuocGoi', { soDienThoai: handle, hoTen: handle })
     // RNCallKeep.startCall(callUUID, handle, handle);
 
     // BackgroundTimer.setTimeout(() => {
@@ -168,21 +211,40 @@ const App = (props) => {
   };
 
   const didPerformSetMutedCallAction = ({ muted, callUUID }) => {
+
     const number = calls[callUUID];
     log(`[didPerformSetMutedCallAction] ${format(callUUID)}, number: ${number} (${muted})`);
 
     setCallMuted(callUUID, muted);
   };
 
-  const didToggleHoldCallAction = ({ hold, callUUID }) => {
+  const didToggleHoldCallAction = async ({ hold, callUUID }) => {
+    let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
     const number = calls[callUUID];
-    log(`[didToggleHoldCallAction] ${format(callUUID)}, number: ${number} (${hold})`);
 
+    log(`[didToggleHoldCallAction] ${format(callUUID)}, number: ${number} (${hold})`);
     setCallHeld(callUUID, hold);
+    if (hold === true) {
+      try {
+        conn.invoke("Hold", sessionCallId);
+      } catch (error) {
+
+      }
+    }
+    else {
+      try {
+        conn.invoke("UnHold", sessionCallId);
+      } catch (error) {
+
+      }
+    }
   };
 
   const endCall = async ({ callUUID }) => {
-    console.log('event hang up App');
+    if (interValBitRateApp != 0)
+      BackgroundTimer.clearInterval(interValBitRateApp);
+
+    console.log('event endCall App');
     const handle = calls[callUUID];
     log(`[endCall] ${format(callUUID)}, number: ${handle}`);
     let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
@@ -190,12 +252,15 @@ const App = (props) => {
     console.log('isAnswerCall', isAnswerCall);
     if (isAnswerCall === 'true')
       conn.invoke('hangUp', sessionCallId).then(() => {
-        logData.writeLogData('Invoke: hangUp | App');
+        logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + handle);
       }).catch((error) => console.log(error));
     else {
+      const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
+      const hoTen = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDen);
+      cuocGoi.addCuocGoi(hoTen, sdt, CallTypeEnum.MissingCall);
       console.log('AnswerCallAsterisk App');
       conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).then(() => {
-        logData.writeLogData('endCall -> Invoke: AnswerCallAsterisk | App: false từ chối cuộc gọi.');
+        logData.writeLogData('endCall -> Invoke: AnswerCallAsterisk | App: false từ chối cuộc gọi: ' + sdt);
       }).catch();
     }
 
@@ -210,8 +275,9 @@ const App = (props) => {
 
     RNCallKeep.endCall(callUUID);
     let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+    let soDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     conn.invoke('hangUp', sessionCallId).then(() => {
-      logData.writeLogData('hangup -> invoke: hangup | App ');
+      logData.writeLogData('hangup -> invoke: hangup | App, số điện thoại gọi đến: ' + soDienThoaiDen);
     }).catch((error) => console.log(error));
     removeCall(callUUID);
     resetState();
@@ -233,20 +299,17 @@ const App = (props) => {
     setCallMuted(callUUID, muted);
   };
 
-  const updateDisplay = (callUUID) => {
-    const number = calls[callUUID];
+  const updateDisplay = (callUUID, displayName, number) => {
+    console.log('callUUID: ', callUUID);
     // Workaround because Android doesn't display well displayName, se we have to switch ...
     if (isIOS) {
-      RNCallKeep.updateDisplay(callUUID, 'New Name', number);
+      RNCallKeep.updateDisplay(callUUID, displayName, number);
     } else {
-      RNCallKeep.updateDisplay(callUUID, number, 'New Name');
+      RNCallKeep.updateDisplay(callUUID, number, displayName);
     }
 
     log(`[updateDisplay: ${number}] ${format(callUUID)}`);
   };
-
-
-
 
   const requestUserPermission = async () => {
     const authStatus = await messaging().requestPermission();
@@ -289,11 +352,41 @@ const App = (props) => {
     }
   };
 
+
   const callbackIceCandidateJanusError = (err) => {
     if (err) {
       console.log(err);
     }
   };
+
+  const getTinHieu = async () => {
+    let hoTenDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDen);
+    let soDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
+    if (pearConnection) {
+      pearConnection.getStats(null).then(stats => {
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
+            const bitrate = report.bytesReceived;
+            console.log('bitrate: ', bitrate);
+            if (bitrate - bitratePrew <= 4) {
+              //kết nối yếu
+              setWeakSignal(true);
+            }
+            else if (bitrate - bitratePrew == 0) {
+              //không có kết nối
+              setWeakSignal(true);
+            }
+            else {
+              //kết nối tốt
+              setWeakSignal(false);
+            }
+
+            bitratePrew = bitrate;
+          }
+        });
+      });
+    }
+  }
 
   const incomingcall = async (sdp, sessionCall) => {
     console.log('incomingcall', sessionCall, sdp);
@@ -313,7 +406,8 @@ const App = (props) => {
             try {
               logSignalR.clientCallServer('AnswerCallAsterisk')
               conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
-                logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi');
+                logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi ');
+                pearConnection = connection;
               });
             } catch (error) {
               console.log('AnswerCallAsterisk Error call out', error);
@@ -331,9 +425,11 @@ const App = (props) => {
 
   //End handle WebRTC
 
-  /// Xử lý kết nối signalR /// 
-  conn.off('Ping');
-  conn.on('Ping', () => { });
+  conn.onclose((e) => {
+    console.log('onclose');
+    //logData.writeLogData('Disconnect server: event onclose');
+    setDisSignal(true);
+  });
 
   conn.off('SendMessage');
   conn.on("SendMessage", (sentUser, message) => {
@@ -342,14 +438,15 @@ const App = (props) => {
 
   conn.off('IncomingCallAsterisk')
   conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    logData.writeLogData('Cuộc gọi đến IncomingCallAsterisk | App');
+    console.log('Cuộc gọi đến IncomingCallAsterisk | App: ', displayname);
+    logData.writeLogData('Cuộc gọi đến IncomingCallAsterisk | số điện thoại gọi đến: ' + number);
     logSignalR.serverCallClient('IncomingCallAsterisk');
     let sdt_incoming = number;
     storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
       console.log('prefix: ', prefix);
       sdt_incoming = number.replace(prefix, "");
       console.log('sdt_incoming: ', sdt_incoming);
-      storeData.setStoreDataValue(keyStoreData.soDienThoai, sdt_incoming);
+      storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
     });
 
     var signal = JSON.parse(data);
@@ -360,22 +457,30 @@ const App = (props) => {
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
-    logData.writeLogData('server call client event: callEnded | App');
+
+    logData.writeLogData('server call client event: callEnded | App, callid: ' + callid);
     logSignalR.serverCallClient('callEnded');
     console.log('callUUIDHienTai', callUUIDHienTai);
-    resetState();
     RNCallKeep.endCall(callUUIDHienTai);
+    resetState();
   });
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
-    logData.writeLogData('server call client event: MissedCall | App');
+    cuocGoi.addCuocGoi(name, number, CallTypeEnum.MissingCall);
+    logData.writeLogData('server call client event: MissedCall | App, số điện thoại goi nhỡ: ' + number);
     console.log('bạn có cuộc gọi nhỡ: ', number, name);
   });
+
+  //Tao bang sqlite
+  const createTableDatabase = async () => {
+    await cuocGoi.initTable();
+  }
 
   /// Kết thúc xử lý kết nối signalR ////
   useEffect(() => {
     //RNCallKeep.endAllCalls();
+    createTableDatabase();
 
     checkLogin();
     requestUserPermission();
@@ -388,6 +493,7 @@ const App = (props) => {
 
       // (required) Called when a remote is received or opened, or local notification is opened
       onNotification: function (notification) {
+        conn = getHubAndReconnect();
         console.log("NOTIFICATION:", notification);
 
         // process the notification
@@ -398,6 +504,7 @@ const App = (props) => {
 
       // (optional) Called when Registered Action is pressed and invokeApp is false, if true onNotification will be called (Android)
       onAction: function (notification) {
+        conn = getHubAndReconnect();
         console.log("ACTION:", notification.action);
         console.log("NOTIFICATION:", notification);
 
@@ -430,6 +537,12 @@ const App = (props) => {
       requestPermissions: true,
     });
 
+    const unsubscribe_NetInfo = NetInfo.addEventListener(state => {
+      setDisSignal(true);
+      conn = getHubAndReconnect();
+    });
+
+
     let subscription = DeviceEventEmitter.addListener('displayIncomingCallEvent', displayIncomingCall);
 
     RNCallKeep.addEventListener('answerCall', answerCall);
@@ -439,6 +552,19 @@ const App = (props) => {
     RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
     RNCallKeep.addEventListener('endCall', endCall);
 
+    //repeat check state connect hub
+    BackgroundTimer.setInterval(() => {
+      if (conn.state === HubConnectionState.Disconnected) {
+        //console.log('Disconnected');
+        setDisSignal(true);
+        conn = getHubAndReconnect();
+      }
+      if (conn.state === HubConnectionState.Connected) {
+        //console.log('Connected');
+        setDisSignal(false);
+      }
+    }, 3000);
+
     return () => {
       RNCallKeep.removeEventListener('answerCall', answerCall);
       RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
@@ -447,12 +573,27 @@ const App = (props) => {
       RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
       RNCallKeep.removeEventListener('endCall', endCall);
       subscription.remove();
+
+      // Unsubscribe
+      unsubscribe_NetInfo();
     }
 
   }, []);
 
+
   return (
-    <AppNavigation />
+    <>
+      <AppNavigation />
+      {disSignal === false ?
+        null
+        :
+        (
+          <View style={{ position: 'absolute', top: 8, right: 8 }}>
+            <MaterialCommunityIcon name="signal-off" size={18} color="red" />
+          </View>
+        )
+      }
+    </>
   );
 
 };

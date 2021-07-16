@@ -1,11 +1,39 @@
-import React from 'react';
-import { View, StyleSheet, Button } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    SafeAreaView,
+    Dimensions,
+    Alert,
+    TouchableOpacity,
+    Image,
+} from 'react-native';
+
+import { Avatar, Icon, Button } from 'react-native-elements';
+import storeData from '../../hooks/storeData';
+import AppApi from '../../api/Client';
+import BaseURL from '../../utils/BaseURL';
+import { ScrollView } from 'react-native-gesture-handler';
 import useLogout from '../../hooks/useLogout';
-import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
+import colors from '../../theme/colors';
+import keyStoreData from '../../utils/keyStoreData';
 
-var conn = getHubAndReconnect();
+const DEVICE_WIDTH = Dimensions.get('window').width;
+const DEVICE_HEIGHT = Dimensions.get('window').height;
 
-function CaiDat({ navigation }) {
+export default function Caidat({ navigation }) {
+
+    const [teninfo, setTeninfo] = useState('');
+    const [diachi, setDiachi] = useState('');
+    const [sdt, setSdt] = useState('');
+    const [sdtv2, setSdtv2] = useState('');
+    const [webinfo, setWebinfo] = useState('');
+    const [tennhanvien, setTennhanvien] = useState('');
+    const [somayle, setSomayle] = useState('');
+    const [chucvu, setChucvu] = useState('');
+    const [avata, setAvata] = useState('');
+
     const useLogoutHook = useLogout();
 
     const handleLogout = () => {
@@ -15,20 +43,271 @@ function CaiDat({ navigation }) {
         });
     }
 
+    React.useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            getInFo();
+        });
+
+        return unsubscribe;
+    }, [navigation]);
+
+    const getInFo = async () => {
+        let tennhanvienData = await storeData.getStoreDataValue(keyStoreData.tennhanvien);
+        let somayleData = await storeData.getStoreDataValue(keyStoreData.somayle);
+        let chucvuData = await storeData.getStoreDataValue(keyStoreData.chucvu);
+        let urlApiData = await storeData.getStoreDataValue(keyStoreData.urlApi);
+
+        setTennhanvien(tennhanvienData);
+        setSomayle(somayleData);
+        setChucvu(chucvuData);
+
+        if (tennhanvienData.length > 0)
+            setAvata(tennhanvienData.substring(0, 1));
+
+        console.log('da den day');
+
+        var url = urlApiData + BaseURL.URL_INFO;
+        console.log('url: ', urlApiData);
+        var params = {
+            lang: 'vi',
+        };
+
+        console.log('url', url);
+
+        AppApi.RequestPOST(url, params, (err, json) => {
+            if (!err) {
+                console.log('da lay duoc du lieu:', json.data);
+                if (json.data.status) {
+                    setTeninfo(json.data.tenlienhe);
+                    setDiachi(json.data.diachi);
+                    setSdt(json.data.dienthoai1);
+                    setSdtv2(json.data.hotline);
+                    setWebinfo(json.data.website);
+                }
+            } else {
+                console.log('Error get api: ', err);
+            }
+        });
+    }
+
+
     return (
-        <View style={styles.container}>
-            <View style={{ marginTop: 40 }}>
-                <Button onPress={handleLogout} title='Đăng xuất' />
-            </View>
-            <View style={{ marginTop: 40 }}>
-                <Button onPress={() => navigation.navigate('LogScreen')} title='Show Log' />
-            </View>
-        </View>
+        <ScrollView>
+            <SafeAreaView style={styles.container}>
+                <View style={styles.userInfoSectionv2}>
+                    <View style={{ flexDirection: 'row', marginTop: 20 }}>
+                        <Avatar
+                            activeOpacity={0.2}
+                            containerStyle={{ backgroundColor: '#0061a8' }}
+                            rounded
+                            size="large"
+                            title={avata}
+                        />
+
+                        <View style={{ marginLeft: 10 }}>
+                            <Text
+                                style={[
+                                    styles.title,
+                                    {
+                                        marginTop: 10,
+                                        marginBottom: 5,
+                                    },
+                                ]}>
+                                {tennhanvien}
+                            </Text>
+
+                            <View style={styles.row}>
+                                <Icon
+                                    type="Ionicons"
+                                    name="call"
+                                    style={{ fontSize: 20, color: '#777777' }}
+                                />
+                                <Text style={styles.caption}> {somayle}</Text>
+                            </View>
+
+
+                            <View style={styles.rowv2}>
+                                <Icon
+                                    type="MaterialIcons"
+                                    name="work"
+                                    style={{ fontSize: 20, color: '#777777' }}
+                                />
+                                <Text style={styles.caption}>{chucvu}</Text>
+                            </View>
+
+
+                        </View>
+                    </View>
+                </View>
+
+
+
+                <View style={styles.infoBoxWrapper}>
+                    <View style={styles.menuWrapper}>
+                        <TouchableOpacity
+                            onPress={() => {
+                                navigation.navigate('ChangePassword');
+                            }}>
+                            <View style={styles.menuItem}>
+                                <Icon
+                                    type="Entypo"
+                                    name="lock"
+                                    style={{ fontSize: 25, color: '#FF6347' }}
+                                />
+                                <Text style={styles.menuItemText}>Đổi mật khẩu</Text>
+                            </View>
+                        </TouchableOpacity>
+
+
+                        <TouchableOpacity
+                            onPress={() => {
+                                Alert.alert(
+                                    'Thông báo',
+                                    'Bạn có chắc chắn muốn đăng xuất ?',
+                                    [
+                                        {
+                                            text: 'Thoát',
+                                            onPress: () => console.log('Cancel Pressed'),
+                                            style: 'cancel',
+                                        },
+                                        {
+                                            text: 'Đồng ý',
+                                            onPress: () => handleLogout(),
+                                        },
+                                    ],
+                                    { cancelable: false },
+                                );
+                            }}>
+                            <View style={styles.menuItem}>
+                                <Icon
+                                    type="MaterialCommunityIcons"
+                                    name="exit-to-app"
+                                    style={{ fontSize: 25, color: '#FF6347' }}
+                                />
+                                <Text style={styles.menuItemText}>Đăng xuất</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <View style={{ marginTop: 40 }}>
+                            <Button onPress={() => navigation.navigate('LogScreen')} title='Show Log' />
+                        </View>
+                    </View>
+                </View>
+
+                <View>
+                    <View
+                        style={{
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}>
+                        <Image
+                            source={require('../../Toda_Images/logo.png')}
+                            style={{
+                                width: 100,
+                                height: 85,
+                                resizeMode: 'contain',
+                            }}
+                        />
+                    </View>
+
+                    <Text style={styles.text_ten}>{teninfo}</Text>
+                    <Text style={styles.text_diachi}> - {diachi}</Text>
+                    <Text style={styles.text_diachi}> - {sdt}</Text>
+                    <Text style={styles.text_diachi}> - {sdtv2}</Text>
+                    <Text style={styles.text_diachi}> - {webinfo}</Text>
+                </View>
+            </SafeAreaView>
+        </ScrollView>
     );
+
+
 }
 
-const styles = StyleSheet.create({
-    container: {}
-});
+var styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        width: DEVICE_WIDTH,
+    },
+    userInfoSectionv2: {
+        paddingHorizontal: 20,
+        marginBottom: 15,
+    },
+    userInfoSection: {
+        paddingHorizontal: 30,
+        marginBottom: 15,
+        marginLeft: 20,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    caption: {
+        fontSize: 16,
+        marginLeft: 10,
+        fontWeight: '500',
+        justifyContent: 'center',
+    },
+    row: {
+        flexDirection: 'row',
+        marginBottom: 5,
+    },
+    rowv2: {
+        flexDirection: 'row',
+        marginBottom: 10,
+        marginTop: 5
+    },
+    infoBoxWrapper: {
+        borderBottomColor: '#dddddd',
+        borderBottomWidth: 1,
+        borderTopColor: '#dddddd',
+        borderTopWidth: 1,
+        flexDirection: 'row',
+        marginRight: 15,
+        marginLeft: 15,
+    },
 
-export default CaiDat;
+    infoBox: {
+        width: '50%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    menuWrapper: {
+        marginTop: 10,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        width: DEVICE_WIDTH,
+        paddingVertical: 15,
+        paddingHorizontal: 30,
+    },
+    menuItemText: {
+        color: '#777777',
+        marginLeft: 20,
+        fontWeight: '600',
+        fontSize: 16,
+        lineHeight: 26,
+    },
+    text_ten: {
+        color: '#1976d2',
+        marginLeft: 15,
+        fontSize: 15,
+    },
+    text_diachi: {
+        color: '#1976d2',
+        marginLeft: 15,
+        fontSize: 15,
+        marginTop: 5,
+    },
+
+    text: {
+        marginBottom: 5,
+        fontFamily: 'Avenir Next',
+        color: '#3366CC',
+
+    },
+    link: {
+        alignItems: 'center',
+        justifyContent: 'center'
+
+    },
+});

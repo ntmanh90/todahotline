@@ -1,92 +1,258 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, Dimensions, SafeAreaView, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, Text, Dimensions, SafeAreaView, Alert, TouchableOpacity, FlatList, Platform, PermissionsAndroid, StatusBar } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import storeData from '../../hooks/storeData';
-import { Input, Button } from 'react-native-elements';
 import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
-import * as RootNavigation from '../../navigation/RootNavigation';
 import keyStoreData from '../../utils/keyStoreData';
 import useCheckPermistion from '../../hooks/useCheckPermistion';
 import KeypadButton from '../../components/KeypadButton';
 import Clipboard from '@react-native-community/clipboard';
+import dongBoDanhBaHeThong from '../../utils/dongBoDanhBaHeThong';
+import DeviceInfo from 'react-native-device-info';
+import { openDatabase } from 'react-native-sqlite-storage';
+import Tooltip from "react-native-walkthrough-tooltip";
+import useGetHoTenDanhBa from '../../hooks/useGetHoTenDanhBa';
+import BackgroundTimer from 'react-native-background-timer';
 
+BackgroundTimer.start();
+const IOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
+var db = openDatabase({ name: 'UserDatabase.db' });
 
-let listNoiBo = [];
 function BanPhim({ navigation }) {
     const [soDienThoai, setSoDienThoai] = useState('');
-    const [search, setSearch] = useState('');
-
+    const [listSearhDanhBa, setListSearhDanhBa] = useState([]);
+    const [showTip, setTip] = useState(false);
     const check_Permission = useCheckPermistion();
 
-    const cuocGoiDi = () => {
+    const cuocGoiDi = async () => {
         if (soDienThoai.length < 3) {
             alert('Số điện thoại không đúng định dạng');
         }
         else {
             storeData.setStoreDataValue(keyStoreData.soDienThoai, soDienThoai);
-            navigation.navigate('CuocGoiDi', { soDienThoai: soDienThoai, hoTen: soDienThoai });
+
+            db.transaction((tx) => {
+                tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [soDienThoai],
+                    (tx, { rows }) => {
+                        console.log('getHoTenTheoSoDienThoai', rows);
+                        if (rows.length > 0) {
+
+                            let termHoTen = rows.item(0).ho_ten;
+                            console.log('termHoTen: ', termHoTen);
+                            navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, type: 2 });
+                        }
+                        else {
+                            navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, type: 2 });
+                        }
+                    },
+                    (tx, error) => {
+                        console.log('Error list cuoc goi: ', error, tx);
+                    }
+                );
+            });
         }
     }
+
     const handleKeypadPressed = (value) => {
         let tmp = soDienThoai;
         tmp = tmp + value.trim();
         setSoDienThoai(tmp);
 
+        if (soDienThoai.length > 0) {
+
+            db.transaction((tx) => {
+                tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai LIKE '%" + soDienThoai + "%' ORDER BY ho_ten", [],
+                    (tx, { rows }) => {
+                        let temp = [];
+                        for (let i = 0; i < rows.length; i++) {
+                            temp.push(rows.item(i));
+                        }
+                        setListSearhDanhBa(temp);
+                    },
+                    (tx, error) => {
+                        console.log('Error list cuoc goi: ', error);
+                    }
+                );
+            });
+
+        }
     }
 
     const deleteNumber = () => {
         var tmp = soDienThoai;
         tmp = tmp.substr(0, tmp.length - 1);
         setSoDienThoai(tmp);
-        setSearch(tmp);
     }
 
     const keypadLongPressed = () => {
         setSoDienThoai('');
-        setSearch('');
     }
 
     const copyOrFetch = async () => {
+        setTip(false);
         if (soDienThoai.length > 0) {
-            Clipboard.setString(soDienThoai);
+            Clipboard.setString(soDienThoai.toString());
+        }
+    }
+
+    const DongBoDanhBaDataBase = () => {
+        if (IOS) {
+            Contacts.checkPermission().then((permission) => {
+                console.log('check', permission);
+                if (permission === 'undefined') {
+                    Contacts.requestPermission().then((per) => {
+                        dongBoDanhBaHeThong.themDanhBa();
+                    });
+                }
+                if (permission === 'authorized') {
+                    dongBoDanhBaHeThong.themDanhBa();
+                }
+                if (permission === 'denied') {
+                    Alert.alert(
+                        'Thông báo',
+                        'Bạn chưa cho quyền cho danh bạ',
+                        [
+                            {
+                                text: 'Xác nhận',
+                                onPress: () => {
+                                    console.log('test', 'chua xin quen danh ba');
+                                },
+                                style: 'cancel',
+                            },
+                        ],
+                        { cancelable: false },
+                    );
+                }
+            });
         }
         else {
-            const text = await Clipboard.getString();
-            if (text.length > 0)
-                setSoDienThoai(text);
+            PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+                {
+                    'title': 'Contacts',
+                    'message': 'This app would like to view your contacts.',
+                    'buttonPositive': 'Please accept bare mortal'
+                }
+            )
+                .then(() => {
+                    dongBoDanhBaHeThong.themDanhBa();
+                });
+        }
+    }
+
+    const requestPermissionsAndroid = () => {
+        if (!IOS) {
+            check_Permission.requestCallPhonePermission().then(() => {
+                if (check_Permission.callPhone === false) {
+                    Alert.alert(
+                        'Thông báo',
+                        'Bạn chưa cấp quyền điện thoại ?',
+                        [
+                            {
+                                text: 'Cấp quyền',
+                                onPress: () => { check_Permission.requestCallPhonePermission() }
+                            },
+                        ],
+                        { cancelable: false },
+                    );
+                }
+            });
+
+            check_Permission.requestRecordAudioPermission().then(() => {
+                if (check_Permission.recordAudio === false) {
+                    Alert.alert(
+                        'Thông báo',
+                        'Bạn chưa cấp quyền microphone ?',
+                        [
+                            {
+                                text: 'Cấp quyền',
+                                onPress: () => { check_Permission.requestRecordAudioPermission() }
+                            },
+                        ],
+                        { cancelable: false },
+                    );
+                }
+            });
+
+
+            DeviceInfo.getApiLevel().then((apiLevel) => {
+                if (apiLevel < 30) {
+                    check_Permission.requestReadPhoneStatePermission().then(() => {
+                        if (check_Permission.readPhoneState === false) {
+                            Alert.alert(
+                                'Thông báo',
+                                'Bạn chưa cấp quyền tài khoản cuộc gọi ?',
+                                [
+                                    {
+                                        text: 'Cấp quyền',
+                                        onPress: () => { check_Permission.requestReadPhoneStatePermission() }
+                                    },
+                                ],
+                                { cancelable: false },
+                            );
+                        }
+                    });
+                }
+            });
         }
     }
 
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             conn = getHubAndReconnect();
-            check_Permission.checkAllPermissions();
+            requestPermissionsAndroid();
+
         });
 
         return unsubscribe;
     }, [navigation]);
 
+    useEffect(() => {
+        DongBoDanhBaDataBase();
+    }, []);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={{ flex: 1 }}>
-                <TouchableOpacity onPress={copyOrFetch}>
-                    <Text style={{ fontSize: 30, textAlign: 'center', marginTop: 10 }}>{soDienThoai}</Text>
-                </TouchableOpacity>
+
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+
+                    <Tooltip
+                        isVisible={showTip}
+                        content={
+                            <TouchableOpacity onPress={copyOrFetch}>
+                                <Text> Copy </Text>
+                            </TouchableOpacity>
+                        }
+                        onClose={() => setTip(false)}
+                        placement="bottom"
+                        // below is for the status bar of react navigation bar
+                        topAdjustment={0}
+                    >
+                        <TouchableOpacity
+                            style={[{ width: '100%', marginTop: 40 }, styles.button]}
+                            onPress={() => setTip(true)}
+                        >
+                            <Text style={{ fontSize: 24 }}>{soDienThoai}</Text>
+                        </TouchableOpacity>
+                    </Tooltip>
+                </View>
+
+
 
                 {soDienThoai.length > 0 ? (
                     <FlatList
                         style={styles.itemStyle}
-                        data={listNoiBo || []}
+                        data={listSearhDanhBa || []}
                         renderItem={({ item, index }) => {
                             return (
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomColor: '#dfdfdf', borderBottomWidth: 1, paddingVertical: 4, marginHorizontal: 15 }}>
                                     <Text style={styles.text_tenNguoiGoi}>
-                                        {item.contact_name}
+                                        {item.ho_ten}
                                     </Text>
-                                    <View style={{ flex: 1 }}></View>
                                     <Text style={styles.text_soDienThoaiNguoiGoi}>
-                                        {item.contact_phone}
+                                        {item.so_dien_thoai}
                                     </Text>
                                 </View>
                             );
@@ -252,16 +418,17 @@ const styles = StyleSheet.create({
     itemStyle: {
         backgroundColor: '#ffffff',
         width: DEVICE_WIDTH,
+
     },
     text_tenNguoiGoi: {
         color: '#000000',
-        marginLeft: 10,
+        textAlign: 'left',
         fontSize: 16,
     },
     text_soDienThoaiNguoiGoi: {
         color: '#808080',
-        marginLeft: 10,
         fontSize: 15,
+        textAlign: 'right'
     },
     buttonCircle: {
         borderWidth: 0,
