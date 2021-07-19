@@ -13,10 +13,10 @@ import { openDatabase } from 'react-native-sqlite-storage';
 import Tooltip from "react-native-walkthrough-tooltip";
 import useGetHoTenDanhBa from '../../hooks/useGetHoTenDanhBa';
 import BackgroundTimer from 'react-native-background-timer';
+import typeCallEnum from '../../utils/typeCallEnum';
 
 BackgroundTimer.start();
 const IOS = Platform.OS === 'ios';
-var conn = getHubAndReconnect();
 var db = openDatabase({ name: 'UserDatabase.db' });
 
 function BanPhim({ navigation }) {
@@ -30,20 +30,14 @@ function BanPhim({ navigation }) {
             alert('Số điện thoại không đúng định dạng');
         }
         else {
-            storeData.setStoreDataValue(keyStoreData.soDienThoai, soDienThoai);
+            let termHoTen = soDienThoai;
 
             db.transaction((tx) => {
                 tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [soDienThoai],
                     (tx, { rows }) => {
                         console.log('getHoTenTheoSoDienThoai', rows);
                         if (rows.length > 0) {
-
-                            let termHoTen = rows.item(0).ho_ten;
-                            console.log('termHoTen: ', termHoTen);
-                            navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, type: 2 });
-                        }
-                        else {
-                            navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, type: 2 });
+                            termHoTen = rows.item(0).ho_ten;
                         }
                     },
                     (tx, error) => {
@@ -51,6 +45,8 @@ function BanPhim({ navigation }) {
                     }
                 );
             });
+            console.log('Dữ liệu truyền sang màn hình cuộc gọi: ', soDienThoai, termHoTen, typeCallEnum.outgoingCall);
+            navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, hoTen: termHoTen, type: typeCallEnum.outgoingCall });
         }
     }
 

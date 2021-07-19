@@ -14,7 +14,7 @@ import TextImage from '../../components/TextImage';
 import Toast from 'react-native-simple-toast';
 import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
-import CuocgoiDB from '../../database/CuocGoi';
+import CuocgoiDB from '../../database/CuocGoiDB';
 
 BackgroundTimer.start();
 
@@ -53,6 +53,7 @@ function Login({ navigation }) {
         };
 
         let http = await storeData.getStoreDataValue('urlApi');
+        console.log('http', http);
         var url = http + BaseUrl.URL_LOGIN;
 
         AppApi.RequestPOST(url, params, (err, json) => {
@@ -132,6 +133,7 @@ function Login({ navigation }) {
                     var link = maurl.split('').reverse().join('');
                     var decoded = jwt_decode(link);
                     var url = decoded.ServiceURL;
+                    console.log('url server: ', url);
                     storeData.setStoreDataValue('urlApi', url);
 
                     handleLogin();

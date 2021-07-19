@@ -6,7 +6,8 @@ import LogSignalR from '../utils/customLogSignalR';
 
 let hub = new HubConnectionBuilder()
     .withUrl(https_url)
-    //.configureLogging(LogLevel.Information)
+    .withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
+    .configureLogging(LogLevel.Information)
     .build();
 
 function connectServer() {
