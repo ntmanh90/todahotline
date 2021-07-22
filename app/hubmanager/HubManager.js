@@ -2,6 +2,7 @@ import { hubUrl, local_hubUrl, https_url } from './SignalConfig';
 import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import storeData from '../hooks/storeData';
 import LogSignalR from '../utils/customLogSignalR';
+import logData from '../utils/logData';
 
 
 let hub = new HubConnectionBuilder()
@@ -22,6 +23,7 @@ function connectServer() {
                 }
                 else {
                     console.log('bắt đầu gọi hềm kết nối server');
+                    logData.writeLogData('[Join server]:' + sipUser.user + ", " + sipUser.mact);
                     hub.start().then(() => {
                         hub.invoke('Join',
                             sipUser.user,
@@ -58,6 +60,7 @@ function reconnectServer() {
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('sip_user: ', sipUser);
+            logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
                 hub.invoke('ReJoin',
                     sipUser.user,

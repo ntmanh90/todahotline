@@ -73,47 +73,7 @@ export default function tabBookHeThong() {
     })
   }
 
-  const getDanhSachNoiBo = async () => {
-    let urlApiData = await storeData.getStoreDataValue(keyStoreData.urlApi);
-    let idctData = await storeData.getStoreDataValue(keyStoreData.idct);
-    let idnhanvienData = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
-    let checkThemDanhBaHeThong = await storeData.getStoreDataValue(keyStoreData.checkThemDanhBaHeThong);
 
-    setShowProcess(true);
-
-    let url = urlApiData + BaseURL.URL_LIST_PHONEBOOK_SYSTEM;
-    let params = {
-      idct: idctData,
-      idnhanvien: idnhanvienData,
-      token: '',
-      lastID: 0,
-    };
-    AppApi.RequestPOST(url, params, (err, json) => {
-      if (!err) {
-        setShowProcess(false);
-        if (json.data.status) {
-          var lisdanhba = json.data.dsdanhba;
-          console.log('respon -> ', json.data.dsdanhba);
-
-          setListNoiBo(lisdanhba);
-          setListNoiBoAll(lisdanhba);
-
-
-          if (checkThemDanhBaHeThong !== 'true') {
-            lisdanhba.map((item) => {
-              DanhBaDB.addDanhBa(item.tenlienhe, item.sodienthoai, item.tenlienhe.substring(0, 1), kieuDanhBa.HeThong);
-            });
-            storeData.setStoreDataValue(keyStoreData.checkThemDanhBaHeThong, true);
-          }
-        } else {
-
-        }
-      } else {
-        setShowProcess(false);
-
-      }
-    });
-  }
 
   const renderProcess = () => {
     if (showProcess) {

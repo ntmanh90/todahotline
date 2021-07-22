@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, View, SafeAreaView, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
+import { Platform, View, SafeAreaView, StyleSheet, Text, Image, PermissionsAndroid } from 'react-native';
 import { Input, Button } from 'react-native-elements';
 import messaging from "@react-native-firebase/messaging";
 import DeviceInfo from 'react-native-device-info';
@@ -14,7 +14,11 @@ import TextImage from '../../components/TextImage';
 import Toast from 'react-native-simple-toast';
 import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
-import CuocgoiDB from '../../database/CuocGoiDB';
+import keyStoreData from '../../utils/keyStoreData';
+import CuocGoiDB from '../../database/CuocGoiDB';
+import useCheckPermistion from '../../hooks/useCheckPermistion';
+
+const IOS = Platform.OS === 'ios';
 
 BackgroundTimer.start();
 
@@ -22,13 +26,10 @@ function Login({ navigation }) {
     const [maCongTy, setMaCongTy] = useState('');
     const [tenDangNhap, setTenDangNhap] = useState('');
     const [matKhau, setMatKhau] = useState('');
-    const [renderProcess, setRenderProcess] = useState(false);
+    const [renderProcess, setRenderProcess] = useState(true);
+    const check_Permission = useCheckPermistion();
 
     const handleLogin = async () => {
-        storeData.setStoreDataValue('tenct', maCongTy);
-        storeData.setStoreDataValue('UserName', tenDangNhap);
-        storeData.setStoreDataValue('PassWord', matKhau);
-
         let idpush = await messaging().getToken();
         console.log('idpush', idpush);
         let idpushkit = ''
@@ -100,21 +101,29 @@ function Login({ navigation }) {
                 this.setState({ showProcess: false });
                 alert('Vui lòng kiểm tra lại internet !!!');
             }
-            setRenderProcess(false);
+
         });
     }
 
 
     const LoginApi = async () => {
+        createTableDatabase();
+        setRenderProcess(true);
+        storeData.setStoreDataValue('tenct', maCongTy);
+        storeData.setStoreDataValue('UserName', tenDangNhap);
+        storeData.setStoreDataValue('PassWord', matKhau);
+
         if (
             tenDangNhap.length == 0 ||
             matKhau.length == 0 ||
             maCongTy.length == 0
         ) {
             Toast.showWithGravity('Xin mời nhập đầy đủ thông tin.', Toast.LONG, Toast.TOP);
+            setRenderProcess(false);
             return;
         }
-        setRenderProcess(true);
+
+        console.log('[renderProcess]', renderProcess);
         var params = 'idct=' + maCongTy;
         var url = BaseUrl.URL_LOGININFO + params;
         console.log(url);
@@ -148,18 +157,120 @@ function Login({ navigation }) {
                 callback(error, null);
             })
             .finally();
+        BackgroundTimer.setTimeout(() => {
+            setRenderProcess(false);
+        }, 500);
         setRenderProcess(false);
     }
 
-    useEffect(() => {
-        CuocgoiDB.addCuocGoi();
-    }, []);
+    //Tao bang sqlite
+    const createTableDatabase = () => {
+        console.log('[tạo bảng database]');
+        BackgroundTimer.setTimeout(() => {
+            CuocGoiDB.initTable();
+        }, 2000);
+    }
+
+    const layThongTinDangNhap = async () => {
+        let userName = await storeData.getStoreDataValue('UserName');
+        setTenDangNhap(userName);
+        let tenct = await storeData.getStoreDataValue('tenct');
+        setMaCongTy(tenct);
+        let passWord = await storeData.getStoreDataValue('PassWord');
+        setMatKhau(passWord);
+        let isLogin = await storeData.getStoreDataValue(keyStoreData.isLogin);
+        if (isLogin == 'true') {
+            navigation.navigate('BanPhim');
+        }
+    }
+
+    //Xin quyền gọi
+    const requestPermissionsAndroid = () => {
+        if (!IOS) {
+            PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+                {
+                    'title': 'Contacts',
+                    'message': 'This app would like to view your contacts.',
+                    'buttonPositive': 'Please accept bare mortal'
+                }
+            )
+                .then(() => {
+                    check_Permission.requestCallPhonePermission().then(() => {
+                        if (check_Permission.callPhone === false) {
+                            Alert.alert(
+                                'Thông báo',
+                                'Bạn chưa cấp quyền điện thoại ?',
+                                [
+                                    {
+                                        text: 'Cấp quyền',
+                                        onPress: () => { check_Permission.requestCallPhonePermission() }
+                                    },
+                                ],
+                                { cancelable: false },
+                            );
+                        }
+                        else {
+                            check_Permission.requestRecordAudioPermission().then(() => {
+                                if (check_Permission.recordAudio === false) {
+                                    Alert.alert(
+                                        'Thông báo',
+                                        'Bạn chưa cấp quyền microphone ?',
+                                        [
+                                            {
+                                                text: 'Cấp quyền',
+                                                onPress: () => { check_Permission.requestRecordAudioPermission() }
+                                            },
+                                        ],
+                                        { cancelable: false },
+                                    );
+                                }
+                                else {
+                                    DeviceInfo.getApiLevel().then((apiLevel) => {
+                                        if (apiLevel < 30) {
+                                            check_Permission.requestReadPhoneStatePermission().then(() => {
+                                                if (check_Permission.readPhoneState === false) {
+                                                    Alert.alert(
+                                                        'Thông báo',
+                                                        'Bạn chưa cấp quyền tài khoản cuộc gọi ?',
+                                                        [
+                                                            {
+                                                                text: 'Cấp quyền',
+                                                                onPress: () => { check_Permission.requestReadPhoneStatePermission() }
+                                                            },
+                                                        ],
+                                                        { cancelable: false },
+                                                    );
+                                                }
+                                            });
+                                        }
+                                    })
+                                }
+                            });
+                        }
+                    });
+                });
+        }
+    }
+
+    React.useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            layThongTinDangNhap();
+            createTableDatabase();
+            BackgroundTimer.setTimeout(() => {
+                requestPermissionsAndroid();
+                setRenderProcess(false);
+            }, 2000);
+        });
+        return () => {
+            unsubscribe
+        };
+    }, [navigation]);
 
     return (
         <>
 
             <View style={styles.container}>
-                {renderProcess === true && (<ProgressApp />)}
                 <View
                     style={{
                         marginTop: 0,
@@ -205,7 +316,7 @@ function Login({ navigation }) {
                     }}
                 />
 
-                <Button title="Đăng nhập" onPress={LoginApi} containerStyle={{ borderRadius: 20, marginTop: 30 }} />
+                <Button title="Đăng nhập" onPress={LoginApi} containerStyle={styles.borderButton} buttonStyle={{ borderRadius: 20 }} />
 
                 <Text
                     style={[
@@ -221,6 +332,8 @@ function Login({ navigation }) {
                 </Text>
 
             </View>
+
+            {renderProcess === true ? (<ProgressApp />) : null}
         </>
     );
 }
@@ -232,6 +345,9 @@ var styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
         paddingHorizontal: 15,
+    },
+    borderButton: {
+        marginTop: 30
     },
     text: {
         marginBottom: 5,

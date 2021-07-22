@@ -1,11 +1,11 @@
 import { openDatabase } from 'react-native-sqlite-storage';
+import storeData from '../hooks/storeData';
 import moment from "moment";
+import keyStoreData from '../utils/keyStoreData';
 var db = openDatabase({ name: 'UserDatabase.db' });
 
 
 const initTable = () => {
-  console.log('đã vào hàm tạo bảng');
-
   db.transaction(tx => {
     tx.executeSql(
       'CREATE TABLE IF NOT EXISTS CuocGoi (id_cuoc_goi integer primary key not null, ho_ten text , so_dien_thoai text, so_lan_goi integer, anh_dai_dien text, kieu_cuoc_goi integer, ngay_goi text)'
@@ -29,10 +29,13 @@ const initTable = () => {
       'CREATE TABLE IF NOT EXISTS DanhBa (id_danh_ba integer primary key not null, ho_ten text , so_dien_thoai text, anh_dai_dien text,  kieu_danh_ba integer)'
     );
   });
+
+  storeData.getStoreDataValue(keyStoreData.isCreateTableSqlite, true);
+
 }
 
-const addCuocGoi = (ten, sdt, type) => {
-  console.log('addCuocGoi: ', ten, sdt, type);
+const addCuocGoi = (sdt, type) => {
+
   let ho_ten_danh_ba = '';
   let anh_dai_dien_danh_ba = '';
   let id_cuoc_goi = 0;

@@ -9,7 +9,7 @@ function TextImage({ name, placeholder, text, secureText = false, eye = false, .
     const imageClick = () => {
         console.log('đã nhấn vào đây');
         setShowPassword(!showPassword);
-        setEyeName(showPassword ? "eye-outline" : "eye-off-outline");
+        setEyeName(!showPassword ? "eye-outline" : "eye-off-outline");
     }
 
     var eyeImgComponet = (eye) => {
@@ -30,7 +30,7 @@ function TextImage({ name, placeholder, text, secureText = false, eye = false, .
             <TextInput
                 style={[styles.input]}
                 placeholder={placeholder}
-                secureTextEntry={secureText ? showPassword : false}
+                secureTextEntry={secureText ? !showPassword : false}
                 placeholderTextColor="gray"
                 underlineColorAndroid="transparent"
                 value={text}

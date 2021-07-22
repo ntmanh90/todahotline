@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, Dimensions, SafeAreaView, Alert, TouchableOpacity, FlatList, Platform, PermissionsAndroid, StatusBar } from 'react-native';
+import { View, NativeModules, StyleSheet, Text, Dimensions, SafeAreaView, Alert, TouchableOpacity, FlatList, Platform, PermissionsAndroid, StatusBar } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import ProgressApp from '../../components/ProgressApp';
 import storeData from '../../hooks/storeData';
-import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
 import keyStoreData from '../../utils/keyStoreData';
 import useCheckPermistion from '../../hooks/useCheckPermistion';
 import KeypadButton from '../../components/KeypadButton';
@@ -11,9 +11,12 @@ import dongBoDanhBaHeThong from '../../utils/dongBoDanhBaHeThong';
 import DeviceInfo from 'react-native-device-info';
 import { openDatabase } from 'react-native-sqlite-storage';
 import Tooltip from "react-native-walkthrough-tooltip";
-import useGetHoTenDanhBa from '../../hooks/useGetHoTenDanhBa';
 import BackgroundTimer from 'react-native-background-timer';
 import typeCallEnum from '../../utils/typeCallEnum';
+import BaseURL from '../../utils/BaseURL';
+import AppApi from '../../api/Client';
+import RNRestart from 'react-native-restart';
+import logData from '../../utils/logData';
 
 BackgroundTimer.start();
 const IOS = Platform.OS === 'ios';
@@ -22,43 +25,54 @@ var db = openDatabase({ name: 'UserDatabase.db' });
 function BanPhim({ navigation }) {
     const [soDienThoai, setSoDienThoai] = useState('');
     const [listSearhDanhBa, setListSearhDanhBa] = useState([]);
+    const [checkDongBoDanhBa, setCheckDongBoDanhBa] = useState(false);
     const [showTip, setTip] = useState(false);
     const check_Permission = useCheckPermistion();
 
     const cuocGoiDi = async () => {
         if (soDienThoai.length < 3) {
             alert('Số điện thoại không đúng định dạng');
+            return;
         }
-        else {
-            let termHoTen = soDienThoai;
+        else if (soDienThoai.length > 9) {
+            let quyengoiSDT = await storeData.getStoreDataValue(keyStoreData.quyenGoiRa);
+            if (quyengoiSDT != '1') {
+                alert('Bạn không có quyền gọi ra');
+                return;
+            }
+        }
 
-            db.transaction((tx) => {
-                tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [soDienThoai],
-                    (tx, { rows }) => {
-                        console.log('getHoTenTheoSoDienThoai', rows);
-                        if (rows.length > 0) {
-                            termHoTen = rows.item(0).ho_ten;
-                        }
-                    },
-                    (tx, error) => {
-                        console.log('Error list cuoc goi: ', error, tx);
+        let termHoTen = soDienThoai;
+        db.transaction((tx) => {
+            tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [soDienThoai],
+                (tx, { rows }) => {
+                    console.log('getHoTenTheoSoDienThoai', rows);
+                    if (rows.length > 0) {
+                        termHoTen = rows.item(0).ho_ten;
                     }
-                );
-            });
-            console.log('Dữ liệu truyền sang màn hình cuộc gọi: ', soDienThoai, termHoTen, typeCallEnum.outgoingCall);
-            navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, hoTen: termHoTen, type: typeCallEnum.outgoingCall });
-        }
+                },
+                (tx, error) => {
+                    console.log('Error check tên số điện thoại ', error);
+                }
+            );
+        });
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
+        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
+        storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+        let termSDT = soDienThoai;
+        setSoDienThoai('');
+        console.log('Dữ liệu truyền sang màn hình cuộc gọi: ', termSDT, termHoTen, typeCallEnum.outgoingCall);
+        navigation.navigate('CuocGoi');
+
     }
 
     const handleKeypadPressed = (value) => {
         let tmp = soDienThoai;
         tmp = tmp + value.trim();
         setSoDienThoai(tmp);
-
         if (soDienThoai.length > 0) {
-
             db.transaction((tx) => {
-                tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai LIKE '%" + soDienThoai + "%' ORDER BY ho_ten", [],
+                tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai LIKE '%" + tmp + "%' ORDER BY ho_ten", [],
                     (tx, { rows }) => {
                         let temp = [];
                         for (let i = 0; i < rows.length; i++) {
@@ -66,8 +80,8 @@ function BanPhim({ navigation }) {
                         }
                         setListSearhDanhBa(temp);
                     },
-                    (tx, error) => {
-                        console.log('Error list cuoc goi: ', error);
+                    (tx) => {
+                        console.log('Error list cuoc goi: ', tx);
                     }
                 );
             });
@@ -92,16 +106,54 @@ function BanPhim({ navigation }) {
         }
     }
 
+    const getDanhSachNoiBo = async () => {
+        let urlApiData = await storeData.getStoreDataValue(keyStoreData.urlApi);
+        let idctData = await storeData.getStoreDataValue(keyStoreData.idct);
+        let idnhanvienData = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
+
+        setCheckDongBoDanhBa(true);
+
+        let url = urlApiData + BaseURL.URL_LIST_PHONEBOOK_SYSTEM;
+        let params = {
+            idct: idctData,
+            idnhanvien: idnhanvienData,
+            token: '',
+            lastID: 0,
+        };
+        AppApi.RequestPOST(url, params, (err, json) => {
+            if (!err) {
+                if (json.data.status) {
+                    var lisdanhba = json.data.dsdanhba;
+                    setListNoiBo(lisdanhba);
+                    setListNoiBoAll(lisdanhba);
+
+                    if (checkThemDanhBaHeThong !== 'true') {
+                        lisdanhba.map((item) => {
+                            DanhBaDB.addDanhBa(item.tenlienhe, item.sodienthoai, item.tenlienhe.substring(0, 1), kieuDanhBa.HeThong);
+                        });
+                        storeData.setStoreDataValue(keyStoreData.checkThemDanhBaHeThong, true);
+                    }
+                } else {
+
+                }
+            }
+        });
+        setCheckDongBoDanhBa(false);
+    }
+
     const DongBoDanhBaDataBase = () => {
+
         if (IOS) {
             Contacts.checkPermission().then((permission) => {
                 console.log('check', permission);
                 if (permission === 'undefined') {
                     Contacts.requestPermission().then((per) => {
+                        setCheckDongBoDanhBa(true);
                         dongBoDanhBaHeThong.themDanhBa();
                     });
                 }
                 if (permission === 'authorized') {
+                    setCheckDongBoDanhBa(true);
                     dongBoDanhBaHeThong.themDanhBa();
                 }
                 if (permission === 'denied') {
@@ -132,88 +184,121 @@ function BanPhim({ navigation }) {
                 }
             )
                 .then(() => {
+                    setCheckDongBoDanhBa(true);
                     dongBoDanhBaHeThong.themDanhBa();
                 });
         }
+        setCheckDongBoDanhBa(false);
     }
 
+    //Xin quyền
     const requestPermissionsAndroid = () => {
         if (!IOS) {
-            check_Permission.requestCallPhonePermission().then(() => {
-                if (check_Permission.callPhone === false) {
-                    Alert.alert(
-                        'Thông báo',
-                        'Bạn chưa cấp quyền điện thoại ?',
-                        [
-                            {
-                                text: 'Cấp quyền',
-                                onPress: () => { check_Permission.requestCallPhonePermission() }
-                            },
-                        ],
-                        { cancelable: false },
-                    );
+            PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+                {
+                    'title': 'Contacts',
+                    'message': 'This app would like to view your contacts.',
+                    'buttonPositive': 'Please accept bare mortal'
                 }
-            });
-
-            check_Permission.requestRecordAudioPermission().then(() => {
-                if (check_Permission.recordAudio === false) {
-                    Alert.alert(
-                        'Thông báo',
-                        'Bạn chưa cấp quyền microphone ?',
-                        [
-                            {
-                                text: 'Cấp quyền',
-                                onPress: () => { check_Permission.requestRecordAudioPermission() }
-                            },
-                        ],
-                        { cancelable: false },
-                    );
-                }
-            });
-
-
-            DeviceInfo.getApiLevel().then((apiLevel) => {
-                if (apiLevel < 30) {
-                    check_Permission.requestReadPhoneStatePermission().then(() => {
-                        if (check_Permission.readPhoneState === false) {
+            )
+                .then(() => {
+                    check_Permission.requestCallPhonePermission().then(() => {
+                        if (check_Permission.callPhone === false) {
                             Alert.alert(
                                 'Thông báo',
-                                'Bạn chưa cấp quyền tài khoản cuộc gọi ?',
+                                'Bạn chưa cấp quyền điện thoại ?',
                                 [
                                     {
                                         text: 'Cấp quyền',
-                                        onPress: () => { check_Permission.requestReadPhoneStatePermission() }
+                                        onPress: () => { check_Permission.requestCallPhonePermission() }
                                     },
                                 ],
                                 { cancelable: false },
                             );
                         }
+                        else {
+                            check_Permission.requestRecordAudioPermission().then(() => {
+                                if (check_Permission.recordAudio === false) {
+                                    Alert.alert(
+                                        'Thông báo',
+                                        'Bạn chưa cấp quyền microphone ?',
+                                        [
+                                            {
+                                                text: 'Cấp quyền',
+                                                onPress: () => { check_Permission.requestRecordAudioPermission() }
+                                            },
+                                        ],
+                                        { cancelable: false },
+                                    );
+                                }
+                                else {
+
+                                    DeviceInfo.getApiLevel().then((apiLevel) => {
+                                        if (apiLevel < 30) {
+                                            storeData.getStoreDataValue('isResetApp').then((isResetApp) => {
+                                                storeData.setStoreDataValue('isResetApp', true).then(() => {
+                                                    if (isResetApp != 'true') {
+                                                        logData.writeLogData('[ResetApp]');
+                                                        RNRestart.Restart();
+                                                    }
+                                                });
+
+                                            });
+
+                                            check_Permission.requestReadPhoneStatePermission().then(() => {
+                                                if (check_Permission.readPhoneState === false) {
+                                                    Alert.alert(
+                                                        'Thông báo',
+                                                        'Bạn chưa cấp quyền tài khoản cuộc gọi ?',
+                                                        [
+                                                            {
+                                                                text: 'Cấp quyền',
+                                                                onPress: () => { check_Permission.requestReadPhoneStatePermission() }
+                                                            },
+                                                        ],
+                                                        { cancelable: false },
+                                                    );
+                                                }
+                                            });
+                                        }
+                                    })
+                                }
+                            });
+                        }
                     });
-                }
-            });
+                });
         }
     }
 
+
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-            conn = getHubAndReconnect();
-            requestPermissionsAndroid();
-
+            storeData.getStoreDataValue(keyStoreData.isLogin).then((isLogin) => {
+                if (isLogin === 'true') {
+                    console.log('yeu cau quyen truy cap');
+                    requestPermissionsAndroid();
+                }
+                else {
+                    navigation.navigate('Login');
+                }
+            })
         });
 
-        return unsubscribe;
+        return () => {
+            unsubscribe;
+        };
     }, [navigation]);
 
     useEffect(() => {
         DongBoDanhBaDataBase();
+        getDanhSachNoiBo();
     }, []);
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={{ flex: 1 }}>
-
                 <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-
                     <Tooltip
                         isVisible={showTip}
                         content={
@@ -227,15 +312,13 @@ function BanPhim({ navigation }) {
                         topAdjustment={0}
                     >
                         <TouchableOpacity
-                            style={[{ width: '100%', marginTop: 40 }, styles.button]}
+                            style={[{ width: '100%', marginTop: 20 }, styles.button]}
                             onPress={() => setTip(true)}
                         >
                             <Text style={{ fontSize: 24 }}>{soDienThoai}</Text>
                         </TouchableOpacity>
                     </Tooltip>
                 </View>
-
-
 
                 {soDienThoai.length > 0 ? (
                     <FlatList
@@ -260,7 +343,7 @@ function BanPhim({ navigation }) {
                     <Text></Text>
                 )}
             </View>
-            <View>
+            <View style={{ flex: 4 }}>
                 <View style={styles.keypad}>
                     <View style={styles.keypadrow}>
                         <KeypadButton
@@ -343,44 +426,28 @@ function BanPhim({ navigation }) {
                         />
                     </View>
                 </View>
-
-                <View style={styles.row}>
-                    {(soDienThoai.length == 0) ? null : <TouchableOpacity
-                        style={[
-                            styles.buttonCircle,
-                            styles.invisible,
-                        ]}></TouchableOpacity>}
-
-                    <TouchableOpacity
-                        onPress={cuocGoiDi}
-                        style={[styles.buttonCircle, styles.bgSuccess]}>
-                        <Ionicons name="ios-call" style={styles.btnSuccess} size={35} />
-                    </TouchableOpacity>
-                    {(soDienThoai.length == 0) ? null : <TouchableOpacity
-                        style={styles.buttonCircle}
-                        onPress={deleteNumber}
-                        onLongPress={keypadLongPressed}>
-                        <Ionicons name="backspace-outline" style={styles.btnbgDanger} size={40} />
-                    </TouchableOpacity>}
-
-                </View>
             </View>
+            <View style={{ flexDirection: 'row', alignSelf: 'center', flex: 1 }}>
+                {(soDienThoai.length == 0) ? null : <TouchableOpacity
+                    style={[
+                        styles.buttonCircle,
+                        styles.invisible,
+                    ]}></TouchableOpacity>}
 
+                <TouchableOpacity
+                    onPress={cuocGoiDi}
+                    style={[styles.buttonCircle, styles.bgSuccess]}>
+                    <Ionicons name="ios-call" style={styles.btnSuccess} size={35} />
+                </TouchableOpacity>
+                {(soDienThoai.length == 0) ? null : <TouchableOpacity
+                    style={styles.buttonCircle}
+                    onPress={deleteNumber}
+                    onLongPress={keypadLongPressed}>
+                    <Ionicons name="backspace-outline" style={styles.btnbgDanger} size={40} />
+                </TouchableOpacity>}
 
-            {/* <Text>Số của bạn: {soDienThoai}</Text>
-            <Text>Số điện thoại</Text>
-            <Input
-                onChangeText={(value) => setSoDienThoai(value)}
-                placeholder='Nhập số gọi ra'
-                leftIcon={
-                    <Icon
-                        name='phone'
-                        size={24}
-                        color='black'
-                    />
-                }
-            />
-            <Button onPress={cuocGoiDi} title='Call' /> */}
+            </View>
+            {checkDongBoDanhBa == true && <ProgressApp />}
         </SafeAreaView>
     );
 }
@@ -409,12 +476,9 @@ const styles = StyleSheet.create({
         borderRadius: DEVICE_WIDTH / 10,
         paddingTop: 7
     },
-
-
     itemStyle: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#fff',
         width: DEVICE_WIDTH,
-
     },
     text_tenNguoiGoi: {
         color: '#000000',

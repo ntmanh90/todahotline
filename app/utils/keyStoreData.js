@@ -25,4 +25,10 @@ export default {
     intervalIdApp: 'intervalIdApp',
     soDienThoaiDen: 'soDienThoaiDen',
     hoTenDienThoaiDen: 'hoTenDienThoaiDen',
+    soDienThoaiDi: 'soDienThoaiDi',
+    hoTenDienThoaiDi: 'hoTenDienThoaiDi',
+    typeCall: 'typeCall',
+    isCreateTableSqlite: 'isCreateTableSqlite',
+    paramNoti: 'paramNoti',
+    checkCuocGoiDen: 'checkCuocGoiDen',
 }

@@ -36,6 +36,7 @@ export default useCheckPermistion = () => {
 
     const requestReadPhoneStatePermission = async () => {
         try {
+            console.log('[request] READ_PHONE_STATE:');
             const check_READ_PHONE_STATE = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
             console.log('READ_PHONE_STATE: ', check_READ_PHONE_STATE);
             if (check_READ_PHONE_STATE === false) {

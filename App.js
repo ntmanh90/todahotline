@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  DeviceEventEmitter, Platform, View
+  DeviceEventEmitter, Platform, View, PermissionsAndroid
 } from 'react-native';
 import uuid from 'uuid';
 import BackgroundTimer from 'react-native-background-timer';
@@ -11,7 +11,6 @@ import AppNavigation from './app/navigation/AppNavigation';
 import * as RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
-import logSignalR from './app/utils/customLogSignalR';
 import keyStoreData from './app/utils/keyStoreData';
 import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import logData from './app/utils/logData';
@@ -22,12 +21,14 @@ import MaterialCommunityIcon from 'react-native-vector-icons/MaterialCommunityIc
 import { HubConnectionState } from '@microsoft/signalr';
 import { openDatabase } from 'react-native-sqlite-storage';
 import typeCallEnum from './app/utils/typeCallEnum';
+import BaseURL from './app/utils/BaseURL';
+import AppApi from './app/api/Client';
+
 
 const isIOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
 var db = openDatabase({ name: 'UserDatabase.db' });
-var callUUIDHienTai = '';
-let hoTen = "";
+var soDienThoaiDen = '';
 
 BackgroundTimer.start();
 
@@ -41,7 +42,7 @@ RNCallKeep.setup({
     cancelButton: 'Cancel',
     okButton: 'ok',
     //Add bổ xung giống bản của mr khánh
-    //additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
+    additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
     foregroundService: {
       channelId: 'com.lachong.toda',
       channelName: 'Foreground service for my app',
@@ -61,22 +62,35 @@ const getNewUuid = () => uuid.v4().toLowerCase();
 
 const App = (props) => {
   const [disSignal, setDisSignal] = useState(false);
+  const [isLogin, setIsLogin] = useState('false');
+  const [callUUIDHienTai, setCallUUIDHienTai] = useState('');
 
+  const handleEndCall = async () => {
+    let paramNotiData = {
+      uniqueid: "",
+      channel: "",
+    };
+    storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+    soDienThoaiDen = '';
+  }
 
   const displayIncomingCall = async () => {
     conn = getHubAndReconnect();
+    logData.writeLogData('[displayIncomingCall]');
     const callUUID = getNewUuid();
-    callUUIDHienTai = callUUID;
-    const number = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
-    hoTen = number;
-    logData.writeLogData('Đã hiển thị màn hình cuộc gọi: displayIncomingCall, số gọi đến: ' + number);
+    setCallUUIDHienTai(callUUID);
+    let _soDienThoaiDen = soDienThoaiDen;
+    let hoTen = _soDienThoaiDen;
 
     db.transaction((tx) => {
-      tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [number],
+      tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [_soDienThoaiDen],
         (tx, { rows }) => {
           console.log('getHoTenTheoSoDienThoai', rows);
           if (rows.length > 0) {
-            hoTen = rows.item(0).ho_ten;
+            if (rows.item(0).ho_ten) {
+              hoTen = rows.item(0).ho_ten;
+              storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, hoTen);
+            }
           }
         },
         (tx, error) => {
@@ -84,36 +98,71 @@ const App = (props) => {
         }
       );
     });
+    //logData.writeLogData('[displayIncomingCall]: ' + _soDienThoaiDen + ", " + hoTen);
+    //RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
 
-    storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, hoTen);
-    RNCallKeep.displayIncomingCall(callUUID, number, hoTen, 'number', false);
+    let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
+    let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
+    let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
+    let paramNoti = await storeData.getStoreDataObject(keyStoreData.paramNoti);
+    let prefix = await storeData.getStoreDataObject(keyStoreData.Prefix);
+
+    var params = {
+      mact: mact,
+      sodich: somayle,
+      songuon: _soDienThoaiDen,
+      somayle: somayle,
+      prefix: prefix,
+      uniqueid: paramNoti.uniqueid ?? '',
+      channel: paramNoti.channel ?? '',
+    }
+    let url = http + BaseURL.URL_CHECK_INCOMINGCAL;
+    AppApi.RequestPOST(url, params, (err, json) => {
+      logData.writeLogData('[CallAPI: checkcuocgoi] send | ', JSON.stringify(params));
+
+      if (!err) {
+        logData.writeLogData('[CallAPI: checkcuocgoi] send | result: ' + JSON.stringify(json.data.status));
+        if (json.data.status) {
+          logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
+          RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
+        } else {
+          CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
+          return;
+        }
+      }
+      else {
+        CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
+        return;
+      }
+    });
   };
 
   const answerCall = async ({ callUUID }) => {
-    const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
+    logData.writeLogData('[AnswerCall]');
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
+    RNCallKeep.setCurrentCallActive(callUUID);
+    BackgroundTimer.setTimeout(() => {
+      RNCallKeep.backToForeground();
+    }, 100);
 
-    RNCallKeep.backToForeground()
-    RNCallKeep.setCurrentCallActive(callUUID)
-    RootNavigation.navigate('CuocGoi', { soDienThoai: sdt, hoTen: hoTen, type: typeCallEnum.IncomingCall });
-
+    RootNavigation.navigate('CuocGoi');
   };
 
   const endCall = async ({ callUUID }) => {
+    logData.writeLogData('[EndCall]');
     conn = getHubAndReconnect();
     const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
     let isAnswerCall = await storeData.getStoreDataValue(keyStoreData.isAnswerCall);
     if (isAnswerCall === 'true') {
       conn.invoke('hangUp', sessionCallId).then(() => {
-        logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + sdt);
+        logData.writeLogData('Invoke: hangUp | App, SDT: ' + sdt);
       }).catch((error) => console.log(error));
     }
     else {
-      CuocGoiDB.addCuocGoi(hoTen, sdt, CallTypeEnum.MissingCall);
-      console.log('AnswerCallAsterisk App');
+      CuocGoiDB.addCuocGoi(sdt, CallTypeEnum.MissingCall);
       conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).then(() => {
-        logData.writeLogData('endCall -> Invoke: AnswerCallAsterisk | App: false từ chối cuộc gọi: ' + sdt);
+        logData.writeLogData('Invoke: AnswerCallAsterisk | App | [false]: từ chối SĐT' + sdt);
       }).catch();
     }
 
@@ -134,20 +183,14 @@ const App = (props) => {
 
   const checkLogin = async () => {
     let isLoginData = await storeData.getStoreDataValue('isLogin');
-    console.log('isLoginData', isLoginData);
+    setIsLogin(isLoginData);
     if (isLoginData !== 'true') {
-      console.log('chuyển đến trang login');
       RootNavigation.navigate('Login');
     }
   }
 
-
   conn.onclose((e) => {
-    //console.log('onclose');
-    //logData.writeLogData('Disconnect server: event onclose');
-
-    //repeat check state connect hub
-
+    conn = getHubAndReconnect();
     setDisSignal(true);
   });
 
@@ -158,51 +201,40 @@ const App = (props) => {
 
   conn.off('IncomingCallAsterisk')
   conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    console.log('Cuộc gọi đến IncomingCallAsterisk | App: ', displayname);
-    logData.writeLogData('Cuộc gọi đến IncomingCallAsterisk | số điện thoại gọi đến: ' + number);
-    logSignalR.serverCallClient('IncomingCallAsterisk');
-    let sdt_incoming = number;
-    storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
-      console.log('prefix: ', prefix);
-      sdt_incoming = number.replace(prefix, "");
-      console.log('sdt_incoming: ', sdt_incoming);
-      storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
-    });
+    logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
 
     var signal = JSON.parse(data);
     storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
     storeData.setStoreDataValue(keyStoreData.callid, callid);
-    displayIncomingCall();
+
+    let sdt_incoming = number;
+    storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
+      sdt_incoming = number.replace(prefix, "");
+      soDienThoaiDen = sdt_incoming;
+      storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
+      storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, sdt_incoming);
+      storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.IncomingCall);
+      displayIncomingCall();
+    });
   });
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
-
-    logData.writeLogData('server call client event: callEnded | App, callid: ' + callid);
-    logSignalR.serverCallClient('callEnded');
-    console.log('callUUIDHienTai', callUUIDHienTai);
+    handleEndCall();
+    logData.writeLogData('[[on] callEnded] | App, callid: ' + JSON.stringify(callid));
     RNCallKeep.endCall(callUUIDHienTai);
-    resetState();
   });
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
-    CuocGoiDB.addCuocGoi(name, number, CallTypeEnum.MissingCall);
-    logData.writeLogData('server call client event: MissedCall | App, số điện thoại goi nhỡ: ' + number);
-    console.log('bạn có cuộc gọi nhỡ: ', number, name);
-  });
 
-  //Tao bang sqlite
-  const createTableDatabase = async () => {
-    await CuocGoiDB.initTable();
-  }
+    CuocGoiDB.addCuocGoi(number, CallTypeEnum.MissingCall);
+    logData.writeLogData('[[On] : MissedCall] | App, SDT: ' + JSON.stringify(number));
+  });
 
   /// Kết thúc xử lý kết nối signalR ////
   useEffect(() => {
     //RNCallKeep.endAllCalls();
-    createTableDatabase();
-
-    checkLogin();
     requestUserPermission();
 
     PushNotification.configure({
@@ -214,10 +246,19 @@ const App = (props) => {
       // (required) Called when a remote is received or opened, or local notification is opened
       onNotification: function (notification) {
         conn = getHubAndReconnect();
-        console.log("NOTIFICATION:", notification);
+        console.log("NOTIFICATION 1:", notification);
+
+        if (notification.data.type == 'wakeup') {
+          backgroundtimer = setTimeout(() => {
+            let paramNotiData = {
+              uniqueid: notification.data.uniqueid,
+              channel: notification.data.channel,
+            };
+            storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+          }, 200);
+        }
 
         // process the notification
-
         // (required) Called when a remote is received or opened, or local notification is opened
         notification.finish(PushNotificationIOS.FetchResult.NoData);
       },
@@ -266,13 +307,13 @@ const App = (props) => {
       if (conn.state !== HubConnectionState.Connected) {
         // console.log('Disconnected');
         setDisSignal(true);
-        conn = getHubAndReconnect();
+        //conn = getHubAndReconnect();
       }
       if (conn.state === HubConnectionState.Connected) {
         //console.log('Connected');
         setDisSignal(false);
       }
-    }, 1000);
+    }, 2000);
 
     let subscription = DeviceEventEmitter.addListener('displayIncomingCallEvent', displayIncomingCall);
 
@@ -291,6 +332,10 @@ const App = (props) => {
 
   }, []);
 
+  useEffect(() => {
+    checkLogin();
+  }, [isLogin]);
+
   return (
     <>
       <AppNavigation />
@@ -298,14 +343,16 @@ const App = (props) => {
         null
         :
         (
-          <View style={{ position: 'absolute', top: 8, right: 8 }}>
-            <MaterialCommunityIcon name="signal-off" size={18} color="red" />
-          </View>
+          <>
+            <View style={{ position: 'absolute', top: 8, right: 8 }}>
+              <MaterialCommunityIcon name="signal-off" size={18} color="red" />
+            </View>
+            {/* <ProgressApp /> */}
+          </>
         )
       }
     </>
   );
-
 };
 
 

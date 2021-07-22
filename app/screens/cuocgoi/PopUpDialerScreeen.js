@@ -4,30 +4,28 @@ import {
     Dimensions,
     StyleSheet,
     View,
-    Platform,
-    ActivityIndicator,
     SafeAreaView,
-    Alert,
     Text
 } from 'react-native';
 
 import Clipboard from '@react-native-community/clipboard';
-import Keypad from '../Keypad/Keypad';
-import Coppyable from '../Custom_Component/CoppyableNumberInput';
+import Coppyable from '../../components/CoppyableNumberInput';
 import Tooltip from 'react-native-walkthrough-tooltip';
+import showUICallEnum from '../../utils/showUICallEnum';
+import KeypadButton from '../../components/KeypadButton';
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
 
-function PopUpDialerScreeen() {
+function PopUpDialerScreeen({ hideDialer, dtmf }) {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [toolTipVisiblev2, setToolTipVisiblev2] = useState(false);
 
 
     const _keypadPressed = (value) => {
+        console.log('value ', value);
         var tmp = phoneNumber + value;
-        this.setState({ phoneNumber: tmp });
-        setPhoneNumber(tmp)
-        search(tmp);
+        setPhoneNumber(tmp);
+        dtmf(tmp);
     }
 
     const fetchCopiedText = async () => {
@@ -38,6 +36,7 @@ function PopUpDialerScreeen() {
         Clipboard.setString(phoneNumber);
         setToolTipVisiblev2(false);
     };
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -73,11 +72,92 @@ function PopUpDialerScreeen() {
 
             </View>
             <View style={{}}>
-                <Keypad keyPressed={(e) => this._keypadPressed(e)} />
+                <View style={styles.keypad}>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="1"
+                            txt2=""
+                            onPress={() => _keypadPressed('1')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="2"
+                            txt2="A B C"
+                            onPress={() => _keypadPressed('2')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="3"
+                            txt2="D E F"
+                            onPress={() => _keypadPressed('3')}
+                        />
+                    </View>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="4"
+                            txt2="G H I"
+                            onPress={() => _keypadPressed('4')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="5"
+                            txt2="J K L"
+                            onPress={() => _keypadPressed('5')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="6"
+                            txt2="M N O"
+                            onPress={() => _keypadPressed('6')}
+                        />
+                    </View>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="7"
+                            txt2="P Q R S"
+                            onPress={() => _keypadPressed('7')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="8"
+                            txt2="T U V"
+                            onPress={() => _keypadPressed('8')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="9"
+                            txt2="W X Y Z"
+                            onPress={() => _keypadPressed('9')}
+                        />
+                    </View>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="*"
+                            txt2=""
+                            onPress={() => _keypadPressed('*')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="0"
+                            txt2="+"
+                            onPress={() => _keypadPressed('0')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="#"
+                            txt2=""
+                            onPress={() => _keypadPressed('#')}
+                        />
+                    </View>
+                </View>
 
                 <View style={styles.row}>
                     <TouchableOpacity
-                        onPress={() => { this.props.hideDialer() }}
+                        onPress={() => { hideDialer(showUICallEnum.UICall) }}
                         style={[styles.buttonCircle]}>
                         <Text style={{ fontSize: 18, color: "#fff" }}>Ẩn</Text>
                     </TouchableOpacity>
@@ -92,20 +172,7 @@ var styles = StyleSheet.create({
         backgroundColor: '#000c',
         flex: 1,
     },
-    itemStyle: {
-        backgroundColor: '#000c',
-        width: DEVICE_WIDTH,
-    },
-    text_tenNguoiGoi: {
-        color: '#000000',
-        marginLeft: 10,
-        fontSize: 16,
-    },
-    text_SDTNguoiGoi: {
-        color: '#808080',
-        marginLeft: 10,
-        fontSize: 15,
-    },
+
     buttonCircle: {
         borderWidth: 0,
         margin: 10,
@@ -115,34 +182,29 @@ var styles = StyleSheet.create({
         height: DEVICE_WIDTH / 5,
         borderRadius: DEVICE_WIDTH / 10,
     },
-    bgSuccess: {
-        backgroundColor: '#22bb33',
-    },
-    btnSuccess: {
-        color: '#fff',
-    },
-    btnbgDanger: {
-        color: '#f57f17',
-    },
+
     row: {
         flexDirection: 'row',
         alignSelf: 'center',
     },
-    invisible: {
-        borderColor: '#fff',
+
+    keypad: {
+        marginTop: 0,
+        marginBottom: 0
     },
-    font10: {
-        fontSize: 10,
+    keypadrow: {
+        flexDirection: "row",
+        alignSelf: "center"
     },
-    rowv2: {
-        flexDirection: 'row',
-        alignSelf: 'center',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 15,
-        marginLeft: 10,
-        marginRight: 10,
-    },
+    keypadbutton: {
+        margin: 10,
+        width: DEVICE_WIDTH / 5,
+        height: DEVICE_WIDTH / 5,
+        borderWidth: 0,
+        backgroundColor: "#F5F5F5",
+        borderRadius: DEVICE_WIDTH / 10,
+        paddingTop: 7
+    }
 });
 
 export default PopUpDialerScreeen;

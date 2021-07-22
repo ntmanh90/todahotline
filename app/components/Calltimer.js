@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 export default function Calltimer({ TimeDuration }) {
     const [timer, setTimer] = useState(null);
-    const [counter, setCounter] = useState(0);
+    const [minute, setMinute] = useState('00');
+    const [seconds, setSeconds] = useState('00');
 
 
-    const minute = () => {
-        var min = Math.floor(counter / 60);
-        return min > 9 ? min.toString() : "0" + min.toString();
+    const handleMinute = (_counter) => {
+        var min = Math.floor(_counter / 60);
+        setMinute(min > 9 ? min.toString() : "0" + min.toString());
     }
 
-    const seconds = () => {
-        var sec = Math.floor(counter % 60);
-        return sec > 9 ? sec.toString() : "0" + sec.toString();
+    const handlSeconds = (_counter) => {
+        var sec = Math.floor(_counter % 60);
+        setSeconds(sec > 9 ? sec.toString() : "0" + sec.toString());
     }
 
     const start = () => {
@@ -29,21 +30,19 @@ export default function Calltimer({ TimeDuration }) {
         const t2 = TimeDuration;
         const t1 = new Date().getTime();
         let ts = (t1 - t2.getTime()) / 1000;
-        setCounter(ts);
+        handleMinute(ts);
+        handlSeconds(ts);
     }
 
     useEffect(() => {
-        console.log('[TimeDuration]: ', TimeDuration);
         start();
 
         return () => {
             stop();
         }
-    }, [TimeDuration]);
+    }, []);
 
-
-    return <Text style={styles.timer}>{minute() + ":" + seconds()}</Text>
-
+    return <Text style={styles.timer}>{minute + ":" + seconds}</Text>
 }
 
 var styles = StyleSheet.create({

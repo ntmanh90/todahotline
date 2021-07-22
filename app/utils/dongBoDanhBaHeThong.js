@@ -2,8 +2,8 @@ import { Platform } from 'react-native'
 import Contacts from 'react-native-contacts';
 import DanhBaDB from '../database/DanhBaDB';
 import KieuDanhBa from './kieuDanhBa';
-import storeData from '../hooks/storeData';
-import keyStoreData from './keyStoreData';
+import { openDatabase } from 'react-native-sqlite-storage';
+var db = openDatabase({ name: 'UserDatabase.db' });
 
 var IOS = Platform.OS === 'ios';
 
@@ -22,15 +22,11 @@ const addDanhBa = () => {
                     }
                 }
             });
-            storeData.setStoreDataValue(keyStoreData.checkThemDanhBa, true);
         })
 }
 
 const themDanhBa = async () => {
-    let checkThemDanhBa = await storeData.getStoreDataValue(keyStoreData.checkThemDanhBa);
-    if (checkThemDanhBa !== 'true') {
-        addDanhBa();
-    }
+    addDanhBa();
 }
 
 export default { themDanhBa }

@@ -10,19 +10,16 @@ import NetInfo from '@react-native-community/netinfo';
 import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import BaseURL from './app/utils/BaseURL';
 import logData from './app/utils/logData';
-import { HubConnectionState } from '@microsoft/signalr';
-
+import AppApi from './app/api/Client';
 var conn = getHubAndReconnect();
 BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
 conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    logData.writeLogData('Server call client: event IncomingCallAsterisk index, số điện thoại gọi đến: ' + number);
+    logData.writeLogData('[[on] | IncomingCallAsterisk], index: ' + number);
     let sdt_incoming = number;
     storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
-        console.log('prefix: ', prefix);
         sdt_incoming = number.replace(prefix, "");
-        console.log('sdt_incoming: ', sdt_incoming);
         storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
     });
 
@@ -37,17 +34,13 @@ conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
 messaging().setBackgroundMessageHandler(async remoteMessage => {
     conn = getHubAndReconnect();
     if (remoteMessage.data.type == "wakeup") {
-        logData.writeLogData('Nhận được firebase: số gọi đến ' + remoteMessage.data.songuon);
+        logData.writeLogData('[Wakeup]');
+        let paramNotiData = {
+            uniqueid: remoteMessage.data.uniqueid,
+            channel: remoteMessage.data.channel,
+        };
+        storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
 
-        if (conn.state === HubConnectionState.Disconnected) {
-            logData.writeLogData('Đã kết nối signalR thành công');
-        }
-
-        console.log('------wake up');
-        console.log('Message handled in the background!', remoteMessage);
-        let soDienThoai = remoteMessage.data.songuon;
-        console.log('Sodienthoai', soDienThoai);
-        //let soDienThoai = getRandomNumber();
         let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
         var url = http + "redirect"
         console.log(url);
@@ -73,20 +66,16 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
                 devicename: deviceName,
                 osversion: DeviceInfo.getSystemVersion(),
             }
-            console.log("params redirect: ", params)
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(params)
+            AppApi.RequestPOST(url, params, (err, json) => {
+                if (!err) {
+                    if (json.data.status) {
+                        logData.writeLogData('[CallAPI: redirect]: Result' + JSON.stringify(json.data.status))
+                    } else {
+                    }
+                }
             });
-
         });
-
-        // DeviceEventEmitter.emit('displayIncomingCallEvent');
     }
 });
 

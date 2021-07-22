@@ -5,15 +5,27 @@ const addDanhBa = (ten, sdt, anh_dai_dien, type) => {
   db.transaction((tx) => {
     tx.executeSql(
       //DanhBa: id_danh_ba integer primary key not null, ho_ten text , so_dien_thoai text, anh_dai_dien text,  kieu_danh_ba integer)
-      'INSERT INTO DanhBa (ho_ten, so_dien_thoai, anh_dai_dien,kieu_danh_ba) VALUES (?,?,?,?)',
-      [ten, sdt, anh_dai_dien, type],
-      (tx, results) => {
-        console.log('Results addContact', sdt, results.rowsAffected);
+      'SELECT * FROM DanhBa WHERE so_dien_thoai == ?',
+      [sdt],
+      (tx, { rows }) => {
+        if (rows.length == 0) {
+          tx.executeSql(
+            'INSERT INTO DanhBa (ho_ten, so_dien_thoai, anh_dai_dien,kieu_danh_ba) VALUES (?,?,?,?)',
+            [ten, sdt, anh_dai_dien, type],
+            (tx, results) => {
+              console.log('Results addContact', sdt, results.rowsAffected);
+            },
+            (error) => {
+              console.log('error addContact', error);;
+            },
+          );
+        }
       },
       (error) => {
-        console.log('error addContact', msg.message);;
+        console.log('error addContact', error);;
       },
     );
+
   });
 }
 
@@ -27,7 +39,7 @@ const listDanhBa = () => {
         console.log('Results list DanhBa', rows.length);
       },
       (error) => {
-        console.log('error list DanhBa', msg.message);;
+        console.log('error list DanhBa', error);;
       },
     );
   });

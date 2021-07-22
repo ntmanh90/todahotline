@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Text, Icon } from 'react-native-elements';
 import Clipboard from '@react-native-community/clipboard';
-import Keypad from '../Keypad/Keypad';
-import Coppyable from '../Custom_Component/CoppyableNumberInput';
+import Keypad from '../../components/Keypad';
+import Coppyable from '../../components/CoppyableNumberInput';
 import storeData from '../../hooks/storeData';
 import Tooltip from 'react-native-walkthrough-tooltip';
 const DEVICE_WIDTH = Dimensions.get('window').width;

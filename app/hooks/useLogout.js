@@ -6,6 +6,7 @@ import RNCallKeep from 'react-native-callkeep';
 import { getHub, getHubAndReconnect } from '../hubmanager/HubManager';
 import deviceInfoModule from 'react-native-device-info';
 import AppApi from '../api/Client';
+import keyStoreData from '../utils/keyStoreData';
 
 var conn = getHubAndReconnect();
 
@@ -52,6 +53,7 @@ export default useLogout = () => {
         }).then((responce) => {
             console.log('json', responce);
             if (responce.status) {
+                storeData.setStoreDataValue(keyStoreData.isLogin, false);
                 console.log('đã gửi api logout thành công');
                 setError(false);
                 conn.invoke('SignOut').catch();
