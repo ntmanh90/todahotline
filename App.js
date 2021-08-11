@@ -44,6 +44,7 @@ RNCallKeep.setup({
     alertDescription: 'This application needs to access your phone accounts',
     cancelButton: 'Cancel',
     okButton: 'ok',
+    selfManaged: true,
     //Add bổ xung giống bản của mr khánh
     additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
     foregroundService: {
@@ -60,6 +61,7 @@ if (!isIOS) {
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
   RNCallKeep.setAvailable(true);
+
 }
 
 const getNewUuid = () => uuid.v4().toLowerCase();

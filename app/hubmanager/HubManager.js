@@ -17,7 +17,7 @@ function connectServer() {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('start sip', sipUser);
             try {
-                if (hub.state === HubConnectionState.Disconnected) {
+                if (hub.state !== HubConnectionState.Disconnected) {
                     console.log('đã vào hàm reconnect');
                     reconnectServer();
                 }
