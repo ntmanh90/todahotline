@@ -10,19 +10,20 @@ import NetInfo from '@react-native-community/netinfo';
 import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import BaseURL from './app/utils/BaseURL';
 import logData from './app/utils/logData';
-import { HubConnectionState } from '@microsoft/signalr';
+import AppApi from './app/api/Client';
+import { openDatabase } from 'react-native-sqlite-storage';
 
+var db = openDatabase({ name: 'UserDatabase.db' });
 var conn = getHubAndReconnect();
 BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
 conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    logData.writeLogData('Server call client: event IncomingCallAsterisk index, số điện thoại gọi đến: ' + number);
+    conn.invoke("ConfirmEvent", "IncomingCallAsterisk").catch((error) => console.log(error));
+    logData.writeLogData('[[on] | IncomingCallAsterisk], index: ' + number);
     let sdt_incoming = number;
     storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
-        console.log('prefix: ', prefix);
         sdt_incoming = number.replace(prefix, "");
-        console.log('sdt_incoming: ', sdt_incoming);
         storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
     });
 
@@ -31,23 +32,91 @@ conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
     storeData.setStoreDataValue(keyStoreData.callid, callid);
 
     DeviceEventEmitter.emit('displayIncomingCallEvent');
+
 });
+
+
+const sendLog = async () => {
+    let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
+    let tenct = await storeData.getStoreDataValue(keyStoreData.tenct);
+    let idnhanvien = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
+    let urlApi = await storeData.getStoreDataValue(keyStoreData.urlApi);
+    var url = urlApi + BaseURL.URL_SEND_LOG;
+
+    let dataLog = '';
+    db.transaction((tx) => {
+        tx.executeSql(
+            'SELECT * FROM Log ORDER BY id DESC',
+            [],
+            (tx, { rows }) => {
+                if (rows.length > 0) {
+                    let term = [];
+                    for (let i = 0; i < rows.length; i++) {
+
+                        let date = new Date(rows.item(i).logTime);
+                        let itemLog = {
+                            logType: rows.item(i).logType,
+                            logTime: moment(date).format('DD/mm/yyyy HH:mm:ss SSS'),
+                            index: rows.item(i).id
+                        }
+                        term.push(itemLog);
+                    }
+
+                    dataLog = JSON.stringify(term);
+                    //console.log('[dataLog]', dataLog);
+
+                    var params = {
+                        mact: tenct,
+                        idnhanvien: idnhanvien,
+                        somayle: somayle,
+                        log: dataLog
+                    };
+
+                    AppApi.RequestPOST(url, params, "", (err, json) => {
+                        if (!err) {
+                            logData.writeLogData('Send Log to server');
+                        }
+                    });
+
+                }
+                else {
+                    var params = {
+                        mact: tenct,
+                        idnhanvien: idnhanvien,
+                        somayle: somayle,
+                        log: ""
+                    };
+
+                    AppApi.RequestPOST(url, params, "", (err, json) => {
+                        if (!err) {
+                            logData.writeLogData('Send Log to server');
+                        }
+                    });
+                }
+
+            },
+            (tx, error) => {
+                console.log('error list Log', tx, error);;
+            },
+        );
+    });
+
+
+}
 
 // Register background handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
-    conn = getHubAndReconnect();
+    console.log('[remoteMessage index]', remoteMessage);
     if (remoteMessage.data.type == "wakeup") {
-        logData.writeLogData('Nhận được firebase: số gọi đến ' + remoteMessage.data.songuon);
+        conn = getHubAndReconnect();
+        logData.writeLogData('[Wakeup]');
+        let paramNotiData = {
+            uniqueid: remoteMessage.data.uniqueid,
+            channel: remoteMessage.data.channel,
+            thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
+        };
+        storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
 
-        if (conn.state === HubConnectionState.Disconnected) {
-            logData.writeLogData('Đã kết nối signalR thành công');
-        }
-
-        console.log('------wake up');
-        console.log('Message handled in the background!', remoteMessage);
-        let soDienThoai = remoteMessage.data.songuon;
-        console.log('Sodienthoai', soDienThoai);
-        //let soDienThoai = getRandomNumber();
         let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
         var url = http + "redirect"
         console.log(url);
@@ -73,20 +142,25 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
                 devicename: deviceName,
                 osversion: DeviceInfo.getSystemVersion(),
             }
-            console.log("params redirect: ", params)
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(params)
+            AppApi.RequestPOST(url, params, (err, json) => {
+                if (!err) {
+                    if (json.data.status) {
+                        logData.writeLogData('[CallAPI: redirect]: Result' + JSON.stringify(json.data.status))
+                    } else {
+                    }
+                }
             });
-
         });
-
-        // DeviceEventEmitter.emit('displayIncomingCallEvent');
+    }
+    if (remoteMessage.data.type == "DangXuat") {
+        storeData.setStoreDataValue(keyStoreData.isLogin, false);
+        storeData.setStoreDataObject('sip_user', {});
+        storeData.setStoreDataValue('tennhanvien', '');
+        storeData.setStoreDataValue('isLogin', false);
+    }
+    if (remoteMessage.data.type == "log") {
+        sendLog();
     }
 });
 

@@ -19,6 +19,7 @@ var Januscandidates = new Array();
 const webrtcConstraints = { audio: true, video: false };
 
 const callbackIceCandidateJanus = (evt, conn, callid) => {
+    conn = getHubAndReconnect();
     if (evt.candidate) {
         //Found a new candidate
         Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
@@ -47,6 +48,7 @@ const callbackIceCandidateJanusError = (err) => {
 };
 
 const outgoingCall = async (conn, number, sessionCallId, callback) => {
+    conn = getHubAndReconnect();
     console.log('param', conn, number, sessionCallId);
     let stream = await mediaDevices.getUserMedia(webrtcConstraints);
     var connection = new RTCPeerConnection(configuration);
@@ -72,6 +74,7 @@ const outgoingCall = async (conn, number, sessionCallId, callback) => {
 }
 
 const incomingcall = (conn, sdp, callid, callback) => {
+    conn = getHubAndReconnect();
     mediaDevices.getUserMedia(webrtcConstraints)
         .then((stream) => {
             stream = stream
@@ -101,6 +104,7 @@ const incomingcall = (conn, sdp, callid, callback) => {
 }
 
 const updatecall = (conn, sdp, callid, sessionId, callback) => {
+    conn = getHubAndReconnect();
     console.log("updatecall sdp1: ", sdp)
     mediaDevices.getUserMedia(webrtcConstraints)
         .then((stream) => {

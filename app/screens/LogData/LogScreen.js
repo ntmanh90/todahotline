@@ -16,12 +16,10 @@ function LogScreen({ navigation }) {
                     'SELECT * FROM Log ORDER BY id DESC',
                     [],
                     (tx, { rows }) => {
-                        console.log('Results list Log', rows.length);
                         if (rows.length > 0) {
                             let term = [];
                             for (let i = 0; i < rows.length; i++) {
                                 let date = new Date(rows.item(i).logTime);
-                                console.log('date', date);
                                 rows.item(i).logTime = moment(date).format('DD/mm/yyyy HH:mm:ss SSS');
                                 term.push(rows.item(i));
                             }
@@ -46,7 +44,7 @@ function LogScreen({ navigation }) {
                     // console.log('item', item);
                     return (
                         <View style={{ paddingHorizontal: 15, marginTop: 15, }}>
-                            <Text style={{ color: 'black' }}>{item.index + " - " + item.logType + ": " + item.logTime}</Text>
+                            <Text style={{ color: 'black' }}>{item.logType + ": " + item.logTime}</Text>
                         </View>
                     )
                 }}

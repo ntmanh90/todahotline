@@ -129,7 +129,12 @@ export default function tabBookTrenMay() {
         { cancelable: false },
       );
     } else {
-      navigation.navigate('DienThoai', { soDienThoai: sdt, hoTen: hoten })
+      setTimeout(() => {
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, sdt);
+        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, hoten);
+        storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+        navigation.navigate('CuocGoi');
+      }, 200);
     }
   }
 
@@ -167,7 +172,14 @@ export default function tabBookTrenMay() {
             return (
               <TouchableOpacity
                 style={{ flexDirection: 'row', justifyContent: 'space-around' }}
-                onPress={() => { handleCuocGoiDi(item.phoneNumbers[0].number, handleCuocGoiDi(item.phoneNumbers[0].number,)) }}>
+                onPress={() => {
+                  if (isIOS) {
+                    handleCuocGoiDi(item.phoneNumbers[0].number, item.familyName + " " + item.givenName)
+                  }
+                  else {
+                    handleCuocGoiDi(item.phoneNumbers[0].number, item.displayName)
+                  }
+                }}>
                 <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 7, marginVertical: 5 }}>
                   <Image
                     source={require('../../Toda_Images/contactsV2.png')}

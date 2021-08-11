@@ -8,6 +8,29 @@ const addLog = (desLog) => {
   console.log('time', time);
 
   db.transaction((tx) => {
+
+    tx.executeSql(
+      'SELECT * FROM Log',
+      [],
+      (tx, { rows }) => {
+        if (rows.length > 1000) {
+          tx.executeSql(
+            'DELETE FROM  Log',
+            [],
+            (tx, results) => {
+              console.log('Results deleteLog', results.rowsAffected);
+            },
+            (error) => {
+              console.log('error deleteLog', error);
+            },
+          );
+        }
+      },
+      (tx, error) => {
+        console.log('error addLog', tx, error);
+      },
+    );
+
     tx.executeSql(
       'INSERT INTO Log (logType, logTime) VALUES (?,?)',
       [desLog, time],

@@ -52,7 +52,7 @@ export default function ChiTietLichSuCuocGoi({ navigation, route }) {
         console.log('id_cuoc_goi', id_cuoc_goi);
         var db = openDatabase({ name: 'UserDatabase.db' });
         db.transaction((tx) => {
-            tx.executeSql('SELECT * FROM ChiTietCuocGoi WHERE id_cuoc_goi = ?', [id_cuoc_goi],
+            tx.executeSql('SELECT * FROM ChiTietCuocGoi WHERE id_cuoc_goi = ? ORDER BY id_ct_cuoc_goi DESC', [id_cuoc_goi],
                 (tx, { rows }) => {
                     let temp = [];
                     for (let i = 0; i < rows.length; i++) {
@@ -133,7 +133,14 @@ export default function ChiTietLichSuCuocGoi({ navigation, route }) {
                             onClose={() => setToolTipVisible(false)}>
 
                             <TouchableOpacity
-                                onPress={() => navigation.navigate('CuocGoi', { soDienThoai: soDienThoai, type: 2 })}
+                                onPress={() => {
+                                    setTimeout(() => {
+                                        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
+                                        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, item.ho_ten);
+                                        storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+                                        navigation.navigate('CuocGoi');
+                                    }, 200);
+                                }}
                                 onLongPress={() => setToolTipVisible(true)}
                             >
                                 <View style={styles.containerTel}>

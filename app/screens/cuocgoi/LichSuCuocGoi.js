@@ -16,7 +16,7 @@ import Swipeout from 'react-native-swipeout';
 import storeData from '../../hooks/storeData';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
 import moment from 'moment';
-import cuocGoi from '../../database/CuocGoi';
+import CuocgoiDB from '../../database/CuocGoiDB';
 
 var db = openDatabase({ name: 'UserDatabase.db' });
 
@@ -97,7 +97,7 @@ export default function LichSuCuocGoi({ navigation, route }) {
         tempGoiNho = tempGoiNho.filter(a => a.id_cuoc_goi !== id_cuoc_goi);
         setListCuocGoiNho(tempGoiNho);
 
-        cuocGoi.deleteCuocGoi(id_cuoc_goi);
+        CuocgoiDB.deleteCuocGoi(id_cuoc_goi);
     }
 
 
@@ -196,7 +196,12 @@ export default function LichSuCuocGoi({ navigation, route }) {
                                         <TouchableOpacity
                                             onPress={() => {
                                                 if (item.so_dien_thoai != "" && item.so_dien_thoai != null) {
-                                                    navigation.navigate('CuocGoi', { soDienThoai: item.so_dien_thoai, type: 2 })
+                                                    setTimeout(() => {
+                                                        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, item.so_dien_thoai);
+                                                        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, item.ho_ten);
+                                                        storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+                                                        navigation.navigate('CuocGoi')
+                                                    }, 200);
                                                 }
                                             }}
                                             style={{ flexDirection: 'row', flex: 1, alignItems: 'center', justifyContent: 'space-between', margin: 8 }}

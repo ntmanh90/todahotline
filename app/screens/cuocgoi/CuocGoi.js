@@ -1,21 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, StyleSheet, Text, View, TouchableOpacity, ScrollView, PermissionsAndroid } from 'react-native';
-import uuid from 'uuid';
-import RNCallKeep from 'react-native-callkeep';
+import { ImageBackground, Platform, StyleSheet, Text, View, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import BackgroundTimer from 'react-native-background-timer';
-import DeviceInfo from 'react-native-device-info';
+import { Icon } from 'react-native-elements';
 import storeData from '../../hooks/storeData';
 import keyStoreData from '../../utils/keyStoreData';
 import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
-import { getHub, getHubAndReconnect } from '../../hubmanager/HubManager';
+import { getHubAndReconnect } from '../../hubmanager/HubManager';
 import logSignalR from '../../utils/customLogSignalR';
 import logData from '../../utils/logData';
-import cuocGoi from '../../database/CuocGoi';
+import CuocgoiDB from '../../database/CuocGoiDB';
+import RNCallKeep from 'react-native-callkeep';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
+import BaseURL from '../../utils/BaseURL';
+import ProgressApp from '../../components/ProgressApp';
+import statusCallEnum from '../../utils/statusCallEnum';
+import typeCallEnum from '../../utils/typeCallEnum';
+import { useNavigation } from '@react-navigation/native';
+import Calltimer from '../../components/Calltimer';
+import PopUpDialerScreeen from '../cuocgoi/PopUpDialerScreeen';
+import TransferScreen from '../cuocgoi/TransferScreen';
+import showUICallEnum from '../../utils/showUICallEnum';
+import NetInfo from "@react-native-community/netinfo";
+import Toast from 'react-native-simple-toast';
+import InCallManager from 'react-native-incall-manager';
+import useSendMissCall from '../../hooks/useSendMissCall';
+import statusMissCallType from '../../utils/statusMissCallType';
+
+const widthScreen = Dimensions.get('window').width;
+const heightScreen = Dimensions.get('window').height;
 
 var conn = getHubAndReconnect();
+var bitratePrew = 0;
+var coutTinHieuYeu = 0;
+var connectionCheckBitRate = null;
+var stremRTC = null;
 
 BackgroundTimer.start();
+
 const configuration = {
     iceServers: [
         { url: 'stun:stun.voipbuster.com' },
@@ -31,235 +52,96 @@ const configuration = {
 var Januscandidates = new Array();
 const webrtcConstraints = { audio: true, video: false };
 
-
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        marginTop: 20,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    button: {
-        marginTop: 20,
-        marginBottom: 20,
-    },
-    callButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 30,
-        width: '100%',
-    },
-    logContainer: {
-        flex: 3,
-        width: '100%',
-        backgroundColor: '#D9D9D9',
-    },
-    log: {
-        fontSize: 10,
-    }
-});
-
-RNCallKeep.setup({
-    ios: {
-        appName: 'CallKeepDemo',
-    },
-    android: {
-        alertTitle: 'Permissions required',
-        alertDescription: 'This application needs to access your phone accounts',
-        cancelButton: 'Cancel',
-        okButton: 'ok',
-
-        //Add bổ xung giống bản của mr khánh
-        //additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
-        foregroundService: {
-            channelId: 'com.lachong.toda',
-            channelName: 'Foreground service for my app',
-            notificationTitle: 'My app is running on background',
-            notificationIcon: 'Path to the resource icon of the notification',
-        },
-    },
-});
-
-RNCallKeep.backToForeground();
-
-const getNewUuid = () => uuid.v4().toLowerCase();
-
-const format = uuid => uuid.split('-')[0];
-
 const isIOS = Platform.OS === 'ios';
 
-export default function CuocGoi({ navigation, route }) {
-    const [logText, setLog] = useState('');
-    const [heldCalls, setHeldCalls] = useState({}); // callKeep uuid: held
-    const [mutedCalls, setMutedCalls] = useState({}); // callKeep uuid: muted
-    const [calls, setCalls] = useState({}); // callKeep uuid: number
-    const [callUUIDHienTai, setCallUUIDHienTai] = useState();
+function CuocGoi({ route }) {
     const [connectionRTC, setConnectionRTC] = useState(null);
-    const [sdt, setSdt] = useState('');
-    const [hoTenDanhBa, SetHoTenDanhBa] = useState('');
+    const [isTransfer, setIsTransfer] = useState(false);
+    const [isDTMF, setIsDTMF] = useState(false);
+    const [isCall, setIsCall] = useState(true);
+    const [isHold, setIsHold] = useState(false);
+    const [timeStart, setTimeStart] = useState(new Date());
+    const [callName, setCallName] = useState('');
+    const [phonenumber, setPhonenumber] = useState('');
+    const [typeCall, setTypeCall] = useState(0);
+    const [statusCall, setStatusCall] = useState(statusCallEnum.DangKetNoi);
+    const [txtStatusCall, setTxtStatusCall] = useState('');
+    const [bitrate, setBitrate] = useState('');
+    const [isMute, setIsMute] = useState(false);
+    const [isSpeaker, setIsSpeaker] = useState(false);
+    const [interValBitRate, setInterValBitRate] = useState(0);
+    const [showUI, setShowUI] = useState(1);
+    const [isCuocGoiTransfer, setIsCuocGoiTransfer] = useState(false);
+    const [visibleModel, setVisibleModel] = useState(true);
+
+    const navigation = useNavigation();
+    const useSendMissCallHook = useSendMissCall();
 
     const resetState = () => {
-        setCalls({});
-        setLog('');
-        setHeldCalls({});
-        setMutedCalls({});
-        setCallUUIDHienTai('');
-        setConnectionRTC(null);
-
-        navigation.navigate('BanPhim');
-    }
-    const log = (text) => {
-        console.info(text);
-        setLog(logText + "\n" + text);
-    };
-
-    const addCall = (callUUID, number) => {
-        setHeldCalls({ ...heldCalls, [callUUID]: false });
-        setCalls({ ...calls, [callUUID]: number });
-    };
-
-    const removeCall = (callUUID) => {
-        const { [callUUID]: _, ...updated } = calls;
-        const { [callUUID]: __, ...updatedHeldCalls } = heldCalls;
-
-        setCalls(updated);
-        setCalls(updatedHeldCalls);
-    };
-
-    const setCallHeld = (callUUID, held) => {
-        setHeldCalls({ ...heldCalls, [callUUID]: held });
-    };
-
-    const setCallMuted = (callUUID, muted) => {
-        setMutedCalls({ ...mutedCalls, [callUUID]: muted });
-    };
-
-    const startCall = async (so_dien_thoai, ho_ten) => {
-        conn = getHubAndReconnect();
-        const callUUID = getNewUuid();
-        //let number = await storeData.getStoreDataValue(keyStoreData.soDienThoai);
-        storeData.setStoreDataValue(keyStoreData.soDienThoai, so_dien_thoai);
-        let number = so_dien_thoai;
-        cuocGoi.addCuocGoi(ho_ten, number, CallTypeEnum.OutboundCall);
-        console.log('đã vào đến phần này: 11 ', ho_ten, number);
-        setCallUUIDHienTai(callUUID);
-        addCall(callUUID, number);
-        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-
+        console.log('[resetState Cuoc Goi]');
         BackgroundTimer.setTimeout(() => {
-            outgoingCall(number, sessionCallId);
-        }, 200);
+            if (interValBitRate != 0)
+                BackgroundTimer.clearInterval(interValBitRate);
 
-        BackgroundTimer.setTimeout(() => {
-            RNCallKeep.startCall(callUUID, number, ho_ten);
-        }, 500);
-    }
+            let paramNotiData = {
+                uniqueid: "",
+                channel: "",
+            };
+            storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+            storeData.setStoreDataValue(keyStoreData.isHold, false);
+            setConnectionRTC(null);
+            setPhonenumber('');
+            setIsHold(false);
+            setBitrate('');
+            setTypeCall(0);
+            coutTinHieuYeu = 0;
+            setCallName('');
+            setStatusCall(statusCallEnum.DangKetNoi);
+            setIsMute(false);
+            setIsSpeaker(false);
+            setIsCuocGoiTransfer(false);
+            setTxtStatusCall('');
+            connectionCheckBitRate = null;
+            stremRTC = null;
 
-    // const answerCall = ({ callUUID }) => {
-    //     const number = calls[callUUID];
-    //     console.log('calls', calls);
-    //     log(`[answerCall] ${format(callUUID)}, number: ${number}`);
-
-    //     RNCallKeep.startCall(callUUID, hoTenDanhBa, number);
-
-    //     BackgroundTimer.setTimeout(() => {
-    //         log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
-    //         RNCallKeep.setCurrentCallActive(callUUID);
-    //     }, 1000);
-    // };
-
-    const didPerformDTMFAction = ({ callUUID, digits }) => {
-        const number = calls[callUUID];
-        log(`[didPerformDTMFAction] ${format(callUUID)}, number: ${number} (${digits})`);
-    };
-
-    const didReceiveStartCallAction = ({ handle }) => {
-        if (!handle) {
-            // @TODO: sometime we receive `didReceiveStartCallAction` with handle` undefined`
-            return;
-        }
-        const callUUID = getNewUuid();
-        addCall(callUUID, handle);
-
-        log(`[didReceiveStartCallAction] ${callUUID}, number: ${handle}`);
-
-        RNCallKeep.startCall(callUUID, handle, handle);
-
-        BackgroundTimer.setTimeout(() => {
-            log(`[setCurrentCallActive] ${format(callUUID)}, number: ${handle}`);
-            RNCallKeep.setCurrentCallActive(callUUID);
+            setTimeStart(new Date());
+            handleShowUI();
+            setVisibleModel(false);
+            storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
+            navigation.navigate('BanPhim');
         }, 1000);
-    };
 
-    const didPerformSetMutedCallAction = ({ muted, callUUID }) => {
-        const number = calls[callUUID];
-        log(`[didPerformSetMutedCallAction] ${format(callUUID)}, number: ${number} (${muted})`);
+    }
 
-        setCallMuted(callUUID, muted);
-    };
+    const onStartCall = async (so_dien_thoai, ho_ten) => {
+        InCallManager.setSpeakerphoneOn(false);
+        conn = getHubAndReconnect();
+        console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
 
-    const didToggleHoldCallAction = ({ hold, callUUID }) => {
-        const number = calls[callUUID];
-        log(`[didToggleHoldCallAction] ${format(callUUID)}, number: ${number} (${hold})`);
-
-        setCallHeld(callUUID, hold);
-    };
-
-    const endCall = async ({ callUUID }) => {
-        const handle = calls[callUUID];
-        log(`[endCall] ${format(callUUID)}, number: ${handle}`);
         let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        conn.invoke('hangUp', sessionCallId).then(() => {
-            logData.writeLogData('invoke: hangUp, kết thúc cuộc gọi đi: ' + number);
-        }).catch((error) => console.log(error));
-        removeCall(callUUID);
-        resetState();
-    };
+        outgoingCall(so_dien_thoai, sessionCallId);
 
-    const hangup = async (callUUID) => {
-        RNCallKeep.endCall(callUUID);
-        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        let sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoai);
-        conn.invoke('hangUp', sessionCallId).then(() => {
-            logData.writeLogData('invoke: hangUp, kết thúc cuộc gọi đi: ' + sdt);
-        }).catch((error) => console.log(error));
-        removeCall(callUUID);
-        resetState();
-    };
+        CuocgoiDB.addCuocGoi(so_dien_thoai, CallTypeEnum.OutboundCall);
+        //Hiển thị màn hình cuộc gọi nhưng chưa đếm giây
+    }
 
-    const setOnHold = (callUUID, held) => {
-        const handle = calls[callUUID];
-        RNCallKeep.setOnHold(callUUID, held);
-        log(`[setOnHold: ${held}] ${format(callUUID)}, number: ${handle}`);
+    const onAnswerCall = async (number) => {
+        InCallManager.setSpeakerphoneOn(false);
+        logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
+        let signalData = await storeData.getStoreDataObject(keyStoreData.signalWebRTC);
+        let SessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+        storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
 
-        setCallHeld(callUUID, held);
-    };
+        CuocgoiDB.addCuocGoi(number, CallTypeEnum.IncomingCall);
+        setTimeStart(new Date());
+        //Hiển thị màn hình cuộc gọi và bắt đầu đếm số
 
-    const setOnMute = (callUUID, muted) => {
-        const handle = calls[callUUID];
-        RNCallKeep.setMutedCall(callUUID, muted);
-        log(`[setMutedCall: ${muted}] ${format(callUUID)}, number: ${handle}`);
-
-        setCallMuted(callUUID, muted);
-    };
-
-    const updateDisplay = (callUUID) => {
-        const number = calls[callUUID];
-        // Workaround because Android doesn't display well displayName, se we have to switch ...
-        if (isIOS) {
-            RNCallKeep.updateDisplay(callUUID, 'New Name', number);
-        } else {
-            RNCallKeep.updateDisplay(callUUID, number, 'New Name');
-        }
-
-        log(`[updateDisplay: ${number}] ${format(callUUID)}`);
+        incomingcall(new RTCSessionDescription(signalData.sdp), SessionCallId);
     };
 
     /// Handle SignalR //////////////////////////////////
-
     const callbackIceCandidateJanus = (evt, callid) => {
+        conn = getHubAndReconnect();
         if (evt.candidate) {
             //Found a new candidate
             Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
@@ -270,7 +152,7 @@ export default function CuocGoi({ navigation, route }) {
                     logData.writeLogData('invoke: SendCandidate cuộc gọi đi')
                 });
             } catch (error) {
-                console.log('Call server Error callbackIceCandidateJanus Error: ', error);
+                console.log('----Call server Error callbackIceCandidateJanus Error: ', error);
             }
             Januscandidates = new Array();
         }
@@ -278,6 +160,7 @@ export default function CuocGoi({ navigation, route }) {
 
     const callbackIceCandidateJanusState = (evt) => {
         if (evt) {
+            console.log('[callbackIceCandidateJanusState]');
             //Found a new candidate
             console.log(evt);
         }
@@ -289,8 +172,10 @@ export default function CuocGoi({ navigation, route }) {
     };
 
     const outgoingCall = async (number, sessionCall) => {
+        conn = getHubAndReconnect();
 
         let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+        stremRTC = stream;
         var connection = new RTCPeerConnection(configuration);
 
         connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionCall); // ICE Candidate Callback
@@ -298,37 +183,114 @@ export default function CuocGoi({ navigation, route }) {
         connection.oniceconnectionstatechange = (evt) => callbackIceCandidateJanusState(evt);
         connection.addStream(stream);
         let offer = await connection.createOffer();
-        connection.setLocalDescription(offer)
-            .then(() => {
-                try {
-                    conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCall).then(() => {
-                        logData.writeLogData('invoke: CallAsterisk cuộc gọi đi ' + number);
-                    });
-                    setConnectionRTC(connection);
-                } catch (error) {
-                    console.log('CallAsterisk Error call out', error);
-                }
-            })
-            .catch(error)
-        {
-            console.log('CallAsterisk Error setLocalDescription', error);
+        let descriptionType = await connection.setLocalDescription(offer);
+
+        try {
+            conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCall).then(() => {
+                logData.writeLogData('invoke: CallAsterisk cuộc gọi đi ' + number);
+            });
+            setConnectionRTC(connection);
+            connectionCheckBitRate = connection;
+            setStatusCall(statusCallEnum.DangKetNoi);
+            // setconsole.log('----connection', connection);
+        } catch {
+            console.log('----CallAsterisk Error call out');
         }
     }
 
+    const incomingcall = async (sdp, sessionCall) => {
+        conn = getHubAndReconnect();
+        //console.log('incomingcall', sessionCall, sdp);
+        let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+        stremRTC = stream;
+        let connection = new RTCPeerConnection(configuration);
+
+        console.log('connection');
+        connection.onicecandidate = (evt) =>
+            callbackIceCandidateJanus(evt, sessionCall); // ICE Candidate Callback
+        connection.onicecandidateerror = (error) =>
+            callbackIceCandidateJanusError(error);
+        connection.addStream(stream);
+        connection.setRemoteDescription(sdp).then(() => {
+            try {
+                console.log('setRemoteDescription');
+                connection.createAnswer().then((jsep) => {
+                    connection.setLocalDescription(jsep).then(() => {
+                        try {
+                            logSignalR.clientCallServer('AnswerCallAsterisk')
+                            conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
+                                logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi ');
+                                setConnectionRTC(connection);
+                                connectionCheckBitRate = connection;
+                                //console.log('[connection]', connection);
+                                setStatusCall(statusCallEnum.DaKetNoi);
+                            });
+                        } catch (error) {
+                            console.log('AnswerCallAsterisk Error call out', error);
+                        }
+                    });
+                });
+
+            }
+            catch (error) {
+                logSignalR.clientCallServerError('AnswerCallAsterisk', error);
+            }
+        })
+    }
+
+    const getTinHieu = async () => {
+        if (connectionCheckBitRate) {
+            connectionCheckBitRate.getStats(null).then(stats => {
+                stats.forEach(report => {
+                    if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
+                        const bitrate = parseFloat(report.bytesReceived);
+                        //console.log('[bitrate]', report);
+                        //console.log('[bitrate]: ', bitrate);
+                        if (bitrate - bitratePrew <= 0) {
+                            //kết nối yếu
+
+                            setBitrate('Tín hiệu yếu');
+                            coutTinHieuYeu = coutTinHieuYeu + 1;
+                            //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
+                            if (coutTinHieuYeu >= 25) {
+                                //handleEndCallTinHieuYeu();
+                            }
+                        }
+                        // else if (bitrate - bitratePrew == 0) {
+                        //     //không có kết nối
+                        //     setBitrate('Tín hiệu yếu');
+                        // }
+                        else {
+                            // console.log('[Tín hiệu tốt]')
+                            //kết nối tốt
+                            coutTinHieuYeu = 0;
+                            setBitrate('Tín hiệu tốt');
+                        }
+
+                        bitratePrew = bitrate;
+                    }
+                });
+            });
+        }
+    }
 
     const newSignal = (data) => {
         var signal = JSON.parse(data);
         // Route signal based on type
         if (signal.sdp) {
-            if (connectionRTC)
-                connectionRTC
-                    .setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                    .then(() => { console.log('Et thành công setRemoteDescription') })
-                    .catch((err) =>
-                        console.log('WebRTC: Error while setting remote description', err),
-                    );
-        }
-    };
+            if (connectionRTC) {
+                try {
+                    connectionRTC
+                        .setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                        .then(() => { console.log('Et thành công setRemoteDescription') });
+                }
+                catch (error) {
+                    logData.writeLogData('WebRTC: Error while setting remote description');
+                    console.log('WebRTC: Error while setting remote description');
+                }
+            }
+        };
+    }
 
     conn.off('Calling')
     conn.on("Calling", (callid, msg, id) => {
@@ -356,8 +318,9 @@ export default function CuocGoi({ navigation, route }) {
         newSignal(signal);
     });
 
-    conn.off('Ringing')
-    conn.on('Ringing', (id) => {
+    conn.off('ringing')
+    conn.on('ringing', (id) => {
+        setStatusCall(statusCallEnum.DoChuong);
         logSignalR.serverCallClient('Ringing');
         logData.writeLogData('server call client: Ringing');
         try {
@@ -373,87 +336,709 @@ export default function CuocGoi({ navigation, route }) {
     conn.on('callAccepted', (id) => {
         logData.writeLogData('Server call client: callAccepted');
         logSignalR.serverCallClient('callAccepted');
-        var date0 = new Date();
-        var ngay0 = date0.getDate().toString() + '/' + (date0.getMonth() + 1).toString() + '/' + date0.getFullYear().toString();
-        var gio0 = date0.getHours().toString() + ':' + date0.getMinutes().toString() + ':' + date0.getSeconds().toString();
-        var time = ngay0 + " " + gio0
-        storeData.setStoreDataValue('timeStartCall', time)
+        setStatusCall(statusCallEnum.DaKetNoi);
 
         try {
             conn.invoke("ConfirmEvent", "callAccepted");
-
         } catch (error) {
             logSignalR.clientCallServerError('callAccepted', error);
         }
-
-        RNCallKeep.setCurrentCallActive(callUUIDHienTai);
-
-        // RNCallKeep.updateDisplay(this.state.callid, displayName, handle)
     });
 
     conn.off('callDeclined')
     conn.on('callDeclined', (callid, code, reason, id) => {
+        conn.invoke("ConfirmEvent", "callDeclined").catch((error) => console.log(error));
+
         logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
+        RNCallKeep.endAllCalls();
+        setStatusCall(statusCallEnum.DaKetThuc);
         resetState();
-        RNCallKeep.endCall(callUUIDHienTai);
+        Toast.showWithGravity('Từ chối cuộc gọi', Toast.LONG, Toast.BOTTOM);
     });
 
     conn.off('callEnded')
     conn.on('callEnded', (callid, code, reason, id) => {
+        conn.invoke("ConfirmEvent", "callEnded").catch((error) => console.log(error));
+
         logData.writeLogData('Server call client: callEnded');
         logSignalR.serverCallClient('callEnded');
+        setStatusCall(statusCallEnum.DaKetThuc);
+        RNCallKeep.endAllCalls();
         resetState();
-        RNCallKeep.endCall(callUUIDHienTai);
+        Toast.showWithGravity('Kết thúc cuộc gọi', Toast.LONG, Toast.BOTTOM);
     });
+
+    conn.off('UpdatingCall')
+    conn.on('UpdatingCall', (sdp, session_id) => {
+        conn.invoke("ConfirmEvent", "UpdatingCall").catch((error) => console.log(error));
+
+        onUpdateCall(sdp, session_id);
+    })
 
     ////////// End handle SignalR ////////////////////// 
 
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            const { soDienThoai } = route.params ?? '';
-            const { hoTen } = route.params ?? '';
-            setSdt(soDienThoai);
-            SetHoTenDanhBa(hoTen);
 
-            if (soDienThoai === '') {
-                alert('Số điện thoại không đúng định dạng.');
-                navigation.navigate('BanPhim');
+    /// Xử lý event liên quan đến nút bấm UI ///
+
+    const CallStatus = () => {
+        console.log('statusCall: ', statusCall);
+        if (statusCall == statusCallEnum.DaKetNoi) {
+            if (isHold) {
+                setTxtStatusCall('Đang giữ');
+            }
+            else
+                setTxtStatusCall(' Đã kết nối');
+        }
+        else if (statusCall == statusCallEnum.DangKetNoi) {
+            setTxtStatusCall(' Đang kết nối...');
+        }
+        else if (statusCall == statusCallEnum.DoChuong) {
+            setTxtStatusCall(' Đang đổ chuông...');
+        }
+        else {
+            setTxtStatusCall(' Cuộc gọi kết thúc');
+        }
+    }
+
+    const onHold = async (value, isclick) => {
+        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+        console.log('[isHold]', value, isclick, isHold);
+        if (isclick == 1) {
+            setIsHold(value);
+            storeData.setStoreDataValue(keyStoreData.isHold, value);
+        }
+
+        if (value) {
+            try {
+                conn = getHubAndReconnect();
+                conn.invoke("Hold", sessionCallId);
+            } catch {
+                logData.writeLogData('Error invoke Hold');
+            }
+        }
+        else {
+            if (isclick == 1) {
+                try {
+                    conn.invoke("UnHold", sessionCallId);
+                } catch {
+                    logData.writeLogData('Error invoke UnHold');
+                }
             }
             else {
-                startCall(soDienThoai, hoTen);
+                if (isHold == false) {
+                    try {
+                        conn.invoke("UnHold", sessionCallId);
+                    } catch {
+                        logData.writeLogData('Error invoke UnHold');
+                    }
+                }
+            }
+        }
+
+        return;
+    };
+
+    const startRingtone = () => {
+        InCallManager.startRingtone('_DEFAULT_');
+    }
+
+    const stopRingtone = () => {
+        InCallManager.stopRingtone();
+    }
+
+    const startCall = () => {
+        InCallManager.start({ media: 'audio', ringback: '_BUNDLE_' });
+    }
+    const stopCall = () => {
+        InCallManager.stop({ busytone: '_DEFAULT_' });
+    }
+    const onSpeaker = () => {
+        console.log("onSpeaker: ", !isSpeaker)
+        InCallManager.setSpeakerphoneOn(!isSpeaker);
+        setIsSpeaker(!isSpeaker);
+    }
+    const onMute = () => {
+        console.log("[onMute]: ", !isMute)
+        stremRTC.getAudioTracks()[0].enabled = isMute;
+        setIsMute(!isMute);
+    }
+
+
+    const onHangUp = async () => {
+
+        try {
+            conn = getHubAndReconnect();
+
+            let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+            console.log('hangUp');
+            conn.invoke('hangUp', sessionCallId).then(() => {
+                logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
+            }).catch();
+            setStatusCall(statusCallEnum.DaKetThuc);
+            try {
+                RNCallKeep.endAllCalls();
+            } catch (error) {
+
+            }
+            if (coutTinHieuYeu > 2 && coutTinHieuYeu < 25) {
+                useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
+            }
+
+            Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+            BackgroundTimer.clearInterval(interValBitRate);
+            resetState();
+        }
+        catch
+        {
+            resetState();
+        }
+
+    };
+
+    const onDTMF = (dialString) => {
+        console.log('[dialString]', dialString);
+        if (connectionRTC != null) {
+            connectionRTC.sendDtmfTone(dialString).then((json) => {
+                console.log("onDTMF: ", json)
+            }).catch();
+        }
+    }
+
+    const onUpdateCall = async (sdp, session_id) => {
+        console.log('[update call]');
+        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+
+        let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+        stremRTC = stream;
+        let connection = new RTCPeerConnection(configuration);
+
+        console.log('connection');
+        connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionCallId); // ICE Candidate Callback
+        connection.onicecandidateerror = (error) => callbackIceCandidateJanusError(error);
+        connection.addStream(stream);
+        connection.setRemoteDescription(sdp).then(() => {
+            setConnectionRTC(connection);
+            connectionCheckBitRate = connection;
+            setStatusCall(statusCallEnum.DaKetNoi);
+        });
+
+        let offer = await connection.createOffer({ iceRestart: true });
+        let descriptionType = await connection.setLocalDescription(offer);
+        try {
+            conn.invoke("UpdateOffer", connection.localDescription.sdp, session_id);
+            // setconsole.log('----connection', connection);
+        } catch {
+            console.log('----CallAsterisk Error call out');
+        }
+    }
+
+    /// end xử lý nút bấm UI ///
+
+    //RN Call Keep
+
+    const didPerformDTMFAction = ({ callUUID, digits }) => {
+        //Gọi hàm xử lý sự kiện bấm số khi dùng UI call mặc định
+    };
+
+    const didPerformSetMutedCallAction = async ({ muted, callUUID }) => {
+        //Gọi hàm xử lý sự kiện mute 
+        //setIsMute(muted);
+        RNCallKeep.setMutedCall(callUUID, muted);
+    };
+
+    const didToggleHoldCallAction = async ({ hold, callUUID }) => {
+        //Họi hàm xử lý sự kiện hold
+
+    };
+
+    //End RN Call Keep
+    const handleEndCallTinHieuYeu = () => {
+        console.log('[handleEndCallTinHieuYeu]');
+        useSendMissCallHook.request(phonenumber, statusMissCallType.OverTimeOutKetNoiYeu);
+        onHangUp();
+    }
+
+    const handleShowUI = () => {
+        if (showUI == showUICallEnum.UITransfer) {
+            onHold(true, 0).then(() => {
+                setIsCall(false);
+                setIsTransfer(true);
+                setIsDTMF(false);
+            });
+
+        }
+        else if (showUI == showUICallEnum.UIDialer) {
+            setIsCall(false);
+            setIsTransfer(false);
+            setIsDTMF(true);
+        }
+        else {
+            setIsCall(true);
+            setIsTransfer(false);
+            setIsDTMF(false);
+        }
+    }
+
+    const loadParams = async () => {
+        let _type = await storeData.getStoreDataValue(keyStoreData.typeCall);
+        if (_type == typeCallEnum.outgoingCall) {
+            console.log('[Outcomming call]');
+            let _soDienThoaiDi = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDi);
+            let _hoTenDienThoaiDi = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDi);
+            setPhonenumber(_soDienThoaiDi);
+            setCallName(_hoTenDienThoaiDi);
+
+            if (_soDienThoaiDi === '') {
+                alert('Số điện thoại không đúng định dạng.');
+                logData.writeLogData('Số điện thoại không đúng định dạng.');
+                navigation.navigate('BanPhim');
+            }
+            console.log('[Outcomming call]: ', _soDienThoaiDi, _hoTenDienThoaiDi, _type);
+            onStartCall(_soDienThoaiDi, _hoTenDienThoaiDi);
+        }
+        else if (_type == typeCallEnum.IncomingCall) {
+            console.log('[IncomingCall]');
+            let _soDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
+            let _hoTenDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDen);
+            setPhonenumber(_soDienThoaiDen);
+            setCallName(_hoTenDienThoaiDen);
+
+            if (_soDienThoaiDen === '') {
+                alert('Số điện thoại không đúng định dạng.');
+                logData.writeLogData('Số điện thoại không đúng định dạng.');
+                navigation.navigate('BanPhim');
+            }
+            console.log('[IncomingCall]: ', _soDienThoaiDen, _hoTenDienThoaiDen, _type);
+            onAnswerCall(_soDienThoaiDen);
+        }
+        else {
+            resetState();
+        }
+    }
+
+    React.useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            storeData.getStoreDataValue(keyStoreData.isHold).then((isHoldData) => {
+                console.log('[isHoldData]', isHoldData);
+                setIsHold(false);
+                console.log('focus Cuoc goi',);
+                setVisibleModel(true);
+
+                if (isHoldData != 'true') {
+                    setTimeStart(new Date());
+                    loadParams();
+                }
+            });
+
+            return () => {
+                unsubscribe;
+            }
+        });
+    }, [navigation]);
+
+    useEffect(() => {
+        CallStatus();
+        console.log('[statusCall]: 3', statusCall);
+        if (statusCall == statusCallEnum.DaKetNoi) {
+            if (interValBitRate != 0)
+                BackgroundTimer.clearInterval(interValBitRate);
+
+            let interVal = BackgroundTimer.setInterval(() => {
+                getTinHieu();
+            }, 1000);
+            console.log('[interVal]', interVal);
+            setInterValBitRate(interVal);
+        }
+    }, [statusCall]);
+
+    useEffect(() => {
+        handleShowUI();
+    }, [showUI]);
+
+    useEffect(() => {
+
+    }, [visibleModel]);
+
+
+    useEffect(() => {
+        RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
+        RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+        RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+
+        const unsubscribe_NetInfo_CuocGoi = NetInfo.addEventListener(state => {
+            if (state.isConnected) {
+                BackgroundTimer.setTimeout(() => {
+                    onUpdateCall();
+                }, 1000);
             }
         });
 
-        return unsubscribe;
-    }, [route.params]);
-
-    useEffect(() => {
-
-        // RNCallKeep.addEventListener('answerCall', answerCall);
-        RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
-        RNCallKeep.addEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
-        RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
-        RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
-        RNCallKeep.addEventListener('endCall', endCall);
-
         return () => {
-            // RNCallKeep.removeEventListener('answerCall', answerCall);
             RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
-            RNCallKeep.removeEventListener('didReceiveStartCallAction', didReceiveStartCallAction);
             RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
             RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
-            RNCallKeep.removeEventListener('endCall', endCall);
+            unsubscribe_NetInfo_CuocGoi();
         }
-    }, [sdt]);
-
-    if (isIOS && DeviceInfo.isEmulator()) {
-        return <Text style={styles.container}>CallKeep doesn't work on iOS emulator</Text>;
-    }
+    }, []);
 
     return (
-        <View style={styles.container}>
+        <Modal style={{ height: heightScreen, width: widthScreen }}
+            animationType="fade"
+            transparent={true}
+            visible={visibleModel}
+            onRequestClose={() => {
+                console.log('[visibleModel]', visibleModel);
+                setVisibleModel(false);
+                alert('[visibleModel]');
+            }}>
+            {
+                isTransfer === true &&
+                (
+                    <View style={{ flex: 1 }}>
+                        <TransferScreen numberIncoming={phonenumber} isCuocGoiTransfer={isCuocGoiTransfer} hideTransfer={() => { setShowUI(showUICallEnum.UICall); }} hideModal={() => { setVisibleModel(false) }}></TransferScreen>
+                    </View>
+                )
+            }
 
-        </View>
+            {
+                isDTMF === true && (
+                    <View style={{ flex: 1 }}>
+                        <PopUpDialerScreeen hideDialer={() => {
+                            setShowUI(showUICallEnum.UICall);
+                        }}
+                            dtmf={(numberDialer) => onDTMF(numberDialer)}
+                        />
+                    </View>
+                )
+            }
+
+            {
+                isCall === true && (
+                    <View style={{ flex: 1 }}>
+                        <ImageBackground
+                            source={require('../../Toda_Images/Dark_Gray.png')}
+                            style={[styles.container, styles.image]}>
+                            <View
+                                style={{ width: '100%', flexDirection: 'column', flex: 1 }}>
+                                <View style={{ flex: 1, flexDirection: 'column', width: '100%' }}>
+                                    <View style={{ alignContent: 'center', justifyContent: 'center', flex: 1, }}>
+                                        {
+                                            callName == phonenumber ?
+                                                (
+                                                    <>
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 15,
+                                                                fontWeight: 'bold',
+                                                                fontSize: 32,
+                                                            }}>
+                                                            {phonenumber}
+                                                        </Text>
+                                                    </>
+                                                )
+                                                :
+                                                (
+                                                    <>
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 15,
+                                                                fontWeight: 'bold',
+                                                                fontSize: 32,
+                                                            }}>
+                                                            {callName}
+                                                        </Text>
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                                fontSize: 26,
+                                                            }}>
+                                                            {phonenumber}
+                                                        </Text>
+                                                    </>
+                                                )
+                                        }
+
+                                    </View>
+                                    <View style={{ flex: 1, alignContent: 'center', justifyContent: 'center' }}>
+                                        {
+                                            isHold !== true && statusCall == statusCallEnum.DaKetNoi ?
+
+                                                (
+                                                    <Calltimer TimeDuration={timeStart} />
+                                                )
+                                                :
+                                                (
+                                                    <Text
+                                                        style={{
+                                                            color: '#fff',
+                                                            alignSelf: 'center',
+                                                            marginTop: 5,
+                                                            fontSize: 25,
+                                                        }}>
+                                                        {txtStatusCall}
+                                                    </Text>
+                                                )
+                                        }
+
+                                        {
+                                            statusCall === statusCallEnum.DaKetNoi ?
+                                                (
+                                                    <Text
+                                                        style={{
+                                                            color: '#fff',
+                                                            alignSelf: 'center',
+                                                            marginTop: 10,
+                                                            fontSize: 18,
+                                                        }}>
+                                                        {bitrate}
+                                                    </Text>
+                                                )
+
+                                                : null
+                                        }
+
+                                    </View>
+                                </View>
+                                <View style={{ flex: 1, flexDirection: 'column', width: '100%' }}>
+                                    <View style={{ flex: 2, width: '100%' }}>
+                                        <View style={{ flexDirection: 'row', flexGrow: 3, marginHorizontal: 20, justifyContent: 'space-around', marginTop: 40 }}>
+                                            <TouchableOpacity onPress={() => {
+                                                onMute();
+                                            }}>
+                                                {isMute ?
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="mic-off"
+                                                            iconStyle={{ color: '#fff', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Tắt tiếng"}
+                                                        </Text>
+                                                    </View>
+                                                    :
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="mic"
+                                                            iconStyle={{ color: '#fff', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Tắt tiếng"}
+                                                        </Text>
+                                                    </View>
+                                                }
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => {
+                                                onSpeaker();
+                                            }}>
+                                                {isSpeaker ?
+                                                    <View>
+                                                        <Icon
+                                                            type="ionicon"
+                                                            name="ios-volume-high"
+                                                            iconStyle={{
+                                                                color: '#FBFBFB',
+                                                                fontSize: 27,
+                                                                alignSelf: 'center',
+                                                            }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Âm thanh"}
+                                                        </Text>
+                                                    </View>
+                                                    :
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="volume-2"
+                                                            iconStyle={{
+                                                                color: '#FBFBFB',
+                                                                fontSize: 27,
+                                                                alignSelf: 'center',
+                                                            }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Âm thanh"}
+                                                        </Text>
+                                                    </View>
+                                                }
+
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => {
+                                                if (statusCall == statusCallEnum.DaKetNoi) {
+                                                    setIsCuocGoiTransfer(isHold);
+                                                    setShowUI(showUICallEnum.UITransfer);
+                                                }
+                                            }}>
+                                                <Icon
+                                                    type="fontisto"
+                                                    name="arrow-swap"
+                                                    iconStyle={{
+                                                        color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                        fontSize: 26,
+                                                        alignSelf: 'center',
+                                                    }}
+                                                />
+                                                <Text
+                                                    style={{
+                                                        color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                        alignSelf: 'center',
+                                                        marginTop: 5,
+                                                    }}>
+                                                    {"Chuyển"}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', flexGrow: 3, marginHorizontal: 20, justifyContent: 'space-around' }}>
+                                            <TouchableOpacity onPress={() => {
+                                                if (statusCall == statusCallEnum.DaKetNoi) {
+                                                    setShowUI(showUICallEnum.UIDialer);
+                                                }
+                                            }}>
+                                                <Icon
+                                                    type="material"
+                                                    name="dialpad"
+                                                    iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
+                                                />
+                                                <Text
+                                                    style={{
+                                                        color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                        alignSelf: 'center',
+                                                        marginTop: 5,
+                                                    }}>
+                                                    {"Bàn phím"}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => {
+                                                if (statusCall == statusCallEnum.DaKetNoi) {
+                                                    onHold(!isHold, 1);
+                                                }
+                                            }}>
+                                                {isHold ?
+                                                    <View>
+                                                        <Icon
+                                                            type="fontisto"
+                                                            name="pause"
+                                                            iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Giữ"}
+                                                        </Text>
+                                                    </View>
+                                                    :
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="pause"
+                                                            iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Giữ"}
+                                                        </Text>
+                                                    </View>
+
+                                                }
+
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    <View style={{ flex: 1, alignItems: 'center', alignContent: 'center', justifyContent: 'center' }}>
+                                        <TouchableOpacity
+                                            onPress={() => onHangUp()}
+                                            style={[styles.buttonCircle, styles.bgDanger]}>
+                                            <Icon
+                                                type="material-community"
+                                                style={styles.btnDanger}
+                                                name="phone-hangup"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                            </View>
+                        </ImageBackground>
+                    </View>
+                )
+            }
+        </Modal>
     );
 }
+
+var styles = StyleSheet.create({
+    image: {
+        flex: 1,
+        resizeMode: 'cover',
+        justifyContent: 'center',
+    },
+    container: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'stretch',
+        height: heightScreen,
+        width: widthScreen,
+    },
+    innerContainer: {
+        height: heightScreen,
+        width: widthScreen,
+    },
+    innerContainerTransparent: {
+        padding: 20,
+    },
+    buttonCircle: {
+        borderWidth: 0,
+        alignSelf: 'center',
+        justifyContent: 'center',
+        width: 70,
+        height: 70,
+        borderRadius: 50,
+    },
+    bgDanger: {
+        backgroundColor: '#F32013',
+    },
+    btnDanger: {
+        color: '#fff',
+    },
+});
+
+export default CuocGoi;

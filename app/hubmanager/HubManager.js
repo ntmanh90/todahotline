@@ -2,11 +2,13 @@ import { hubUrl, local_hubUrl, https_url } from './SignalConfig';
 import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import storeData from '../hooks/storeData';
 import LogSignalR from '../utils/customLogSignalR';
+import logData from '../utils/logData';
 
 
 let hub = new HubConnectionBuilder()
     .withUrl(https_url)
-    //.configureLogging(LogLevel.Information)
+    //.withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
+    .configureLogging(LogLevel.Information)
     .build();
 
 function connectServer() {
@@ -15,12 +17,13 @@ function connectServer() {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('start sip', sipUser);
             try {
-                if (hub.state === HubConnectionState.Disconnected) {
+                if (hub.state !== HubConnectionState.Disconnected) {
                     console.log('đã vào hàm reconnect');
                     reconnectServer();
                 }
                 else {
                     console.log('bắt đầu gọi hềm kết nối server');
+                    logData.writeLogData('[Join server]:' + sipUser.user + ", " + sipUser.mact);
                     hub.start().then(() => {
                         hub.invoke('Join',
                             sipUser.user,
@@ -53,10 +56,12 @@ function connectServer() {
 }
 
 function reconnectServer() {
+
     console.log('client call ReJoin to Server');
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('sip_user: ', sipUser);
+            logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
                 hub.invoke('ReJoin',
                     sipUser.user,
@@ -80,25 +85,30 @@ function getHub() {
 }
 
 function getHubAndReconnect() {
-    console.log('hub.state: ', hub.state);
+    logData.writeLogData('[ReJoin server]:' + JSON.stringify(hub.state));
     if (hub.state === HubConnectionState.Disconnected) {
-        console.log('hub is disconnnect');
+        logData.writeLogData('[Disconnected] -> Reconnect');
         hub.start().then(() => {
             reconnectServer();
         });
-
-        hub.off('Registered');
-        hub.on('Registered', (number, id) => {
-            LogSignalR.serverCallClient('Registered');
-            try {
-                hub.invoke("ConfirmEvent", "Registered");
-            } catch (error) {
-                LogSignalR.clientCallServerError('Registered', error)
-            }
-            storeData.setStoreDataValue('Registered', true)
-            storeData.setStoreDataValue('SessionCallId', id)
-        });
     }
+    if (hub.state === HubConnectionState.Connecting) {
+        logData.writeLogData('[Connecting] -> Reconnect');
+        reconnectServer();
+    }
+
+    hub.off('Registered');
+    hub.on('Registered', (number, id) => {
+        LogSignalR.serverCallClient('Registered');
+        try {
+            hub.invoke("ConfirmEvent", "Registered");
+        } catch (error) {
+            LogSignalR.clientCallServerError('Registered', error)
+        }
+        storeData.setStoreDataValue('Registered', true)
+        storeData.setStoreDataValue('SessionCallId', id)
+    });
+
     hub.serverTimeoutInMilliseconds = 120000;
     return hub;
 }

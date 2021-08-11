@@ -33,7 +33,7 @@ const RequestPOST = async (url, params, callback) => {
     })
         .then((response) => response.json())
         .then((responseJson) => {
-            console.log("response: ", responseJson)
+            // console.log("response: ", responseJson)
 
             callback(null, responseJson);
         })

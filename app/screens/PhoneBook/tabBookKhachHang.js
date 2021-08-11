@@ -82,7 +82,7 @@ export default function tabBookKhachHang() {
     var ttt = text.toLowerCase();
     var listTest = listNoiBoAll;
     if (text === '') {
-      this.setState({ listNoiBo: listTest });
+      setListNoiBo(listTest);
     } else {
       var ttt = text.toLowerCase();
       var listTest = listContact;
@@ -158,7 +158,7 @@ export default function tabBookKhachHang() {
                             {
                               text: 'Đồng ý',
                               onPress: () => {
-                                this.removeContact(item, index)
+                                removeContact(item, index)
                               }
                             },
                           ],
@@ -213,8 +213,12 @@ export default function tabBookKhachHang() {
                             );
                           } else {
                             if (item.phoneNumbers.length > 0) {
-                              navigation.navigate('CuocGoi', { soDienThoai: item.contact_phone, type: 2 })
-
+                              setTimeout(() => {
+                                storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, item.phoneNumbers);
+                                storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, item.contact_phone);
+                                storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+                                navigation.navigate('CuocGoi');
+                              }, 200);
                             }
 
                           }
@@ -249,14 +253,16 @@ export default function tabBookKhachHang() {
             }}
             keyExtractor={(item, index) => index.toString()}></FlatList>
         </View>
-        {this.renderProcess()}
+        {renderProcess}
       </View>
       <Fab
         direction="up"
         style={{ backgroundColor: '#1976d2' }}
         position="bottomRight"
         onPress={() => {
-          this.setState({ isVisible: true, isAdd: true })
+          setIsVisible(true);
+          setIsAdd(true);
+
         }}>
         <Icon name="playlist-add" type="MaterialIcons" />
       </Fab>
