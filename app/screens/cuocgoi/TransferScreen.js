@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Text, Icon } from 'react-native-elements';
 import Clipboard from '@react-native-community/clipboard';
-import Keypad from '../../components/Keypad';
 import Coppyable from '../../components/CoppyableNumberInput';
 import storeData from '../../hooks/storeData';
 import Tooltip from 'react-native-walkthrough-tooltip';
@@ -19,55 +18,85 @@ const DEVICE_HEIGHT = Dimensions.get('window').height;
 import { openDatabase } from 'react-native-sqlite-storage';
 import keyStoreData from '../../utils/keyStoreData';
 import ProgressApp from '../../components/ProgressApp';
+import KeypadButton from '../../components/KeypadButton';
+import { getHubAndReconnect } from '../../hubmanager/HubManager';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import typeCallEnum from '../../utils/typeCallEnum';
+
 var db = openDatabase({ name: 'UserDatabase.db' });
 
-function TransferScreen() {
+var conn = getHubAndReconnect();
+
+function TransferScreen({ numberIncoming, isCuocGoiTransfer, hideTransfer, hideModal }) {
+    console.log('[numberIncoming Transfer]', numberIncoming);
+
+    const navigation = useNavigation();
+
     const [phoneNumber, setPhoneNumber] = useState('');
     const [toolTipVisiblev2, setToolTipVisiblev2] = useState(false);
     const [listNoiBo, setListNoiBo] = useState([]);
     const [listContact, setListContact] = useState([]);
     const [showProcess, setShowProcess] = useState(true);
-    const [checkQuyenGoiRaNgoai, setCheckQuyenGoiRaNgoai] = useState(1);
 
     useEffect(() => {
         loadDataContact();
     }, []);
 
 
-    const startCall = (number) => {
-
-        if (checkQuyenGoiRaNgoai == 0) {
-            var isCall = false
-            var callName = number
-            for (let index = 0; index < listContact.length; index++) {
-                const element = listContact[index];
-                if (element.contact_phone == number && (element.contact_status == 2 || element.contact_status == 3)) {
-                    callName = element.contact_name
-                    isCall = true
-                    break
+    const startCall = async (number) => {
+        console.log('[Start Call]');
+        let termHoTen = number;
+        db.transaction((tx) => {
+            tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [number],
+                (tx, { rows }) => {
+                    console.log('getHoTenTheoSoDienThoai', rows);
+                    if (rows.length > 0) {
+                        termHoTen = rows.item(0).ho_ten;
+                    }
+                },
+                (tx, error) => {
+                    console.log('Error check tên số điện thoại ', error);
                 }
+            );
+        });
+        // storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, number);
+        // storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
+        // storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+
+        let quyengoiRa = await storeData.getStoreDataValue(keyStoreData.quyenGoiRa);
+        console.log('[quyengoira]', quyengoiRa);
+        console.log('[isCuocGoiTransfer]', isCuocGoiTransfer);
+
+        if (quyengoiRa == '1') {
+            if (isCuocGoiTransfer) {
+
+                setTimeout(() => {
+                    hideTransfer();
+                    hideModal();
+                    navigation.navigate('CuocGoiTransfer', { subCallNumber: number, subCallName: termHoTen });
+                }, 200);
 
             }
-            if (number.length < 10) {
-                // đoạn này là tranfer sang cuộc gọi khác
-                console.log('Chưa viết code tranfer sang cuộc gọi khác')
-            } else {
-                Alert.alert(
-                    'Thông báo ',
-                    'Bạn không có quyền gọi ra ,vui lòng liên hệ với quản trị viên !');
+            else {
+                conn.invoke('Transfer', numberIncoming, number);
+                hideTransfer();
+                console.log('Chưa viết code tranfer sang cuộc gọi khác > 10 số')
             }
         } else {
-            var callName = number
-            for (let index = 0; index < listContact.length; index++) {
-                const element = listContact[index];
-                if (element.contact_phone == number) {
-                    callName = element.contact_name
-                    break
-                }
+            if (isCuocGoiTransfer) {
+                setTimeout(() => {
+                    hideTransfer();
+                    hideModal();
+                    navigation.navigate('CuocGoiTransfer', { subCallNumber: number, subCallName: termHoTen });
+                }, 200);
 
             }
-            // đoạn này là tranfer sang cuộc gọi khác lớn hơn 10 số
-            console.log('Chưa viết code tranfer sang cuộc gọi khác > 10 số')
+            else {
+                conn.invoke('Transfer', numberIncoming, number);
+                hideTransfer();
+                console.log('Chưa viết code tranfer sang cuộc gọi khác > 10 số')
+            }
         }
     }
 
@@ -77,8 +106,7 @@ function TransferScreen() {
         setPhoneNumber(tmp);
         search(tmp);
     }
-
-    const _keypadLongPressed = () => {
+    const keypadLongPressed = () => {
         console.log('Long press');
         setPhoneNumber('')
         search('');
@@ -86,8 +114,7 @@ function TransferScreen() {
 
     const _keypadPressed = (value) => {
         var tmp = phoneNumber + value;
-        this.setState({ phoneNumber: tmp });
-        setPhoneNumber(tmp)
+        setPhoneNumber(tmp);
         search(tmp);
     }
 
@@ -101,8 +128,7 @@ function TransferScreen() {
     };
 
     const loadDataContact = async () => {
-        let quyengoiSDT = await storeData.getStoreDataValue(keyStoreData.quyenGoiRa);
-        setCheckQuyenGoiRaNgoai(parseInt(quyengoiSDT));
+
 
         db.transaction((tx) => {
             tx.executeSql('SELECT * FROM DanhBa', [], (tx, results) => {
@@ -128,6 +154,12 @@ function TransferScreen() {
         }
     }
 
+    const selectItem = (so_dien_thoai) => {
+        console.log('[Select Item]', so_dien_thoai);
+        setPhoneNumber(so_dien_thoai);
+        search(so_dien_thoai)
+    }
+
     const search = (text) => {
         if (text === '') {
             setListNoiBo([]);
@@ -135,7 +167,7 @@ function TransferScreen() {
             var ttt = text.toLowerCase();
             var listTest = listContact;
             const newData = listTest.filter((item) => {
-                const itemData = `${item.contact_phone.toUpperCase()}`;
+                const itemData = `${item.so_dien_thoai.toUpperCase()}`;
                 const textData = ttt.toUpperCase();
 
                 return itemData.indexOf(textData) > -1;
@@ -178,36 +210,118 @@ function TransferScreen() {
                 )}
 
                 {phoneNumber.length > 0 ? (
+
                     <FlatList
                         style={styles.itemStyle}
                         data={listNoiBo || []}
                         renderItem={({ item, index }) => {
                             return (
-                                <ListItem
-                                    onPress={() => { setPhoneNumber(item.contact_phone); search(item.contact_phone) }}>
-                                    <Body>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <Text style={styles.text_tenNguoiGoi}>
-                                                {item.contact_name}
-                                            </Text>
-                                            <View style={{ flex: 1 }}></View>
-                                            <Text style={styles.text_SDTNguoiGoi}>
-                                                {item.contact_phone}
-                                            </Text>
-                                        </View>
-                                    </Body>
-                                </ListItem>
+                                <TouchableOpacity
+                                    onPress={() => selectItem(item.so_dien_thoai)}
+                                    style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomColor: '#dfdfdf', borderBottomWidth: 1, paddingVertical: 4, marginHorizontal: 15 }}>
+                                    <Text style={styles.text_tenNguoiGoi}>
+                                        {item.ho_ten}
+                                    </Text>
+                                    <Text style={styles.text_soDienThoai}>
+                                        {item.so_dien_thoai}
+                                    </Text>
+                                </TouchableOpacity>
                             );
                         }}
-                        keyExtractor={(item, index) => index.toString()}></FlatList>
+                        keyExtractor={(item, index) => index.toString()}>
+
+                    </FlatList>
+
                 ) : (
                     <Text></Text>
                 )}
             </View>
-            <View style={{}}>
-                <Keypad keyPressed={(e) => _keypadPressed(e)} />
+            <View style={{ flex: 4 }}>
 
-                <View style={styles.row}>
+                <View style={styles.keypad}>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="1"
+                            txt2=""
+                            onPress={() => _keypadPressed('1')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="2"
+                            txt2="A B C"
+                            onPress={() => _keypadPressed('2')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="3"
+                            txt2="D E F"
+                            onPress={() => _keypadPressed('3')}
+                        />
+                    </View>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="4"
+                            txt2="G H I"
+                            onPress={() => _keypadPressed('4')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="5"
+                            txt2="J K L"
+                            onPress={() => _keypadPressed('5')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="6"
+                            txt2="M N O"
+                            onPress={() => _keypadPressed('6')}
+                        />
+                    </View>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="7"
+                            txt2="P Q R S"
+                            onPress={() => _keypadPressed('7')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="8"
+                            txt2="T U V"
+                            onPress={() => _keypadPressed('8')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="9"
+                            txt2="W X Y Z"
+                            onPress={() => _keypadPressed('9')}
+                        />
+                    </View>
+                    <View style={styles.keypadrow}>
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="*"
+                            txt2=""
+                            onPress={() => _keypadPressed('*')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="0"
+                            txt2="+"
+                            onPress={() => _keypadPressed('0')}
+                        />
+                        <KeypadButton
+                            style={styles.keypadbutton}
+                            txt1="#"
+                            txt2=""
+                            onPress={() => _keypadPressed('#')}
+                        />
+                    </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignSelf: 'center', flex: 1 }}>
                     <TouchableOpacity
                         onPress={() => { hideTransfer() }}
                         style={[styles.buttonCircle]}>
@@ -219,14 +333,13 @@ function TransferScreen() {
                         style={[styles.buttonCircle, styles.bgSuccess]}>
                         <Icon style={styles.btnSuccess} name="call" />
                     </TouchableOpacity>
-                    {(phoneNumber.length == 0) ?
-                        <View style={[styles.buttonCircle, styles.invisible,]}></View>
-                        :
+
+                    {(phoneNumber.length == 0) ? null :
                         <TouchableOpacity
                             style={styles.buttonCircle}
-                            onPress={(e) => deleteNumber()}
-                            onLongPress={(e) => _keypadLongPressed()}>
-                            <Icon style={styles.btnbgDanger} type="Feather" name="delete" />
+                            onPress={deleteNumber}
+                            onLongPress={keypadLongPressed}>
+                            <Ionicons name="backspace-outline" style={styles.btnbgDanger} size={40} />
                         </TouchableOpacity>
                     }
 
@@ -265,6 +378,19 @@ var styles = StyleSheet.create({
         height: DEVICE_WIDTH / 5,
         borderRadius: DEVICE_WIDTH / 10,
     },
+    itemStyle: {
+        width: DEVICE_WIDTH,
+    },
+    text_tenNguoiGoi: {
+        color: '#fff',
+        textAlign: 'left',
+        fontSize: 16,
+    },
+    text_soDienThoaiNguoiGoi: {
+        color: '#fff',
+        fontSize: 15,
+        textAlign: 'right'
+    },
     bgSuccess: {
         backgroundColor: '#22bb33',
     },
@@ -293,6 +419,24 @@ var styles = StyleSheet.create({
         marginLeft: 10,
         marginRight: 10,
     },
+
+    keypad: {
+        marginTop: 0,
+        marginBottom: 0
+    },
+    keypadrow: {
+        flexDirection: "row",
+        alignSelf: "center"
+    },
+    keypadbutton: {
+        margin: 10,
+        width: DEVICE_WIDTH / 5,
+        height: DEVICE_WIDTH / 5,
+        borderWidth: 0,
+        backgroundColor: "#F5F5F5",
+        borderRadius: DEVICE_WIDTH / 10,
+        paddingTop: 7
+    }
 });
 
 

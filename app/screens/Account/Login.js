@@ -76,7 +76,7 @@ function Login({ navigation }) {
                     storeData.setStoreDataValue('idnhanvien', String(json.data.data.idnhanvien));
                     storeData.setStoreDataValue('chucvu', json.data.data.chucvu);
                     storeData.setStoreDataValue('idct', String(json.data.data.idct));
-                    // storeData.setStoreDataValue('isCheck', JSON.stringify(this.state.remember));
+
                     storeData.setStoreDataValue('quyenGoiRa', String(json.data.data.ChoPhepGoiRa));
                     storeData.setStoreDataValue('Prefix', json.data.data.Prefix);
                     storeData.setStoreDataValue('isLogin', true);
@@ -98,7 +98,7 @@ function Login({ navigation }) {
                     Toast.showWithGravity('Thông tin đăng nhập không đúng.', Toast.LONG, Toast.TOP);
                 }
             } else {
-                this.setState({ showProcess: false });
+                setRenderProcess(false);
                 alert('Vui lòng kiểm tra lại internet !!!');
             }
 

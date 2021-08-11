@@ -7,7 +7,7 @@ import logData from '../utils/logData';
 
 let hub = new HubConnectionBuilder()
     .withUrl(https_url)
-    .withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
+    //.withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
     .configureLogging(LogLevel.Information)
     .build();
 
@@ -56,6 +56,7 @@ function connectServer() {
 }
 
 function reconnectServer() {
+
     console.log('client call ReJoin to Server');
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
@@ -84,25 +85,30 @@ function getHub() {
 }
 
 function getHubAndReconnect() {
-    console.log('hub.state: ', hub.state);
+    logData.writeLogData('[ReJoin server]:' + JSON.stringify(hub.state));
     if (hub.state === HubConnectionState.Disconnected) {
-        console.log('hub is disconnnect');
+        logData.writeLogData('[Disconnected] -> Reconnect');
         hub.start().then(() => {
             reconnectServer();
         });
-
-        hub.off('Registered');
-        hub.on('Registered', (number, id) => {
-            LogSignalR.serverCallClient('Registered');
-            try {
-                hub.invoke("ConfirmEvent", "Registered");
-            } catch (error) {
-                LogSignalR.clientCallServerError('Registered', error)
-            }
-            storeData.setStoreDataValue('Registered', true)
-            storeData.setStoreDataValue('SessionCallId', id)
-        });
     }
+    if (hub.state === HubConnectionState.Connecting) {
+        logData.writeLogData('[Connecting] -> Reconnect');
+        reconnectServer();
+    }
+
+    hub.off('Registered');
+    hub.on('Registered', (number, id) => {
+        LogSignalR.serverCallClient('Registered');
+        try {
+            hub.invoke("ConfirmEvent", "Registered");
+        } catch (error) {
+            LogSignalR.clientCallServerError('Registered', error)
+        }
+        storeData.setStoreDataValue('Registered', true)
+        storeData.setStoreDataValue('SessionCallId', id)
+    });
+
     hub.serverTimeoutInMilliseconds = 120000;
     return hub;
 }

@@ -44,7 +44,7 @@ function LogScreen({ navigation }) {
                     // console.log('item', item);
                     return (
                         <View style={{ paddingHorizontal: 15, marginTop: 15, }}>
-                            <Text style={{ color: 'black' }}>{item.index + " - " + item.logType + ": " + item.logTime}</Text>
+                            <Text style={{ color: 'black' }}>{item.logType + ": " + item.logTime}</Text>
                         </View>
                     )
                 }}

@@ -146,7 +146,7 @@ export default function Caidat({ navigation }) {
                     <View style={styles.menuWrapper}>
                         <TouchableOpacity
                             onPress={() => {
-                                navigation.navigate('ChangePassword');
+                                navigation.navigate('DoiMatKhau');
                             }}>
                             <View style={styles.menuItem}>
                                 <Icon

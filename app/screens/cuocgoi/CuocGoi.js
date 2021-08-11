@@ -20,13 +20,20 @@ import Calltimer from '../../components/Calltimer';
 import PopUpDialerScreeen from '../cuocgoi/PopUpDialerScreeen';
 import TransferScreen from '../cuocgoi/TransferScreen';
 import showUICallEnum from '../../utils/showUICallEnum';
+import NetInfo from "@react-native-community/netinfo";
+import Toast from 'react-native-simple-toast';
+import InCallManager from 'react-native-incall-manager';
+import useSendMissCall from '../../hooks/useSendMissCall';
+import statusMissCallType from '../../utils/statusMissCallType';
 
 const widthScreen = Dimensions.get('window').width;
 const heightScreen = Dimensions.get('window').height;
 
 var conn = getHubAndReconnect();
 var bitratePrew = 0;
+var coutTinHieuYeu = 0;
 var connectionCheckBitRate = null;
+var stremRTC = null;
 
 BackgroundTimer.start();
 
@@ -64,11 +71,14 @@ function CuocGoi({ route }) {
     const [isSpeaker, setIsSpeaker] = useState(false);
     const [interValBitRate, setInterValBitRate] = useState(0);
     const [showUI, setShowUI] = useState(1);
+    const [isCuocGoiTransfer, setIsCuocGoiTransfer] = useState(false);
     const [visibleModel, setVisibleModel] = useState(true);
 
     const navigation = useNavigation();
+    const useSendMissCallHook = useSendMissCall();
 
     const resetState = () => {
+        console.log('[resetState Cuoc Goi]');
         BackgroundTimer.setTimeout(() => {
             if (interValBitRate != 0)
                 BackgroundTimer.clearInterval(interValBitRate);
@@ -78,28 +88,33 @@ function CuocGoi({ route }) {
                 channel: "",
             };
             storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-
+            storeData.setStoreDataValue(keyStoreData.isHold, false);
             setConnectionRTC(null);
             setPhonenumber('');
             setIsHold(false);
             setBitrate('');
             setTypeCall(0);
+            coutTinHieuYeu = 0;
             setCallName('');
             setStatusCall(statusCallEnum.DangKetNoi);
             setIsMute(false);
             setIsSpeaker(false);
+            setIsCuocGoiTransfer(false);
             setTxtStatusCall('');
             connectionCheckBitRate = null;
+            stremRTC = null;
 
             setTimeStart(new Date());
             handleShowUI();
             setVisibleModel(false);
+            storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
             navigation.navigate('BanPhim');
         }, 1000);
 
     }
 
     const onStartCall = async (so_dien_thoai, ho_ten) => {
+        InCallManager.setSpeakerphoneOn(false);
         conn = getHubAndReconnect();
         console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
 
@@ -110,7 +125,8 @@ function CuocGoi({ route }) {
         //Hiển thị màn hình cuộc gọi nhưng chưa đếm giây
     }
 
-    const onAnswerCall = async (number, hoTen) => {
+    const onAnswerCall = async (number) => {
+        InCallManager.setSpeakerphoneOn(false);
         logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
         let signalData = await storeData.getStoreDataObject(keyStoreData.signalWebRTC);
         let SessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
@@ -144,6 +160,7 @@ function CuocGoi({ route }) {
 
     const callbackIceCandidateJanusState = (evt) => {
         if (evt) {
+            console.log('[callbackIceCandidateJanusState]');
             //Found a new candidate
             console.log(evt);
         }
@@ -158,6 +175,7 @@ function CuocGoi({ route }) {
         conn = getHubAndReconnect();
 
         let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+        stremRTC = stream;
         var connection = new RTCPeerConnection(configuration);
 
         connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionCall); // ICE Candidate Callback
@@ -184,6 +202,7 @@ function CuocGoi({ route }) {
         conn = getHubAndReconnect();
         //console.log('incomingcall', sessionCall, sdp);
         let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+        stremRTC = stream;
         let connection = new RTCPeerConnection(configuration);
 
         console.log('connection');
@@ -224,18 +243,27 @@ function CuocGoi({ route }) {
             connectionCheckBitRate.getStats(null).then(stats => {
                 stats.forEach(report => {
                     if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
-                        const bitrate = report.bytesReceived;
+                        const bitrate = parseFloat(report.bytesReceived);
+                        //console.log('[bitrate]', report);
                         //console.log('[bitrate]: ', bitrate);
-                        if (bitrate - bitratePrew <= 1) {
+                        if (bitrate - bitratePrew <= 0) {
                             //kết nối yếu
+
                             setBitrate('Tín hiệu yếu');
+                            coutTinHieuYeu = coutTinHieuYeu + 1;
+                            //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
+                            if (coutTinHieuYeu >= 25) {
+                                //handleEndCallTinHieuYeu();
+                            }
                         }
-                        else if (bitrate - bitratePrew == 0) {
-                            //không có kết nối
-                            setBitrate('Tín hiệu yếu');
-                        }
+                        // else if (bitrate - bitratePrew == 0) {
+                        //     //không có kết nối
+                        //     setBitrate('Tín hiệu yếu');
+                        // }
                         else {
+                            // console.log('[Tín hiệu tốt]')
                             //kết nối tốt
+                            coutTinHieuYeu = 0;
                             setBitrate('Tín hiệu tốt');
                         }
 
@@ -250,15 +278,19 @@ function CuocGoi({ route }) {
         var signal = JSON.parse(data);
         // Route signal based on type
         if (signal.sdp) {
-            if (connectionRTC)
-                connectionRTC
-                    .setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                    .then(() => { console.log('Et thành công setRemoteDescription') })
-                    .catch((err) =>
-                        console.log('WebRTC: Error while setting remote description', err),
-                    );
-        }
-    };
+            if (connectionRTC) {
+                try {
+                    connectionRTC
+                        .setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                        .then(() => { console.log('Et thành công setRemoteDescription') });
+                }
+                catch (error) {
+                    logData.writeLogData('WebRTC: Error while setting remote description');
+                    console.log('WebRTC: Error while setting remote description');
+                }
+            }
+        };
+    }
 
     conn.off('Calling')
     conn.on("Calling", (callid, msg, id) => {
@@ -315,23 +347,34 @@ function CuocGoi({ route }) {
 
     conn.off('callDeclined')
     conn.on('callDeclined', (callid, code, reason, id) => {
+        conn.invoke("ConfirmEvent", "callDeclined").catch((error) => console.log(error));
 
         logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
         RNCallKeep.endAllCalls();
         setStatusCall(statusCallEnum.DaKetThuc);
         resetState();
+        Toast.showWithGravity('Từ chối cuộc gọi', Toast.LONG, Toast.BOTTOM);
     });
 
     conn.off('callEnded')
     conn.on('callEnded', (callid, code, reason, id) => {
+        conn.invoke("ConfirmEvent", "callEnded").catch((error) => console.log(error));
 
         logData.writeLogData('Server call client: callEnded');
         logSignalR.serverCallClient('callEnded');
         setStatusCall(statusCallEnum.DaKetThuc);
         RNCallKeep.endAllCalls();
         resetState();
+        Toast.showWithGravity('Kết thúc cuộc gọi', Toast.LONG, Toast.BOTTOM);
     });
+
+    conn.off('UpdatingCall')
+    conn.on('UpdatingCall', (sdp, session_id) => {
+        conn.invoke("ConfirmEvent", "UpdatingCall").catch((error) => console.log(error));
+
+        onUpdateCall(sdp, session_id);
+    })
 
     ////////// End handle SignalR ////////////////////// 
 
@@ -358,9 +401,15 @@ function CuocGoi({ route }) {
         }
     }
 
-    const onHold = async () => {
+    const onHold = async (value, isclick) => {
         let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        if (isHold === true) {
+        console.log('[isHold]', value, isclick, isHold);
+        if (isclick == 1) {
+            setIsHold(value);
+            storeData.setStoreDataValue(keyStoreData.isHold, value);
+        }
+
+        if (value) {
             try {
                 conn = getHubAndReconnect();
                 conn.invoke("Hold", sessionCallId);
@@ -369,32 +418,82 @@ function CuocGoi({ route }) {
             }
         }
         else {
-            try {
-                conn.invoke("UnHold", sessionCallId);
-            } catch {
-                logData.writeLogData('Error invoke UnHold');
+            if (isclick == 1) {
+                try {
+                    conn.invoke("UnHold", sessionCallId);
+                } catch {
+                    logData.writeLogData('Error invoke UnHold');
+                }
+            }
+            else {
+                if (isHold == false) {
+                    try {
+                        conn.invoke("UnHold", sessionCallId);
+                    } catch {
+                        logData.writeLogData('Error invoke UnHold');
+                    }
+                }
             }
         }
+
+        return;
     };
+
+    const startRingtone = () => {
+        InCallManager.startRingtone('_DEFAULT_');
+    }
+
+    const stopRingtone = () => {
+        InCallManager.stopRingtone();
+    }
+
+    const startCall = () => {
+        InCallManager.start({ media: 'audio', ringback: '_BUNDLE_' });
+    }
+    const stopCall = () => {
+        InCallManager.stop({ busytone: '_DEFAULT_' });
+    }
+    const onSpeaker = () => {
+        console.log("onSpeaker: ", !isSpeaker)
+        InCallManager.setSpeakerphoneOn(!isSpeaker);
+        setIsSpeaker(!isSpeaker);
+    }
+    const onMute = () => {
+        console.log("[onMute]: ", !isMute)
+        stremRTC.getAudioTracks()[0].enabled = isMute;
+        setIsMute(!isMute);
+    }
 
 
     const onHangUp = async () => {
 
-        conn = getHubAndReconnect();
-
-        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        console.log('hangUp');
-        conn.invoke('hangUp', sessionCallId).then(() => {
-            logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
-        }).catch();
-        setStatusCall(statusCallEnum.DaKetThuc);
         try {
-            RNCallKeep.endAllCalls();
-        } catch (error) {
+            conn = getHubAndReconnect();
 
+            let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+            console.log('hangUp');
+            conn.invoke('hangUp', sessionCallId).then(() => {
+                logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
+            }).catch();
+            setStatusCall(statusCallEnum.DaKetThuc);
+            try {
+                RNCallKeep.endAllCalls();
+            } catch (error) {
+
+            }
+            if (coutTinHieuYeu > 2 && coutTinHieuYeu < 25) {
+                useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
+            }
+
+            Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+            BackgroundTimer.clearInterval(interValBitRate);
+            resetState();
+        }
+        catch
+        {
+            resetState();
         }
 
-        resetState();
     };
 
     const onDTMF = (dialString) => {
@@ -406,24 +505,33 @@ function CuocGoi({ route }) {
         }
     }
 
-    const onTransfer = (number, callName) => {
-        console.log('Màn hình transfer cuộc gọi');
+    const onUpdateCall = async (sdp, session_id) => {
+        console.log('[update call]');
+        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
 
+        let stream = await mediaDevices.getUserMedia(webrtcConstraints);
+        stremRTC = stream;
+        let connection = new RTCPeerConnection(configuration);
+
+        console.log('connection');
+        connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionCallId); // ICE Candidate Callback
+        connection.onicecandidateerror = (error) => callbackIceCandidateJanusError(error);
+        connection.addStream(stream);
+        connection.setRemoteDescription(sdp).then(() => {
+            setConnectionRTC(connection);
+            connectionCheckBitRate = connection;
+            setStatusCall(statusCallEnum.DaKetNoi);
+        });
+
+        let offer = await connection.createOffer({ iceRestart: true });
+        let descriptionType = await connection.setLocalDescription(offer);
+        try {
+            conn.invoke("UpdateOffer", connection.localDescription.sdp, session_id);
+            // setconsole.log('----connection', connection);
+        } catch {
+            console.log('----CallAsterisk Error call out');
+        }
     }
-
-    const onUpdateCall = async () => {
-        let idCall = await storeData.getStoreDataValue(keyStoreData.callid);
-        connectionRTC.createOffer({ iceRestart: true }).then((offer) => {
-            connectionRTC.setLocalDescription(offer)
-                .then(() => {
-                    conn.invoke("UpdateOffer", connectionRTC.localDescription.sdp, idCall);
-                })
-                .catch();
-        }).catch();
-    }
-
-
-
 
     /// end xử lý nút bấm UI ///
 
@@ -433,49 +541,42 @@ function CuocGoi({ route }) {
         //Gọi hàm xử lý sự kiện bấm số khi dùng UI call mặc định
     };
 
-    const didPerformSetMutedCallAction = ({ muted, callUUID }) => {
+    const didPerformSetMutedCallAction = async ({ muted, callUUID }) => {
         //Gọi hàm xử lý sự kiện mute 
+        //setIsMute(muted);
+        RNCallKeep.setMutedCall(callUUID, muted);
     };
 
     const didToggleHoldCallAction = async ({ hold, callUUID }) => {
         //Họi hàm xử lý sự kiện hold
-        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
 
-        if (hold === true) {
-            try {
-                setIsHold(true);
-                conn.invoke("Hold", sessionCallId);
-            } catch (error) {
-
-            }
-        }
-        else {
-            try {
-                conn.invoke("UnHold", sessionCallId);
-                setIsHold(false);
-            } catch (error) {
-
-            }
-        }
     };
 
     //End RN Call Keep
-
-    //Send data to server
-    const sendDataDisconectCall = () => {
-        console.log("sendDataDisconectCall")
-
+    const handleEndCallTinHieuYeu = () => {
+        console.log('[handleEndCallTinHieuYeu]');
+        useSendMissCallHook.request(phonenumber, statusMissCallType.OverTimeOutKetNoiYeu);
+        onHangUp();
     }
-    const sendDataMissCallDisconect = (type) => {
-        console.log("sendDataMissCallDisconect")
-    }
-    const renderProcess = () => {
-        if (showProcess) {
-            return (
-                <ProgressApp />
-            );
-        } else {
-            return null;
+
+    const handleShowUI = () => {
+        if (showUI == showUICallEnum.UITransfer) {
+            onHold(true, 0).then(() => {
+                setIsCall(false);
+                setIsTransfer(true);
+                setIsDTMF(false);
+            });
+
+        }
+        else if (showUI == showUICallEnum.UIDialer) {
+            setIsCall(false);
+            setIsTransfer(false);
+            setIsDTMF(true);
+        }
+        else {
+            setIsCall(true);
+            setIsTransfer(false);
+            setIsDTMF(false);
         }
     }
 
@@ -509,7 +610,7 @@ function CuocGoi({ route }) {
                 navigation.navigate('BanPhim');
             }
             console.log('[IncomingCall]: ', _soDienThoaiDen, _hoTenDienThoaiDen, _type);
-            onAnswerCall(_soDienThoaiDen, _hoTenDienThoaiDen);
+            onAnswerCall(_soDienThoaiDen);
         }
         else {
             resetState();
@@ -518,36 +619,17 @@ function CuocGoi({ route }) {
 
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-            setVisibleModel(true);
-            setTimeStart(new Date());
-            loadParams();
-            // const { soDienThoai } = route.params ?? '';
-            // const { type } = route.params ?? 0;
-            // const { hoTen } = route.hoTen ?? '';
-            // setPhonenumber(soDienThoai);
-            // storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
-            // storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, hoTen);
-            // setCallName(hoTen);
-            // setTypeCall(type);
+            storeData.getStoreDataValue(keyStoreData.isHold).then((isHoldData) => {
+                console.log('[isHoldData]', isHoldData);
+                setIsHold(false);
+                console.log('focus Cuoc goi',);
+                setVisibleModel(true);
 
-            // if (soDienThoai === '') {
-            //     alert('Số điện thoại không đúng định dạng.');
-            //     logData.writeLogData('Số điện thoại không đúng định dạng.');
-            //     navigation.navigate('BanPhim');
-            // }
-            // else {
-            //     if (type == typeCallEnum.IncomingCall) {
-            //         onAnswerCall(soDienThoai, hoTen);
-            //     }
-            //     else if (type == typeCallEnum.outgoingCall) {
-            //         onStartCall(soDienThoai, hoTen);
-            //     }
-            //     else {
-            //         logData.writeLogData('Sai kiểu dữ liệu cuộc gọi');
-            //         navigation.navigate('BanPhim');
-            //     }
-            // }
-            //  });
+                if (isHoldData != 'true') {
+                    setTimeStart(new Date());
+                    loadParams();
+                }
+            });
 
             return () => {
                 unsubscribe;
@@ -575,35 +657,30 @@ function CuocGoi({ route }) {
     }, [showUI]);
 
     useEffect(() => {
+
+    }, [visibleModel]);
+
+
+    useEffect(() => {
         RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
         RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
         RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
 
+        const unsubscribe_NetInfo_CuocGoi = NetInfo.addEventListener(state => {
+            if (state.isConnected) {
+                BackgroundTimer.setTimeout(() => {
+                    onUpdateCall();
+                }, 1000);
+            }
+        });
 
         return () => {
             RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
             RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
             RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+            unsubscribe_NetInfo_CuocGoi();
         }
     }, []);
-
-    const handleShowUI = () => {
-        if (showUI == showUICallEnum.UITransfer) {
-            setIsCall(false);
-            setIsTransfer(true);
-            setIsDTMF(false);
-        }
-        else if (showUI == showUICallEnum.UIDialer) {
-            setIsCall(false);
-            setIsTransfer(false);
-            setIsDTMF(true);
-        }
-        else {
-            setIsCall(true);
-            setIsTransfer(false);
-            setIsDTMF(false);
-        }
-    }
 
     return (
         <Modal style={{ height: heightScreen, width: widthScreen }}
@@ -612,12 +689,14 @@ function CuocGoi({ route }) {
             visible={visibleModel}
             onRequestClose={() => {
                 console.log('[visibleModel]', visibleModel);
+                setVisibleModel(false);
+                alert('[visibleModel]');
             }}>
             {
                 isTransfer === true &&
                 (
                     <View style={{ flex: 1 }}>
-                        {/* <TransferScreen hideTransfer={() => { setIsTransfer(false); setIsHold(false); onHold() }}></TransferScreen> */}
+                        <TransferScreen numberIncoming={phonenumber} isCuocGoiTransfer={isCuocGoiTransfer} hideTransfer={() => { setShowUI(showUICallEnum.UICall); }} hideModal={() => { setVisibleModel(false) }}></TransferScreen>
                     </View>
                 )
             }
@@ -641,210 +720,193 @@ function CuocGoi({ route }) {
                             source={require('../../Toda_Images/Dark_Gray.png')}
                             style={[styles.container, styles.image]}>
                             <View
-                                style={{ position: 'absolute', top: 20, width: '100%' }}>
-                                <View style={{ flexDirection: 'column' }}>
-                                    <Text
-                                        style={{
-                                            color: '#fff',
-                                            alignSelf: 'center',
-                                            marginTop: 15,
-                                            fontWeight: 'bold',
-                                            fontSize: 32,
-                                        }}>
-                                        {phonenumber}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            color: '#fff',
-                                            alignSelf: 'center',
-                                            marginTop: 5,
-                                            fontSize: 26,
-                                        }}>
-                                        {phonenumber}
-                                    </Text>
+                                style={{ width: '100%', flexDirection: 'column', flex: 1 }}>
+                                <View style={{ flex: 1, flexDirection: 'column', width: '100%' }}>
+                                    <View style={{ alignContent: 'center', justifyContent: 'center', flex: 1, }}>
+                                        {
+                                            callName == phonenumber ?
+                                                (
+                                                    <>
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 15,
+                                                                fontWeight: 'bold',
+                                                                fontSize: 32,
+                                                            }}>
+                                                            {phonenumber}
+                                                        </Text>
+                                                    </>
+                                                )
+                                                :
+                                                (
+                                                    <>
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 15,
+                                                                fontWeight: 'bold',
+                                                                fontSize: 32,
+                                                            }}>
+                                                            {callName}
+                                                        </Text>
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                                fontSize: 26,
+                                                            }}>
+                                                            {phonenumber}
+                                                        </Text>
+                                                    </>
+                                                )
+                                        }
+
+                                    </View>
+                                    <View style={{ flex: 1, alignContent: 'center', justifyContent: 'center' }}>
+                                        {
+                                            isHold !== true && statusCall == statusCallEnum.DaKetNoi ?
+
+                                                (
+                                                    <Calltimer TimeDuration={timeStart} />
+                                                )
+                                                :
+                                                (
+                                                    <Text
+                                                        style={{
+                                                            color: '#fff',
+                                                            alignSelf: 'center',
+                                                            marginTop: 5,
+                                                            fontSize: 25,
+                                                        }}>
+                                                        {txtStatusCall}
+                                                    </Text>
+                                                )
+                                        }
+
+                                        {
+                                            statusCall === statusCallEnum.DaKetNoi ?
+                                                (
+                                                    <Text
+                                                        style={{
+                                                            color: '#fff',
+                                                            alignSelf: 'center',
+                                                            marginTop: 10,
+                                                            fontSize: 18,
+                                                        }}>
+                                                        {bitrate}
+                                                    </Text>
+                                                )
+
+                                                : null
+                                        }
+
+                                    </View>
                                 </View>
-                                <View style={{ marginTop: 30 }}>
-                                    {
-                                        isHold !== true && statusCall == statusCallEnum.DaKetNoi ?
-
-                                            (
-                                                <Calltimer TimeDuration={timeStart} />
-                                            )
-                                            :
-                                            (
-                                                <Text
-                                                    style={{
-                                                        color: '#fff',
-                                                        alignSelf: 'center',
-                                                        marginTop: 5,
-                                                        fontSize: 25,
-                                                    }}>
-                                                    {txtStatusCall}
-                                                </Text>
-                                            )
-                                    }
-
-                                    {
-                                        statusCall === statusCallEnum.DaKetNoi ?
-                                            (
-                                                <Text
-                                                    style={{
-                                                        color: '#fff',
-                                                        alignSelf: 'center',
-                                                        marginTop: 10,
-                                                        fontSize: 18,
-                                                    }}>
-                                                    {bitrate}
-                                                </Text>
-                                            )
-
-                                            : null
-                                    }
-
-                                </View>
-                                <View style={{ flexDirection: 'row', flexGrow: 3, marginTop: 55, marginHorizontal: 20, justifyContent: 'space-around' }}>
-                                    <TouchableOpacity onPress={() => {
-                                        setIsMute(!isMute);
-                                    }}>
-                                        {isMute ?
-                                            <View>
-                                                <Icon
-                                                    type="feather"
-                                                    name="mic"
-                                                    iconStyle={{ color: '#fff', fontSize: 27, alignSelf: 'center' }}
-                                                />
-                                                <Text
-                                                    style={{
-                                                        color: '#fff',
-                                                        alignSelf: 'center',
-                                                        marginTop: 5,
-                                                    }}>
-                                                    {"Tắt tiếng"}
-                                                </Text>
-                                            </View>
-                                            :
-                                            <View>
-                                                <Icon
-                                                    type="feather"
-                                                    name="mic-off"
-                                                    iconStyle={{ color: '#fff', fontSize: 27, alignSelf: 'center' }}
-                                                />
-                                                <Text
-                                                    style={{
-                                                        color: '#fff',
-                                                        alignSelf: 'center',
-                                                        marginTop: 5,
-                                                    }}>
-                                                    {"Tắt tiếng"}
-                                                </Text>
-                                            </View>
-                                        }
-
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => {
-                                        //this.callManager.onSpeaker(!this.state.isSpeaker)
-                                        setIsSpeaker(!isSpeaker);
-                                    }}>
-                                        {isSpeaker ?
-                                            <View>
-                                                <Icon
-                                                    type="ionicon"
-                                                    name="ios-volume-high"
-                                                    iconStyle={{
-                                                        color: '#FBFBFB',
-                                                        fontSize: 27,
-                                                        alignSelf: 'center',
-                                                    }}
-                                                />
-                                                <Text
-                                                    style={{
-                                                        color: '#fff',
-                                                        alignSelf: 'center',
-                                                        marginTop: 5,
-                                                    }}>
-                                                    {"Âm thanh"}
-                                                </Text>
-                                            </View>
-                                            :
-                                            <View>
-                                                <Icon
-                                                    type="feather"
-                                                    name="volume-2"
-                                                    iconStyle={{
-                                                        color: '#FBFBFB',
-                                                        fontSize: 27,
-                                                        alignSelf: 'center',
-                                                    }}
-                                                />
-                                                <Text
-                                                    style={{
-                                                        color: '#fff',
-                                                        alignSelf: 'center',
-                                                        marginTop: 5,
-                                                    }}>
-                                                    {"Âm thanh"}
-                                                </Text>
-                                            </View>
-                                        }
-
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => {
-                                        if (statusCall == statusCallEnum.DaKetNoi) {
-                                            setIsHold(true);
-                                            setShowUI(showUICallEnum.UITransfer);
-                                        }
-                                    }}>
-                                        <Icon
-                                            type="fontisto"
-                                            name="arrow-swap"
-                                            iconStyle={{
-                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
-                                                fontSize: 26,
-                                                alignSelf: 'center',
-                                            }}
-                                        />
-                                        <Text
-                                            style={{
-                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
-                                                alignSelf: 'center',
-                                                marginTop: 5,
+                                <View style={{ flex: 1, flexDirection: 'column', width: '100%' }}>
+                                    <View style={{ flex: 2, width: '100%' }}>
+                                        <View style={{ flexDirection: 'row', flexGrow: 3, marginHorizontal: 20, justifyContent: 'space-around', marginTop: 40 }}>
+                                            <TouchableOpacity onPress={() => {
+                                                onMute();
                                             }}>
-                                            {"Chuyển"}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                                <View style={{ flexDirection: 'row', flexGrow: 3, marginTop: 55, marginHorizontal: 20, justifyContent: 'space-around' }}>
-                                    <TouchableOpacity onPress={() => {
-                                        if (statusCall == statusCallEnum.DaKetNoi) {
-                                            setShowUI(showUICallEnum.UIDialer);
-                                        }
-                                    }}>
-                                        <Icon
-                                            type="material"
-                                            name="dialpad"
-                                            iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
-                                        />
-                                        <Text
-                                            style={{
-                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
-                                                alignSelf: 'center',
-                                                marginTop: 5,
+                                                {isMute ?
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="mic-off"
+                                                            iconStyle={{ color: '#fff', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Tắt tiếng"}
+                                                        </Text>
+                                                    </View>
+                                                    :
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="mic"
+                                                            iconStyle={{ color: '#fff', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Tắt tiếng"}
+                                                        </Text>
+                                                    </View>
+                                                }
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => {
+                                                onSpeaker();
                                             }}>
-                                            {"Bàn phím"}
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => {
-                                        if (statusCall == statusCallEnum.DaKetNoi) {
-                                            setIsHold(!isHold);
-                                            onHold();
-                                        }
-                                    }}>
-                                        {isHold ?
-                                            <View>
+                                                {isSpeaker ?
+                                                    <View>
+                                                        <Icon
+                                                            type="ionicon"
+                                                            name="ios-volume-high"
+                                                            iconStyle={{
+                                                                color: '#FBFBFB',
+                                                                fontSize: 27,
+                                                                alignSelf: 'center',
+                                                            }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Âm thanh"}
+                                                        </Text>
+                                                    </View>
+                                                    :
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="volume-2"
+                                                            iconStyle={{
+                                                                color: '#FBFBFB',
+                                                                fontSize: 27,
+                                                                alignSelf: 'center',
+                                                            }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: '#fff',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Âm thanh"}
+                                                        </Text>
+                                                    </View>
+                                                }
+
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => {
+                                                if (statusCall == statusCallEnum.DaKetNoi) {
+                                                    setIsCuocGoiTransfer(isHold);
+                                                    setShowUI(showUICallEnum.UITransfer);
+                                                }
+                                            }}>
                                                 <Icon
                                                     type="fontisto"
-                                                    name="pause"
-                                                    iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
+                                                    name="arrow-swap"
+                                                    iconStyle={{
+                                                        color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                        fontSize: 26,
+                                                        alignSelf: 'center',
+                                                    }}
                                                 />
                                                 <Text
                                                     style={{
@@ -852,14 +914,19 @@ function CuocGoi({ route }) {
                                                         alignSelf: 'center',
                                                         marginTop: 5,
                                                     }}>
-                                                    {"Giữ"}
+                                                    {"Chuyển"}
                                                 </Text>
-                                            </View>
-                                            :
-                                            <View>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', flexGrow: 3, marginHorizontal: 20, justifyContent: 'space-around' }}>
+                                            <TouchableOpacity onPress={() => {
+                                                if (statusCall == statusCallEnum.DaKetNoi) {
+                                                    setShowUI(showUICallEnum.UIDialer);
+                                                }
+                                            }}>
                                                 <Icon
-                                                    type="feather"
-                                                    name="pause"
+                                                    type="material"
+                                                    name="dialpad"
                                                     iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
                                                 />
                                                 <Text
@@ -868,23 +935,66 @@ function CuocGoi({ route }) {
                                                         alignSelf: 'center',
                                                         marginTop: 5,
                                                     }}>
-                                                    {"Giữ"}
+                                                    {"Bàn phím"}
                                                 </Text>
-                                            </View>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => {
+                                                if (statusCall == statusCallEnum.DaKetNoi) {
+                                                    onHold(!isHold, 1);
+                                                }
+                                            }}>
+                                                {isHold ?
+                                                    <View>
+                                                        <Icon
+                                                            type="fontisto"
+                                                            name="pause"
+                                                            iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Giữ"}
+                                                        </Text>
+                                                    </View>
+                                                    :
+                                                    <View>
+                                                        <Icon
+                                                            type="feather"
+                                                            name="pause"
+                                                            iconStyle={{ color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa', fontSize: 27, alignSelf: 'center' }}
+                                                        />
+                                                        <Text
+                                                            style={{
+                                                                color: statusCall == statusCallEnum.DaKetNoi ? '#fff' : '#aaa',
+                                                                alignSelf: 'center',
+                                                                marginTop: 5,
+                                                            }}>
+                                                            {"Giữ"}
+                                                        </Text>
+                                                    </View>
 
-                                        }
+                                                }
 
-                                    </TouchableOpacity>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    <View style={{ flex: 1, alignItems: 'center', alignContent: 'center', justifyContent: 'center' }}>
+                                        <TouchableOpacity
+                                            onPress={() => onHangUp()}
+                                            style={[styles.buttonCircle, styles.bgDanger]}>
+                                            <Icon
+                                                type="material-community"
+                                                style={styles.btnDanger}
+                                                name="phone-hangup"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-                                <TouchableOpacity
-                                    onPress={() => onHangUp()}
-                                    style={[styles.buttonCircle, styles.bgDanger]}>
-                                    <Icon
-                                        type="material-community"
-                                        style={styles.btnDanger}
-                                        name="phone-hangup"
-                                    />
-                                </TouchableOpacity>
+
                             </View>
                         </ImageBackground>
                     </View>
@@ -917,13 +1027,11 @@ var styles = StyleSheet.create({
     },
     buttonCircle: {
         borderWidth: 0,
-        margin: 10,
         alignSelf: 'center',
         justifyContent: 'center',
         width: 70,
         height: 70,
         borderRadius: 50,
-        marginTop: 55
     },
     bgDanger: {
         backgroundColor: '#F32013',

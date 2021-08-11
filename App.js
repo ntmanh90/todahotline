@@ -23,7 +23,10 @@ import { openDatabase } from 'react-native-sqlite-storage';
 import typeCallEnum from './app/utils/typeCallEnum';
 import BaseURL from './app/utils/BaseURL';
 import AppApi from './app/api/Client';
-
+import Toast from 'react-native-simple-toast';
+import moment from 'moment';
+import statusMissCallType from './app/utils/statusMissCallType';
+import useSendMissCall from './app/hooks/useSendMissCall';
 
 const isIOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
@@ -52,6 +55,7 @@ RNCallKeep.setup({
   },
 });
 if (!isIOS) {
+  console.log('đã vào mục này');
   RNCallKeep.backToForeground();
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
@@ -65,16 +69,15 @@ const App = (props) => {
   const [isLogin, setIsLogin] = useState('false');
   const [callUUIDHienTai, setCallUUIDHienTai] = useState('');
 
+  const sendMissCallHook = useSendMissCall();
+
   const handleEndCall = async () => {
-    let paramNotiData = {
-      uniqueid: "",
-      channel: "",
-    };
-    storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+    storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
     soDienThoaiDen = '';
   }
 
   const displayIncomingCall = async () => {
+    RNCallKeep.registerPhoneAccount();
     conn = getHubAndReconnect();
     logData.writeLogData('[displayIncomingCall]');
     const callUUID = getNewUuid();
@@ -123,6 +126,7 @@ const App = (props) => {
       if (!err) {
         logData.writeLogData('[CallAPI: checkcuocgoi] send | result: ' + JSON.stringify(json.data.status));
         if (json.data.status) {
+          RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
           logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
           RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
         } else {
@@ -141,9 +145,10 @@ const App = (props) => {
     logData.writeLogData('[AnswerCall]');
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
     RNCallKeep.setCurrentCallActive(callUUID);
+    RNCallKeep.backToForeground();
     BackgroundTimer.setTimeout(() => {
-      RNCallKeep.backToForeground();
-    }, 100);
+      RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
+    }, 150);
 
     RootNavigation.navigate('CuocGoi');
   };
@@ -164,10 +169,18 @@ const App = (props) => {
       conn.invoke('AnswerCallAsterisk', false, null, sessionCallId).then(() => {
         logData.writeLogData('Invoke: AnswerCallAsterisk | App | [false]: từ chối SĐT' + sdt);
       }).catch();
+      let nguoiGoiHangUp = await storeData.getStoreDataValue(keyStoreData.nguoiGoiTuHangUp);
+      if (nguoiGoiHangUp == 'true') {
+        sendMissCallHook.request(sdt, statusMissCallType.NguoiGoiKetThuc);
+      }
+      else {
+        sendMissCallHook.request(sdt, statusMissCallType.DTVKetThuc);
+      }
     }
 
     RNCallKeep.endCall(callUUID);
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
+    handleEndCall();
   };
 
   const requestUserPermission = async () => {
@@ -189,20 +202,92 @@ const App = (props) => {
     }
   }
 
+  const sendLog = async () => {
+    let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
+    let tenct = await storeData.getStoreDataValue(keyStoreData.tenct);
+    let idnhanvien = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
+    let urlApi = await storeData.getStoreDataValue(keyStoreData.urlApi);
+    var url = urlApi + BaseURL.URL_SEND_LOG;
+
+    let dataLog = '';
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM Log ORDER BY id DESC',
+        [],
+        (tx, { rows }) => {
+          if (rows.length > 0) {
+            let term = [];
+            for (let i = 0; i < rows.length; i++) {
+
+              let date = new Date(rows.item(i).logTime);
+              let itemLog = {
+                logType: rows.item(i).logType,
+                logTime: moment(date).format('DD/mm/yyyy HH:mm:ss SSS'),
+                index: rows.item(i).id
+              }
+              term.push(itemLog);
+            }
+
+            // dataLog = JSON.stringify(term);
+            //console.log('[dataLog]', dataLog);
+
+            var params = {
+              mact: tenct,
+              idnhanvien: idnhanvien,
+              somayle: somayle,
+              log: dataLog
+            };
+
+            AppApi.RequestPOST(url, params, "", (err, json) => {
+              if (!err) {
+                logData.writeLogData('Send Log to server');
+              }
+            });
+
+          }
+          else {
+            var params = {
+              mact: tenct,
+              idnhanvien: idnhanvien,
+              somayle: somayle,
+              log: ""
+            };
+
+            AppApi.RequestPOST(url, params, "", (err, json) => {
+              if (!err) {
+                logData.writeLogData('Send Log to server');
+              }
+            });
+          }
+
+        },
+        (tx, error) => {
+          console.log('error list Log', tx, error);;
+        },
+      );
+    });
+
+
+  }
+
   conn.onclose((e) => {
     conn = getHubAndReconnect();
     setDisSignal(true);
   });
 
-  conn.off('SendMessage');
+  //conn.off('SendMessage');
   conn.on("SendMessage", (sentUser, message) => {
-    alert(message);
+    console.log('[Message server trả về]');
+    setTimeout(() => {
+      Toast.showWithGravity(message, Toast.LONG, Toast.BOTTOM)
+    }, 1000);
   });
 
   conn.off('IncomingCallAsterisk')
   conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+    conn.invoke("ConfirmEvent", "IncomingCallAsterisk").catch((error) => console.log(error));
 
+    logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
     var signal = JSON.parse(data);
     storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
     storeData.setStoreDataValue(keyStoreData.callid, callid);
@@ -216,20 +301,31 @@ const App = (props) => {
       storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.IncomingCall);
       displayIncomingCall();
     });
+
   });
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
-    handleEndCall();
-    logData.writeLogData('[[on] callEnded] | App, callid: ' + JSON.stringify(callid));
+    conn.invoke("ConfirmEvent", "callEnded").catch((error) => console.log(error));
+
+    console.log('[CallEnded server]');
+    storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
+      if (isAnswerCall == 'false') {
+        console.log('[sendMissCallToServer] APP');
+        storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
+      }
+    })
     RNCallKeep.endCall(callUUIDHienTai);
+    Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+
   });
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
-
+    conn.invoke("ConfirmEvent", "MissedCall").catch((error) => console.log(error));
     CuocGoiDB.addCuocGoi(number, CallTypeEnum.MissingCall);
     logData.writeLogData('[[On] : MissedCall] | App, SDT: ' + JSON.stringify(number));
+    Toast.showWithGravity('Cuộc gọi nhỡ: ' + number, Toast.LONG, Toast.BOTTOM);
   });
 
   /// Kết thúc xử lý kết nối signalR ////
@@ -246,16 +342,32 @@ const App = (props) => {
       // (required) Called when a remote is received or opened, or local notification is opened
       onNotification: function (notification) {
         conn = getHubAndReconnect();
-        console.log("NOTIFICATION 1:", notification);
+
+        console.log("[NOTIFICATION 1]:", notification);
 
         if (notification.data.type == 'wakeup') {
           backgroundtimer = setTimeout(() => {
             let paramNotiData = {
               uniqueid: notification.data.uniqueid,
               channel: notification.data.channel,
+              thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
             };
+            console.log('[paramNotiData]', paramNotiData);
             storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
           }, 200);
+        }
+        if (notification.data.type == "DangXuat") {
+          storeData.setStoreDataValue(keyStoreData.isLogin, false);
+          storeData.setStoreDataObject('sip_user', {});
+          storeData.setStoreDataValue('tennhanvien', '');
+          storeData.setStoreDataValue('isLogin', false);
+
+          conn.invoke('SignOut').catch();
+          conn.stop();
+          RootNavigation.navigate('Login');
+        }
+        if (notification.data.type == "log") {
+          sendLog();
         }
 
         // process the notification
@@ -333,6 +445,7 @@ const App = (props) => {
   }, []);
 
   useEffect(() => {
+    RNCallKeep.registerPhoneAccount();
     checkLogin();
   }, [isLogin]);
 

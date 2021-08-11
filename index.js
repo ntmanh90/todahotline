@@ -11,11 +11,15 @@ import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import BaseURL from './app/utils/BaseURL';
 import logData from './app/utils/logData';
 import AppApi from './app/api/Client';
+import { openDatabase } from 'react-native-sqlite-storage';
+
+var db = openDatabase({ name: 'UserDatabase.db' });
 var conn = getHubAndReconnect();
 BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
 conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
+    conn.invoke("ConfirmEvent", "IncomingCallAsterisk").catch((error) => console.log(error));
     logData.writeLogData('[[on] | IncomingCallAsterisk], index: ' + number);
     let sdt_incoming = number;
     storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
@@ -28,16 +32,88 @@ conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
     storeData.setStoreDataValue(keyStoreData.callid, callid);
 
     DeviceEventEmitter.emit('displayIncomingCallEvent');
+
 });
+
+
+const sendLog = async () => {
+    let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
+    let tenct = await storeData.getStoreDataValue(keyStoreData.tenct);
+    let idnhanvien = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
+    let urlApi = await storeData.getStoreDataValue(keyStoreData.urlApi);
+    var url = urlApi + BaseURL.URL_SEND_LOG;
+
+    let dataLog = '';
+    db.transaction((tx) => {
+        tx.executeSql(
+            'SELECT * FROM Log ORDER BY id DESC',
+            [],
+            (tx, { rows }) => {
+                if (rows.length > 0) {
+                    let term = [];
+                    for (let i = 0; i < rows.length; i++) {
+
+                        let date = new Date(rows.item(i).logTime);
+                        let itemLog = {
+                            logType: rows.item(i).logType,
+                            logTime: moment(date).format('DD/mm/yyyy HH:mm:ss SSS'),
+                            index: rows.item(i).id
+                        }
+                        term.push(itemLog);
+                    }
+
+                    dataLog = JSON.stringify(term);
+                    //console.log('[dataLog]', dataLog);
+
+                    var params = {
+                        mact: tenct,
+                        idnhanvien: idnhanvien,
+                        somayle: somayle,
+                        log: dataLog
+                    };
+
+                    AppApi.RequestPOST(url, params, "", (err, json) => {
+                        if (!err) {
+                            logData.writeLogData('Send Log to server');
+                        }
+                    });
+
+                }
+                else {
+                    var params = {
+                        mact: tenct,
+                        idnhanvien: idnhanvien,
+                        somayle: somayle,
+                        log: ""
+                    };
+
+                    AppApi.RequestPOST(url, params, "", (err, json) => {
+                        if (!err) {
+                            logData.writeLogData('Send Log to server');
+                        }
+                    });
+                }
+
+            },
+            (tx, error) => {
+                console.log('error list Log', tx, error);;
+            },
+        );
+    });
+
+
+}
 
 // Register background handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
-    conn = getHubAndReconnect();
+    console.log('[remoteMessage index]', remoteMessage);
     if (remoteMessage.data.type == "wakeup") {
+        conn = getHubAndReconnect();
         logData.writeLogData('[Wakeup]');
         let paramNotiData = {
             uniqueid: remoteMessage.data.uniqueid,
             channel: remoteMessage.data.channel,
+            thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
         };
         storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
 
@@ -76,6 +152,15 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
                 }
             });
         });
+    }
+    if (remoteMessage.data.type == "DangXuat") {
+        storeData.setStoreDataValue(keyStoreData.isLogin, false);
+        storeData.setStoreDataObject('sip_user', {});
+        storeData.setStoreDataValue('tennhanvien', '');
+        storeData.setStoreDataValue('isLogin', false);
+    }
+    if (remoteMessage.data.type == "log") {
+        sendLog();
     }
 });
 

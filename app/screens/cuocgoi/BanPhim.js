@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, NativeModules, StyleSheet, Text, Dimensions, SafeAreaView, Alert, TouchableOpacity, FlatList, Platform, PermissionsAndroid, StatusBar } from 'react-native';
+import { View, StyleSheet, Text, Dimensions, SafeAreaView, Alert, TouchableOpacity, FlatList, Platform, PermissionsAndroid } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import ProgressApp from '../../components/ProgressApp';
 import storeData from '../../hooks/storeData';
@@ -21,6 +21,7 @@ import logData from '../../utils/logData';
 BackgroundTimer.start();
 const IOS = Platform.OS === 'ios';
 var db = openDatabase({ name: 'UserDatabase.db' });
+
 
 function BanPhim({ navigation }) {
     const [soDienThoai, setSoDienThoai] = useState('');
@@ -235,33 +236,31 @@ function BanPhim({ navigation }) {
                                 else {
 
                                     DeviceInfo.getApiLevel().then((apiLevel) => {
-                                        if (apiLevel < 30) {
-                                            storeData.getStoreDataValue('isResetApp').then((isResetApp) => {
-                                                storeData.setStoreDataValue('isResetApp', true).then(() => {
-                                                    if (isResetApp != 'true') {
-                                                        logData.writeLogData('[ResetApp]');
-                                                        RNRestart.Restart();
-                                                    }
-                                                });
-
-                                            });
-
-                                            check_Permission.requestReadPhoneStatePermission().then(() => {
-                                                if (check_Permission.readPhoneState === false) {
-                                                    Alert.alert(
-                                                        'Thông báo',
-                                                        'Bạn chưa cấp quyền tài khoản cuộc gọi ?',
-                                                        [
-                                                            {
-                                                                text: 'Cấp quyền',
-                                                                onPress: () => { check_Permission.requestReadPhoneStatePermission() }
-                                                            },
-                                                        ],
-                                                        { cancelable: false },
-                                                    );
+                                        storeData.getStoreDataValue('isResetApp').then((isResetApp) => {
+                                            storeData.setStoreDataValue('isResetApp', true).then(() => {
+                                                if (isResetApp != 'true') {
+                                                    logData.writeLogData('[ResetApp]');
+                                                    RNRestart.Restart();
                                                 }
                                             });
-                                        }
+
+                                        });
+
+                                        check_Permission.requestReadPhoneStatePermission().then(() => {
+                                            if (check_Permission.readPhoneState === false) {
+                                                Alert.alert(
+                                                    'Thông báo',
+                                                    'Bạn chưa cấp quyền tài khoản cuộc gọi ?',
+                                                    [
+                                                        {
+                                                            text: 'Cấp quyền',
+                                                            onPress: () => { check_Permission.requestReadPhoneStatePermission() }
+                                                        },
+                                                    ],
+                                                    { cancelable: false },
+                                                );
+                                            }
+                                        });
                                     })
                                 }
                             });
@@ -297,7 +296,7 @@ function BanPhim({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 2 }}>
                 <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                     <Tooltip
                         isVisible={showTip}
@@ -439,12 +438,14 @@ function BanPhim({ navigation }) {
                     style={[styles.buttonCircle, styles.bgSuccess]}>
                     <Ionicons name="ios-call" style={styles.btnSuccess} size={35} />
                 </TouchableOpacity>
-                {(soDienThoai.length == 0) ? null : <TouchableOpacity
-                    style={styles.buttonCircle}
-                    onPress={deleteNumber}
-                    onLongPress={keypadLongPressed}>
-                    <Ionicons name="backspace-outline" style={styles.btnbgDanger} size={40} />
-                </TouchableOpacity>}
+                {(soDienThoai.length == 0) ? null :
+                    <TouchableOpacity
+                        style={styles.buttonCircle}
+                        onPress={deleteNumber}
+                        onLongPress={keypadLongPressed}>
+                        <Ionicons name="backspace-outline" style={styles.btnbgDanger} size={40} />
+                    </TouchableOpacity>
+                }
 
             </View>
             {checkDongBoDanhBa == true && <ProgressApp />}

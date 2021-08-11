@@ -31,4 +31,9 @@ export default {
     isCreateTableSqlite: 'isCreateTableSqlite',
     paramNoti: 'paramNoti',
     checkCuocGoiDen: 'checkCuocGoiDen',
+    uniqueid: 'uniqueid',
+    channel: 'channel',
+    thoiGianNhanCuocGoi: 'thoiGianNhanCuocGoi',
+    nguoiGoiTuHangUp: 'nguoiGoiTuHangUp',
+    isHold: 'isHold',
 }
