@@ -25,6 +25,7 @@ import Toast from 'react-native-simple-toast';
 import InCallManager from 'react-native-incall-manager';
 import useSendMissCall from '../../hooks/useSendMissCall';
 import statusMissCallType from '../../utils/statusMissCallType';
+import { isLandscape } from 'react-native-device-info';
 
 const widthScreen = Dimensions.get('window').width;
 const heightScreen = Dimensions.get('window').height;
@@ -108,6 +109,9 @@ function CuocGoi({ route }) {
             handleShowUI();
             setVisibleModel(false);
             storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
+            storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, '');
+            storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, '');
+            storeData.setStoreDataValue(keyStoreData.soDienThoai, '');
             navigation.navigate('BanPhim');
         }, 1000);
 
@@ -162,7 +166,7 @@ function CuocGoi({ route }) {
         if (evt) {
             console.log('[callbackIceCandidateJanusState]');
             //Found a new candidate
-            console.log(evt);
+            //console.log(evt);
         }
     };
     const callbackIceCandidateJanusError = (err) => {
@@ -252,6 +256,9 @@ function CuocGoi({ route }) {
                             setBitrate('Tín hiệu yếu');
                             coutTinHieuYeu = coutTinHieuYeu + 1;
                             //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
+                            if (coutTinHieuYeu % 5 == 0) {
+                                onUpdateCall();
+                            }
                             if (coutTinHieuYeu >= 25) {
                                 //handleEndCallTinHieuYeu();
                             }
@@ -278,9 +285,9 @@ function CuocGoi({ route }) {
         var signal = JSON.parse(data);
         // Route signal based on type
         if (signal.sdp) {
-            if (connectionRTC) {
+            if (connectionCheckBitRate) {
                 try {
-                    connectionRTC
+                    connectionCheckBitRate
                         .setRemoteDescription(new RTCSessionDescription(signal.sdp))
                         .then(() => { console.log('Et thành công setRemoteDescription') });
                 }
@@ -334,10 +341,11 @@ function CuocGoi({ route }) {
 
     conn.off('callAccepted')
     conn.on('callAccepted', (id) => {
+        setTimeStart(new Date());
+
         logData.writeLogData('Server call client: callAccepted');
         logSignalR.serverCallClient('callAccepted');
         setStatusCall(statusCallEnum.DaKetNoi);
-
         try {
             conn.invoke("ConfirmEvent", "callAccepted");
         } catch (error) {
@@ -354,7 +362,7 @@ function CuocGoi({ route }) {
         RNCallKeep.endAllCalls();
         setStatusCall(statusCallEnum.DaKetThuc);
         resetState();
-        Toast.showWithGravity('Từ chối cuộc gọi', Toast.LONG, Toast.BOTTOM);
+        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
     });
 
     conn.off('callEnded')
@@ -366,15 +374,15 @@ function CuocGoi({ route }) {
         setStatusCall(statusCallEnum.DaKetThuc);
         RNCallKeep.endAllCalls();
         resetState();
-        Toast.showWithGravity('Kết thúc cuộc gọi', Toast.LONG, Toast.BOTTOM);
+        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
     });
 
-    conn.off('UpdatingCall')
-    conn.on('UpdatingCall', (sdp, session_id) => {
-        conn.invoke("ConfirmEvent", "UpdatingCall").catch((error) => console.log(error));
+    // conn.off('UpdatingCall')
+    // conn.on('UpdatingCall', (sdp, session_id) => {
+    //     conn.invoke("ConfirmEvent", "UpdatingCall").catch((error) => console.log(error));
 
-        onUpdateCall(sdp, session_id);
-    })
+    //     onUpdateCall(sdp, session_id);
+    // })
 
     ////////// End handle SignalR ////////////////////// 
 
@@ -498,39 +506,22 @@ function CuocGoi({ route }) {
 
     const onDTMF = (dialString) => {
         console.log('[dialString]', dialString);
-        if (connectionRTC != null) {
-            connectionRTC.sendDtmfTone(dialString).then((json) => {
+        if (connectionCheckBitRate != null) {
+            connectionCheckBitRate.sendDtmfTone(dialString).then((json) => {
                 console.log("onDTMF: ", json)
             }).catch();
         }
     }
 
-    const onUpdateCall = async (sdp, session_id) => {
-        console.log('[update call]');
+    const onUpdateCall = async () => {
         let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-
-        let stream = await mediaDevices.getUserMedia(webrtcConstraints);
-        stremRTC = stream;
-        let connection = new RTCPeerConnection(configuration);
-
-        console.log('connection');
-        connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionCallId); // ICE Candidate Callback
-        connection.onicecandidateerror = (error) => callbackIceCandidateJanusError(error);
-        connection.addStream(stream);
-        connection.setRemoteDescription(sdp).then(() => {
-            setConnectionRTC(connection);
-            connectionCheckBitRate = connection;
-            setStatusCall(statusCallEnum.DaKetNoi);
-        });
-
-        let offer = await connection.createOffer({ iceRestart: true });
-        let descriptionType = await connection.setLocalDescription(offer);
-        try {
-            conn.invoke("UpdateOffer", connection.localDescription.sdp, session_id);
-            // setconsole.log('----connection', connection);
-        } catch {
-            console.log('----CallAsterisk Error call out');
-        }
+        connectionCheckBitRate.createOffer({ iceRestart: true }).then((offer) => {
+            connectionCheckBitRate.setLocalDescription(offer)
+                .then(() => {
+                    conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionCallId);
+                })
+                .catch();
+        }).catch();
     }
 
     /// end xử lý nút bấm UI ///
@@ -589,10 +580,13 @@ function CuocGoi({ route }) {
             setPhonenumber(_soDienThoaiDi);
             setCallName(_hoTenDienThoaiDi);
 
-            if (_soDienThoaiDi === '') {
-                alert('Số điện thoại không đúng định dạng.');
+            if (_soDienThoaiDi == '' || _soDienThoaiDi == null) {
                 logData.writeLogData('Số điện thoại không đúng định dạng.');
+                setVisibleModel(false);
                 navigation.navigate('BanPhim');
+            }
+            else {
+                setVisibleModel(true);
             }
             console.log('[Outcomming call]: ', _soDienThoaiDi, _hoTenDienThoaiDi, _type);
             onStartCall(_soDienThoaiDi, _hoTenDienThoaiDi);
@@ -604,30 +598,33 @@ function CuocGoi({ route }) {
             setPhonenumber(_soDienThoaiDen);
             setCallName(_hoTenDienThoaiDen);
 
-            if (_soDienThoaiDen === '') {
-                alert('Số điện thoại không đúng định dạng.');
+            if (_soDienThoaiDen == '' || _soDienThoaiDen == null) {
                 logData.writeLogData('Số điện thoại không đúng định dạng.');
+                setVisibleModel(false);
                 navigation.navigate('BanPhim');
+            }
+            else {
+                setVisibleModel(true);
             }
             console.log('[IncomingCall]: ', _soDienThoaiDen, _hoTenDienThoaiDen, _type);
             onAnswerCall(_soDienThoaiDen);
+
         }
         else {
             resetState();
         }
     }
 
+
+
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             storeData.getStoreDataValue(keyStoreData.isHold).then((isHoldData) => {
-                console.log('[isHoldData]', isHoldData);
-                setIsHold(false);
-                console.log('focus Cuoc goi',);
-                setVisibleModel(true);
-
                 if (isHoldData != 'true') {
-                    setTimeStart(new Date());
                     loadParams();
+                }
+                else {
+                    setVisibleModel(true);
                 }
             });
 
@@ -666,19 +663,19 @@ function CuocGoi({ route }) {
         RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
         RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
 
-        const unsubscribe_NetInfo_CuocGoi = NetInfo.addEventListener(state => {
-            if (state.isConnected) {
-                BackgroundTimer.setTimeout(() => {
-                    onUpdateCall();
-                }, 1000);
-            }
-        });
+        // const unsubscribe_NetInfo_CuocGoi = NetInfo.addEventListener(state => {
+        //     if (state.isConnected) {
+        //         BackgroundTimer.setTimeout(() => {
+        //             onUpdateCall();
+        //         }, 2000);
+        //     }
+        // });
 
         return () => {
             RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
             RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
             RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
-            unsubscribe_NetInfo_CuocGoi();
+            //unsubscribe_NetInfo_CuocGoi();
         }
     }, []);
 

@@ -44,7 +44,7 @@ RNCallKeep.setup({
     alertDescription: 'This application needs to access your phone accounts',
     cancelButton: 'Cancel',
     okButton: 'ok',
-    selfManaged: true,
+    //selfManaged: true,
     //Add bổ xung giống bản của mr khánh
     additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
     foregroundService: {
@@ -144,6 +144,7 @@ const App = (props) => {
   };
 
   const answerCall = async ({ callUUID }) => {
+    console.log('[AnswerCall - Click]');
     logData.writeLogData('[AnswerCall]');
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
     RNCallKeep.setCurrentCallActive(callUUID);
@@ -165,6 +166,7 @@ const App = (props) => {
       conn.invoke('hangUp', sessionCallId).then(() => {
         logData.writeLogData('Invoke: hangUp | App, SDT: ' + sdt);
       }).catch((error) => console.log(error));
+      Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
     }
     else {
       CuocGoiDB.addCuocGoi(sdt, CallTypeEnum.MissingCall);
@@ -178,6 +180,7 @@ const App = (props) => {
       else {
         sendMissCallHook.request(sdt, statusMissCallType.DTVKetThuc);
       }
+      Toast.showWithGravity('Từ chối cuộc gọi.', Toast.LONG, Toast.BOTTOM);
     }
 
     RNCallKeep.endCall(callUUID);
@@ -318,8 +321,6 @@ const App = (props) => {
       }
     })
     RNCallKeep.endCall(callUUIDHienTai);
-    Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-
   });
 
   conn.off('MissedCall')

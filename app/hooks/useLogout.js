@@ -7,18 +7,19 @@ import { getHub, getHubAndReconnect } from '../hubmanager/HubManager';
 import deviceInfoModule from 'react-native-device-info';
 import AppApi from '../api/Client';
 import keyStoreData from '../utils/keyStoreData';
+import BackgroundTimer from 'react-native-background-timer';
 
+BackgroundTimer.start();
 var conn = getHubAndReconnect();
 
 const removeDataLogin = () => {
-
-    console.log('gọi hàm removeDataLogin');
-    storeData.setStoreDataObject('sip_user', {});
-    storeData.setStoreDataValue('tennhanvien', '');
-    storeData.setStoreDataValue('isLogin', false);
+    storeData.setStoreDataObject(keyStoreData.sip_user, {});
+    storeData.setStoreDataValue(keyStoreData.tennhanvien, '');
+    storeData.setStoreDataValue(keyStoreData.isLogin, false);
 }
 export default useLogout = () => {
     const [error, setError] = useState(true);
+    const [isLogout, setIsLogout] = useState(false);
 
     const logOut = async () => {
         console.log('đã vào hàm này');
@@ -51,21 +52,25 @@ export default useLogout = () => {
             },
             body: JSON.stringify(params)
         }).then((responce) => {
-            console.log('json', responce);
             if (responce.status) {
-                storeData.setStoreDataValue(keyStoreData.isLogin, false);
-                console.log('đã gửi api logout thành công');
-                setError(false);
-                conn.invoke('SignOut').catch();
-                conn.stop();
-                removeDataLogin();
-                console.log('đăng xuất thành công');
-                // RNCallKeep.endAllCalls();
+                BackgroundTimer.setTimeout(() => {
+                    try {
+                        removeDataLogin();
+                        setError(false);
+                        setIsLogout(true);
+                        conn.invoke('SignOut').catch();
+                        conn.stop();
+                    }
+                    catch (err) {
+                        removeDataLogin();
+                    }
+                }, 5000);
+
                 // conn.invoke('SignOut', somayle).catch();
                 // conn.stop();
             }
         })
     }
 
-    return { error, logOut };
+    return { error, isLogout, logOut };
 }

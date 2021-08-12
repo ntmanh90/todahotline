@@ -15,9 +15,11 @@ import storeData from '../../hooks/storeData';
 import AppApi from '../../api/Client';
 import BaseURL from '../../utils/BaseURL';
 import { ScrollView } from 'react-native-gesture-handler';
-import useLogout from '../../hooks/useLogout';
+import deviceInfoModule from 'react-native-device-info';
 import colors from '../../theme/colors';
 import keyStoreData from '../../utils/keyStoreData';
+import ProgressApp from '../../components/ProgressApp';
+import BackgroundTimer from 'react-native-background-timer';
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
@@ -33,19 +35,76 @@ export default function Caidat({ navigation }) {
     const [somayle, setSomayle] = useState('');
     const [chucvu, setChucvu] = useState('');
     const [avata, setAvata] = useState('');
+    const [showProcess, setShowProcess] = useState(false);
 
-    const useLogoutHook = useLogout();
-
-    const handleLogout = () => {
-        useLogoutHook.logOut().then(() => {
-            console.log('đã xử lý xong vấn đề logout');
-            navigation.navigate('Login');
-        });
+    const removeDataLogin = () => {
+        storeData.setStoreDataObject(keyStoreData.sip_user, {});
+        storeData.setStoreDataValue(keyStoreData.tennhanvien, '');
+        storeData.setStoreDataValue(keyStoreData.isLogin, false);
+        navigation.navigate('Login');
     }
+
+    const handleLogout = async () => {
+        try {
+            setShowProcess(true);
+            let http = await storeData.getStoreDataValue('urlApi');
+            var url = http + BaseURL.URL_LOGOUT;
+            let mact = await storeData.getStoreDataValue('tenct');
+            let prefix = await storeData.getStoreDataValue('Prefix');
+            let somayle = await storeData.getStoreDataValue('somayle');
+            let idnhanvien = await storeData.getStoreDataValue('idnhanvien');
+            let imei = deviceInfoModule.getUniqueId();
+
+            var params = {
+                imei: imei,
+                prefix: prefix,
+                mact: mact,
+                somayle: somayle,
+                hinhthucdangxuat: '0',
+                idnhanvien: idnhanvien,
+                token: '',
+            };
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(params)
+            }).then((responce) => {
+                setShowProcess(false);
+                if (responce.status) {
+                    BackgroundTimer.setTimeout(() => {
+                        try {
+                            setError(false);
+                            setIsLogout(true);
+                            conn.invoke('SignOut').catch();
+                            conn.stop();
+                            removeDataLogin();
+                        }
+                        catch (err) {
+                            removeDataLogin();
+                        }
+                    }, 1000);
+
+                    // conn.invoke('SignOut', somayle).catch();
+                    // conn.stop();
+                }
+            })
+            setShowProcess(false);
+        } catch (error) {
+            setShowProcess(false);
+        }
+    }
+
+    useEffect(() => {
+
+    }, [showProcess]);
 
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             getInFo();
+            setShowProcess(false);
         });
 
         return unsubscribe;
@@ -64,8 +123,6 @@ export default function Caidat({ navigation }) {
         if (tennhanvienData.length > 0)
             setAvata(tennhanvienData.substring(0, 1));
 
-        console.log('da den day');
-
         var url = urlApiData + BaseURL.URL_INFO;
         console.log('url: ', urlApiData);
         var params = {
@@ -76,7 +133,6 @@ export default function Caidat({ navigation }) {
 
         AppApi.RequestPOST(url, params, (err, json) => {
             if (!err) {
-                console.log('da lay duoc du lieu:', json.data);
                 if (json.data.status) {
                     setTeninfo(json.data.tenlienhe);
                     setDiachi(json.data.diachi);
@@ -94,6 +150,9 @@ export default function Caidat({ navigation }) {
     return (
         <ScrollView>
             <SafeAreaView style={styles.container}>
+                {
+                    showProcess == true && <ProgressApp />
+                }
                 <View style={styles.userInfoSectionv2}>
                     <View style={{ flexDirection: 'row', marginTop: 20 }}>
                         <Avatar

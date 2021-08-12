@@ -274,6 +274,7 @@ function BanPhim({ navigation }) {
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             storeData.getStoreDataValue(keyStoreData.isLogin).then((isLogin) => {
+                console.log('[isLogin]', isLogin);
                 if (isLogin === 'true') {
                     console.log('yeu cau quyen truy cap');
                     requestPermissionsAndroid();
@@ -296,7 +297,7 @@ function BanPhim({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={{ flex: 2 }}>
+            <View style={{ flex: 1 }}>
                 <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                     <Tooltip
                         isVisible={showTip}

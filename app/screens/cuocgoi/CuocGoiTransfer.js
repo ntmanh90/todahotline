@@ -289,7 +289,10 @@ function CuocGoiTransfer({ route }) {
         logData.writeLogData('Server call client: callEnded');
         logSignalR.serverCallClient('callEnded');
         setStatusCall(statusCallEnum.DaKetThuc);
-        RNCallKeep.endAllCalls();
+        if (id == subSessionCall) {
+            conn.invoke("RemoveSubCall", subSessionCall);
+        }
+        //RNCallKeep.endAllCalls();
         resetState();
         Toast.showWithGravity('Kết thúc cuộc gọi', Toast.LONG, Toast.BOTTOM);
     });
@@ -385,6 +388,7 @@ function CuocGoiTransfer({ route }) {
         BackgroundTimer.clearInterval(interValBitRate);
         conn = getHubAndReconnect();
         console.log('hangUp');
+        //conn.invoke('hangUp', subSessionCall).catch((error) => console.log(error));
         conn.invoke("RemoveSubCall", subSessionCall)
         setStatusCall(statusCallEnum.DaKetThuc);
 
@@ -453,19 +457,19 @@ function CuocGoiTransfer({ route }) {
         }
     }
 
-    const loadParams = async () => {
+    conn.off('ReceivedSubCallId')
+    conn.on('ReceivedSubCallId', (subcall_sessionid) => {
+        conn.invoke("ConfirmEvent", "ReceivedSubCallId").catch((error) => console.log(error));
 
+        subSessionCall = subcall_sessionid;
+        onStartCall(phonenumber, callName);
+    });
+
+    const loadParams = async () => {
         if (phonenumber == 'unsubscribe') {
             navigation.goBack();
         }
         conn.invoke('SubCall')
-        conn.off('ReceivedSubCallId')
-        conn.on('ReceivedSubCallId', (subcall_sessionid) => {
-            conn.invoke("ConfirmEvent", "ReceivedSubCallId").catch((error) => console.log(error));
-
-            subSessionCall = subcall_sessionid;
-            onStartCall(phonenumber, callName);
-        });
     }
 
     React.useEffect(() => {

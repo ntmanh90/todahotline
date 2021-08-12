@@ -90,7 +90,7 @@ function Login({ navigation }) {
                         connectServer()
                     }, 300);
 
-                    navigation.navigate('BanPhim');
+                    navigation.navigate('BanPhim',);
 
                 } else {
 
@@ -172,13 +172,15 @@ function Login({ navigation }) {
 
     const layThongTinDangNhap = async () => {
         let userName = await storeData.getStoreDataValue('UserName');
+        let tennhanvien = await storeData.getStoreDataValue(keyStoreData.tennhanvien);
         setTenDangNhap(userName);
         let tenct = await storeData.getStoreDataValue('tenct');
         setMaCongTy(tenct);
         let passWord = await storeData.getStoreDataValue('PassWord');
         setMatKhau(passWord);
         let isLogin = await storeData.getStoreDataValue(keyStoreData.isLogin);
-        if (isLogin == 'true') {
+        console.log('[tennhanvien]', isLogin, tennhanvien);
+        if (isLogin == 'true' && tennhanvien != '' && tennhanvien != null) {
             navigation.navigate('BanPhim');
         }
     }

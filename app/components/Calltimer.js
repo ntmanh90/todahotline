@@ -40,7 +40,7 @@ export default function Calltimer({ TimeDuration }) {
         return () => {
             stop();
         }
-    }, []);
+    }, [TimeDuration]);
 
     return <Text style={styles.timer}>{minute + ":" + seconds}</Text>
 }

@@ -2,7 +2,6 @@ import { openDatabase } from 'react-native-sqlite-storage';
 var db = openDatabase({ name: 'UserDatabase.db' });
 
 const addLog = (desLog) => {
-  console.log('addLog: ', desLog);
   let date = new Date();
   let time = date.getTime();
   console.log('time', time);
@@ -35,7 +34,6 @@ const addLog = (desLog) => {
       'INSERT INTO Log (logType, logTime) VALUES (?,?)',
       [desLog, time],
       (tx, results) => {
-        console.log('Results addLog', results.rowsAffected);
       },
       (tx, error) => {
         console.log('error addLog', tx, error);
