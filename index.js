@@ -12,6 +12,7 @@ import BaseURL from './app/utils/BaseURL';
 import logData from './app/utils/logData';
 import AppApi from './app/api/Client';
 import { openDatabase } from 'react-native-sqlite-storage';
+import moment from 'moment';
 
 var db = openDatabase({ name: 'UserDatabase.db' });
 var conn = getHubAndReconnect();

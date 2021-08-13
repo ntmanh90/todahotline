@@ -11,10 +11,7 @@ import logData from '../../utils/logData';
 import CuocgoiDB from '../../database/CuocGoiDB';
 import RNCallKeep from 'react-native-callkeep';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
-import BaseURL from '../../utils/BaseURL';
-import ProgressApp from '../../components/ProgressApp';
 import statusCallEnum from '../../utils/statusCallEnum';
-import typeCallEnum from '../../utils/typeCallEnum';
 import { useNavigation } from '@react-navigation/native';
 import Calltimer from '../../components/Calltimer';
 import PopUpDialerScreeen from './PopUpDialerScreeen';
@@ -29,8 +26,9 @@ const heightScreen = Dimensions.get('window').height;
 
 var conn = getHubAndReconnect();
 var bitratePrew = 0;
-var connectionCheckBitRate = null;
+var connectionRTC = null;
 var stremRTC = null;
+var coutTinHieuYeu = 0;
 var subSessionCall = '';
 
 BackgroundTimer.start();
@@ -53,7 +51,6 @@ const webrtcConstraints = { audio: true, video: false };
 const isIOS = Platform.OS === 'ios';
 
 function CuocGoiTransfer({ route }) {
-    const [connectionRTC, setConnectionRTC] = useState(null);
     const [isTransfer, setIsTransfer] = useState(false);
     const [isDTMF, setIsDTMF] = useState(false);
     const [isCall, setIsCall] = useState(true);
@@ -70,21 +67,14 @@ function CuocGoiTransfer({ route }) {
 
     const navigation = useNavigation();
 
-    let phonenumber = route.params.subCallNumber;
-    let callName = route.params.subCallName;
+    let phonenumber = route.params.subCallNumber ?? '';
+    let callName = route.params.subCallName ?? '';
 
     const resetState = () => {
         BackgroundTimer.setTimeout(() => {
             if (interValBitRate != 0)
                 BackgroundTimer.clearInterval(interValBitRate);
 
-            let paramNotiData = {
-                uniqueid: "",
-                channel: "",
-            };
-            storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-
-            setConnectionRTC(null);
             setIsHold(false);
             setBitrate('');
             setStatusCall(statusCallEnum.DangKetNoi);
@@ -92,8 +82,9 @@ function CuocGoiTransfer({ route }) {
             setIsSpeaker(false);
             setTxtStatusCall('');
             subSessionCall = '';
-            connectionCheckBitRate = null;
+            connectionRTC = null;
             stremRTC = null;
+            coutTinHieuYeu = 0;
 
             setTimeStart(new Date());
             handleShowUI();
@@ -163,8 +154,7 @@ function CuocGoiTransfer({ route }) {
             conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCall).then(() => {
                 logData.writeLogData('invoke: CallAsterisk cuộc gọi đi ' + number);
             });
-            setConnectionRTC(connection);
-            connectionCheckBitRate = connection;
+            connectionRTC = connection;
             setStatusCall(statusCallEnum.DangKetNoi);
             // setconsole.log('----connection', connection);
         } catch {
@@ -173,22 +163,28 @@ function CuocGoiTransfer({ route }) {
     }
 
     const getTinHieu = async () => {
-        if (connectionCheckBitRate) {
-            connectionCheckBitRate.getStats(null).then(stats => {
+        if (connectionRTC) {
+            connectionRTC.getStats(null).then(stats => {
                 stats.forEach(report => {
                     if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
                         const bitrate = report.bytesReceived;
                         //console.log('[bitrate]: ', bitrate);
-                        if (bitrate - bitratePrew <= 1) {
+                        if (bitrate - bitratePrew <= 0) {
                             //kết nối yếu
+
                             setBitrate('Tín hiệu yếu');
-                        }
-                        else if (bitrate - bitratePrew == 0) {
-                            //không có kết nối
-                            setBitrate('Tín hiệu yếu');
+                            coutTinHieuYeu = coutTinHieuYeu + 1;
+                            //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
+                            if (coutTinHieuYeu % 5 == 0) {
+                                onUpdateCall();
+                            }
+                            if (coutTinHieuYeu >= 25) {
+                                //handleEndCallTinHieuYeu();
+                            }
                         }
                         else {
                             //kết nối tốt
+                            coutTinHieuYeu = 0;
                             setBitrate('Tín hiệu tốt');
                         }
 
@@ -279,7 +275,7 @@ function CuocGoiTransfer({ route }) {
         RNCallKeep.endAllCalls();
         setStatusCall(statusCallEnum.DaKetThuc);
         resetState();
-        Toast.showWithGravity('Từ chối cuộc gọi', Toast.LONG, Toast.BOTTOM);
+        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
     });
 
     conn.off('callEnded')
@@ -294,7 +290,7 @@ function CuocGoiTransfer({ route }) {
         }
         //RNCallKeep.endAllCalls();
         resetState();
-        Toast.showWithGravity('Kết thúc cuộc gọi', Toast.LONG, Toast.BOTTOM);
+        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
     });
 
     ////////// End handle SignalR ////////////////////// 
@@ -391,8 +387,12 @@ function CuocGoiTransfer({ route }) {
         //conn.invoke('hangUp', subSessionCall).catch((error) => console.log(error));
         conn.invoke("RemoveSubCall", subSessionCall)
         setStatusCall(statusCallEnum.DaKetThuc);
+        if (coutTinHieuYeu > 2 && coutTinHieuYeu < 25) {
+            useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
+        }
 
         resetState();
+
         Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
     };
 
@@ -508,18 +508,10 @@ function CuocGoiTransfer({ route }) {
         RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
         RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
 
-        const unsubscribe_NetInfo_CuocGoi = NetInfo.addEventListener(state => {
-            BackgroundTimer.setTimeout(() => {
-                onUpdateCall();
-            }, 1000);
-
-        });
-
         return () => {
             RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
             RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
             RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
-            unsubscribe_NetInfo_CuocGoi();
         }
     }, []);
 

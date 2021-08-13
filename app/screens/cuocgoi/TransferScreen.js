@@ -60,9 +60,6 @@ function TransferScreen({ numberIncoming, isCuocGoiTransfer, hideTransfer, hideM
                 }
             );
         });
-        // storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, number);
-        // storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
-        // storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
 
         let quyengoiRa = await storeData.getStoreDataValue(keyStoreData.quyenGoiRa);
         console.log('[quyengoira]', quyengoiRa);

@@ -256,7 +256,7 @@ function CuocGoi({ route }) {
                             setBitrate('Tín hiệu yếu');
                             coutTinHieuYeu = coutTinHieuYeu + 1;
                             //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
-                            if (coutTinHieuYeu % 5 == 0) {
+                            if (coutTinHieuYeu % 3 == 0) {
                                 onUpdateCall();
                             }
                             if (coutTinHieuYeu >= 25) {

@@ -180,7 +180,7 @@ const App = (props) => {
       else {
         sendMissCallHook.request(sdt, statusMissCallType.DTVKetThuc);
       }
-      Toast.showWithGravity('Từ chối cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+      Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM)
     }
 
     RNCallKeep.endCall(callUUID);
@@ -321,6 +321,7 @@ const App = (props) => {
       }
     })
     RNCallKeep.endCall(callUUIDHienTai);
+    Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM)
   });
 
   conn.off('MissedCall')
