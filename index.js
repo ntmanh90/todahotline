@@ -20,7 +20,7 @@ BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
 conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    conn.invoke("ConfirmEvent", "IncomingCallAsterisk").catch((error) => console.log(error));
+    conn.invoke("ConfirmEvent", "IncomingCallAsterisk", callid).catch((error) => console.log(error));
     logData.writeLogData('[[on] | IncomingCallAsterisk], index: ' + number);
     let sdt_incoming = number;
     storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {

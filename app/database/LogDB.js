@@ -4,7 +4,7 @@ var db = openDatabase({ name: 'UserDatabase.db' });
 const addLog = (desLog) => {
   let date = new Date();
   let time = date.getTime();
-  console.log('time', time);
+  //console.log('time', time);
 
   db.transaction((tx) => {
 

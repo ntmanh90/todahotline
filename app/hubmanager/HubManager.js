@@ -8,7 +8,7 @@ import logData from '../utils/logData';
 let hub = new HubConnectionBuilder()
     .withUrl(https_url)
     //.withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
-    .configureLogging(LogLevel.Information)
+    // .configureLogging(LogLevel.Information)
     .build();
 
 function connectServer() {
@@ -37,7 +37,7 @@ function connectServer() {
                 hub.on('Registered', (number, id) => {
                     LogSignalR.serverCallClient('Registered');
                     try {
-                        hub.invoke("ConfirmEvent", "Registered");
+                        hub.invoke("ConfirmEvent", "Registered", null);
                     } catch (error) {
                         LogSignalR.clientCallServerError('Registered', error)
                     }
@@ -101,7 +101,7 @@ function getHubAndReconnect() {
     hub.on('Registered', (number, id) => {
         LogSignalR.serverCallClient('Registered');
         try {
-            hub.invoke("ConfirmEvent", "Registered");
+            hub.invoke("ConfirmEvent", "Registered", null);
         } catch (error) {
             LogSignalR.clientCallServerError('Registered', error)
         }

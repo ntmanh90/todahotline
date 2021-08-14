@@ -290,7 +290,7 @@ const App = (props) => {
 
   conn.off('IncomingCallAsterisk')
   conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    conn.invoke("ConfirmEvent", "IncomingCallAsterisk").catch((error) => console.log(error));
+    conn.invoke("ConfirmEvent", "IncomingCallAsterisk", callid).catch((error) => console.log(error));
 
     logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
     var signal = JSON.parse(data);
@@ -311,7 +311,7 @@ const App = (props) => {
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
-    conn.invoke("ConfirmEvent", "callEnded").catch((error) => console.log(error));
+    conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
 
     console.log('[CallEnded server]');
     storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
@@ -326,7 +326,7 @@ const App = (props) => {
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
-    conn.invoke("ConfirmEvent", "MissedCall").catch((error) => console.log(error));
+    conn.invoke("ConfirmEvent", "MissedCall", null).catch((error) => console.log(error));
     CuocGoiDB.addCuocGoi(number, CallTypeEnum.MissingCall);
     logData.writeLogData('[[On] : MissedCall] | App, SDT: ' + JSON.stringify(number));
     Toast.showWithGravity('Cuộc gọi nhỡ: ' + number, Toast.LONG, Toast.BOTTOM);
@@ -350,6 +350,7 @@ const App = (props) => {
         console.log("[NOTIFICATION 1]:", notification);
 
         if (notification.data.type == 'wakeup') {
+          logData.writeLogData('[Wakeup]');
           backgroundtimer = setTimeout(() => {
             let paramNotiData = {
               uniqueid: notification.data.uniqueid,

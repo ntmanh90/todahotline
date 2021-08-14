@@ -113,9 +113,9 @@ function CuocGoiTransfer({ route }) {
             Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
         } else {
             try {
-                logSignalR.clientCallServer('SendCandidate');
                 conn.invoke('SendCandidate', Januscandidates, callid).then(() => {
-                    logData.writeLogData('invoke: SendCandidate cuộc gọi đi')
+                    console.log('invoke: SendCandidate cuộc gọi đi ' + phonenumber.toString());
+                    logData.writeLogData('invoke: SendCandidate cuộc gọi đi' + phonenumber.toString())
                 });
             } catch (error) {
                 console.log('----Call server Error callbackIceCandidateJanus Error: ', error);
@@ -196,6 +196,8 @@ function CuocGoiTransfer({ route }) {
     }
 
     const newSignal = (data) => {
+        console.log('[connectionRTC new Signal]');
+
         var signal = JSON.parse(data);
         // Route signal based on type
         if (signal.sdp) {
@@ -218,7 +220,7 @@ function CuocGoiTransfer({ route }) {
         logSignalR.serverCallClient('Calling');
         logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
         try {
-            conn.invoke("ConfirmEvent", "Calling");
+            conn.invoke("ConfirmEvent", "Calling", callid);
         } catch (error) {
             logSignalR.clientCallServerError('Calling', error);
         }
@@ -227,17 +229,16 @@ function CuocGoiTransfer({ route }) {
 
     conn.off('receiveSignal')
     conn.on('receiveSignal', (signal, id) => {
-
-        logSignalR.serverCallClient('receiveSignal');
-        logData.writeLogData('server call client: receiveSignal ');
+        console.log('[Data New Signal]', signal);
+        newSignal(signal);
+        logData.writeLogData('server call client: receiveSignal CuocGoi Transfer');
         try {
-            conn.invoke("ConfirmEvent", "receiveSignal");
+            conn.invoke("ConfirmEvent", "receiveSignal", null);
 
         } catch (error) {
             logSignalR.clientCallServerError('receiveSignal', error);
         }
         // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
-        newSignal(signal);
     });
 
     conn.off('ringing')
@@ -246,7 +247,7 @@ function CuocGoiTransfer({ route }) {
         logSignalR.serverCallClient('Ringing');
         logData.writeLogData('server call client: Ringing');
         try {
-            conn.invoke("ConfirmEvent", "Ringing");
+            conn.invoke("ConfirmEvent", "Ringing", null);
 
         } catch (error) {
             logSignalR.clientCallServerError('Ringing', error);
@@ -260,7 +261,7 @@ function CuocGoiTransfer({ route }) {
         logSignalR.serverCallClient('callAccepted');
         setStatusCall(statusCallEnum.DaKetNoi);
         try {
-            conn.invoke("ConfirmEvent", "callAccepted");
+            conn.invoke("ConfirmEvent", "callAccepted", null);
         } catch (error) {
             logSignalR.clientCallServerError('callAccepted', error);
         }
@@ -268,7 +269,7 @@ function CuocGoiTransfer({ route }) {
 
     conn.off('callDeclined')
     conn.on('callDeclined', (callid, code, reason, id) => {
-        conn.invoke("ConfirmEvent", "callDeclined").catch((error) => console.log(error));
+        conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
 
         logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
@@ -280,7 +281,7 @@ function CuocGoiTransfer({ route }) {
 
     conn.off('callEnded')
     conn.on('callEnded', (callid, code, reason, id) => {
-        conn.invoke("ConfirmEvent", "callEnded").catch((error) => console.log(error));
+        conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
 
         logData.writeLogData('Server call client: callEnded');
         logSignalR.serverCallClient('callEnded');
@@ -459,7 +460,7 @@ function CuocGoiTransfer({ route }) {
 
     conn.off('ReceivedSubCallId')
     conn.on('ReceivedSubCallId', (subcall_sessionid) => {
-        conn.invoke("ConfirmEvent", "ReceivedSubCallId").catch((error) => console.log(error));
+        conn.invoke("ConfirmEvent", "ReceivedSubCallId", null).catch((error) => console.log(error));
 
         subSessionCall = subcall_sessionid;
         onStartCall(phonenumber, callName);

@@ -151,9 +151,9 @@ function CuocGoi({ route }) {
             Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
         } else {
             try {
-                logSignalR.clientCallServer('SendCandidate');
                 conn.invoke('SendCandidate', Januscandidates, callid).then(() => {
-                    logData.writeLogData('invoke: SendCandidate cuộc gọi đi')
+                    console.log('invoke: SendCandidate cuộc gọi đi ', phonenumber);
+                    logData.writeLogData('invoke: SendCandidate cuộc gọi đi ' + phonenumber.toString())
                 });
             } catch (error) {
                 console.log('----Call server Error callbackIceCandidateJanus Error: ', error);
@@ -304,7 +304,7 @@ function CuocGoi({ route }) {
         logSignalR.serverCallClient('Calling');
         logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
         try {
-            conn.invoke("ConfirmEvent", "Calling");
+            conn.invoke("ConfirmEvent", "Calling", callid);
         } catch (error) {
             logSignalR.clientCallServerError('Calling', error);
         }
@@ -313,10 +313,10 @@ function CuocGoi({ route }) {
 
     conn.off('receiveSignal')
     conn.on('receiveSignal', (signal, id) => {
-        logSignalR.serverCallClient('receiveSignal');
-        logData.writeLogData('server call client: receiveSignal ');
+        logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
+        logData.writeLogData('server call client: receiveSignal CuocGoi ');
         try {
-            conn.invoke("ConfirmEvent", "receiveSignal");
+            conn.invoke("ConfirmEvent", "receiveSignal", null);
 
         } catch (error) {
             logSignalR.clientCallServerError('receiveSignal', error);
@@ -331,7 +331,7 @@ function CuocGoi({ route }) {
         logSignalR.serverCallClient('Ringing');
         logData.writeLogData('server call client: Ringing');
         try {
-            conn.invoke("ConfirmEvent", "Ringing");
+            conn.invoke("ConfirmEvent", "Ringing", null);
 
         } catch (error) {
             logSignalR.clientCallServerError('Ringing', error);
@@ -347,7 +347,7 @@ function CuocGoi({ route }) {
         logSignalR.serverCallClient('callAccepted');
         setStatusCall(statusCallEnum.DaKetNoi);
         try {
-            conn.invoke("ConfirmEvent", "callAccepted");
+            conn.invoke("ConfirmEvent", "callAccepted", null);
         } catch (error) {
             logSignalR.clientCallServerError('callAccepted', error);
         }
@@ -355,7 +355,7 @@ function CuocGoi({ route }) {
 
     conn.off('callDeclined')
     conn.on('callDeclined', (callid, code, reason, id) => {
-        conn.invoke("ConfirmEvent", "callDeclined").catch((error) => console.log(error));
+        conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
 
         logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
@@ -367,7 +367,7 @@ function CuocGoi({ route }) {
 
     conn.off('callEnded')
     conn.on('callEnded', (callid, code, reason, id) => {
-        conn.invoke("ConfirmEvent", "callEnded").catch((error) => console.log(error));
+        conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
 
         logData.writeLogData('Server call client: callEnded');
         logSignalR.serverCallClient('callEnded');
