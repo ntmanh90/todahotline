@@ -5,7 +5,7 @@ import { Icon } from 'react-native-elements';
 import storeData from '../../hooks/storeData';
 import keyStoreData from '../../utils/keyStoreData';
 import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
-import { getHubAndReconnect } from '../../hubmanager/HubManager';
+import { getHubAndReconnect, AddEvent, RemoveEvent, eventAccepted, eventCalling, eventRinging, eventSignal, eventDeclined, eventEnded } from '../../hubmanager/HubManager';
 import logSignalR from '../../utils/customLogSignalR';
 import logData from '../../utils/logData';
 import CuocgoiDB from '../../database/CuocGoiDB';
@@ -215,85 +215,6 @@ function CuocGoiTransfer({ route }) {
         };
     }
 
-    conn.off('Calling')
-    conn.on("Calling", (callid, msg, id) => {
-        logSignalR.serverCallClient('Calling');
-        logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
-        try {
-            conn.invoke("ConfirmEvent", "Calling", callid);
-        } catch (error) {
-            logSignalR.clientCallServerError('Calling', error);
-        }
-        console.log("Calling Home: ", callid);
-    })
-
-    conn.off('receiveSignal')
-    conn.on('receiveSignal', (signal, id) => {
-        console.log('[Data New Signal]', signal);
-        newSignal(signal);
-        logData.writeLogData('server call client: receiveSignal CuocGoi Transfer');
-        try {
-            conn.invoke("ConfirmEvent", "receiveSignal", null);
-
-        } catch (error) {
-            logSignalR.clientCallServerError('receiveSignal', error);
-        }
-        // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
-    });
-
-    conn.off('ringing')
-    conn.on('ringing', (id) => {
-        setStatusCall(statusCallEnum.DoChuong);
-        logSignalR.serverCallClient('Ringing');
-        logData.writeLogData('server call client: Ringing');
-        try {
-            conn.invoke("ConfirmEvent", "Ringing", null);
-
-        } catch (error) {
-            logSignalR.clientCallServerError('Ringing', error);
-        }
-        // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
-    });
-
-    conn.off('callAccepted')
-    conn.on('callAccepted', (id) => {
-        logData.writeLogData('Server call client: callAccepted');
-        logSignalR.serverCallClient('callAccepted');
-        setStatusCall(statusCallEnum.DaKetNoi);
-        try {
-            conn.invoke("ConfirmEvent", "callAccepted", null);
-        } catch (error) {
-            logSignalR.clientCallServerError('callAccepted', error);
-        }
-    });
-
-    conn.off('callDeclined')
-    conn.on('callDeclined', (callid, code, reason, id) => {
-        conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
-
-        logData.writeLogData('Server call client: callDeclined');
-        logSignalR.serverCallClient('callEnded');
-        RNCallKeep.endAllCalls();
-        setStatusCall(statusCallEnum.DaKetThuc);
-        resetState();
-        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-    });
-
-    conn.off('callEnded')
-    conn.on('callEnded', (callid, code, reason, id) => {
-        conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
-
-        logData.writeLogData('Server call client: callEnded');
-        logSignalR.serverCallClient('callEnded');
-        setStatusCall(statusCallEnum.DaKetThuc);
-        if (id == subSessionCall) {
-            conn.invoke("RemoveSubCall", subSessionCall);
-        }
-        //RNCallKeep.endAllCalls();
-        resetState();
-        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-    });
-
     ////////// End handle SignalR ////////////////////// 
 
 
@@ -435,6 +356,81 @@ function CuocGoiTransfer({ route }) {
 
     };
 
+    const AddEventSubCall = () => {
+        AddEvent(subSessionCall, eventCalling, (callid, msg, id) => {
+            console.log("MainCall Calling");
+            logSignalR.serverCallClient('Calling');
+            logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
+            try {
+                conn.invoke("ConfirmEvent", "Calling", callid);
+            } catch (error) {
+                logSignalR.clientCallServerError('Calling', error);
+            }
+            console.log("Calling Home: ", callid);
+        })
+    
+        AddEvent(subSessionCall, eventSignal, (signal, id) => {
+            logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
+                logData.writeLogData('server call client: receiveSignal CuocGoi ');
+                try {
+                    conn.invoke("ConfirmEvent", "receiveSignal", null);
+    
+                } catch (error) {
+                    logSignalR.clientCallServerError('receiveSignal', error);
+                }
+                // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
+                newSignal(signal);
+        })
+    
+        AddEvent(subSessionCall, eventRinging, (id) => {
+            setStatusCall(statusCallEnum.DoChuong);
+            logSignalR.serverCallClient('Ringing');
+            logData.writeLogData('server call client: Ringing');
+            try {
+                conn.invoke("ConfirmEvent", "Ringing", null);
+    
+            } catch (error) {
+                logSignalR.clientCallServerError('Ringing', error);
+            }
+            // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
+        });
+    
+        AddEvent(subSessionCall, eventAccepted, (id) => {
+            setTimeStart(new Date());
+    
+            logData.writeLogData('Server call client: callAccepted');
+            logSignalR.serverCallClient('callAccepted');
+            setStatusCall(statusCallEnum.DaKetNoi);
+            try {
+                conn.invoke("ConfirmEvent", "callAccepted", null);
+            } catch (error) {
+                logSignalR.clientCallServerError('callAccepted', error);
+            }
+        });
+    
+        AddEvent(subSessionCall , eventDeclined, (callid, code, reason, id) => {
+            conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
+    
+            logData.writeLogData('Server call client: callDeclined');
+            logSignalR.serverCallClient('callEnded');
+            RNCallKeep.endAllCalls();
+            setStatusCall(statusCallEnum.DaKetThuc);
+            resetState();
+            Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+        });
+    
+        AddEvent(subSessionCall, eventEnded , (callid, code, reason, id) => {
+            conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
+    
+            logData.writeLogData('Server call client: callEnded');
+            logSignalR.serverCallClient('callEnded');
+            setStatusCall(statusCallEnum.DaKetThuc);
+            RNCallKeep.endAllCalls();
+            resetState();
+            Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+        });
+    }
+
     //End RN Call Keep
 
     const handleShowUI = () => {
@@ -457,14 +453,6 @@ function CuocGoiTransfer({ route }) {
             setIsDTMF(false);
         }
     }
-
-    conn.off('ReceivedSubCallId')
-    conn.on('ReceivedSubCallId', (subcall_sessionid) => {
-        conn.invoke("ConfirmEvent", "ReceivedSubCallId", null).catch((error) => console.log(error));
-
-        subSessionCall = subcall_sessionid;
-        onStartCall(phonenumber, callName);
-    });
 
     const loadParams = async () => {
         if (phonenumber == 'unsubscribe') {
@@ -505,11 +493,20 @@ function CuocGoiTransfer({ route }) {
     }, [showUI]);
 
     useEffect(() => {
+        conn.off('ReceivedSubCallId')
+        conn.on('ReceivedSubCallId', (subcall_sessionid) => {
+                conn.invoke("ConfirmEvent", "ReceivedSubCallId", null).catch((error) => console.log(error));
+                subSessionCall = subcall_sessionid;
+                onStartCall(phonenumber, callName);
+                AddEventSubCall();
+            });
+
         RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
         RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
         RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
 
         return () => {
+            RemoveEvent(subSessionCall);
             RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
             RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
             RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
