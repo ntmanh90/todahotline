@@ -18,6 +18,7 @@ import { openDatabase } from 'react-native-sqlite-storage';
 import { Overlay, SearchBar } from 'react-native-elements';
 import ProgressApp from '../../components/ProgressApp';
 import KieuDanhBa from '../../utils/kieuDanhBa';
+import typeCallEnum from '../../utils/typeCallEnum';
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;

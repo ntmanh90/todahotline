@@ -260,7 +260,7 @@ function CuocGoi({ route }) {
                                 onUpdateCall();
                             }
                             if (coutTinHieuYeu >= 25) {
-                                //handleEndCallTinHieuYeu();
+                                handleEndCallTinHieuYeu();
                             }
                         }
                         // else if (bitrate - bitratePrew == 0) {

@@ -61,7 +61,6 @@ if (!isIOS) {
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
   RNCallKeep.setAvailable(true);
-
 }
 
 const getNewUuid = () => uuid.v4().toLowerCase();
@@ -144,11 +143,9 @@ const App = (props) => {
   };
 
   const answerCall = async ({ callUUID }) => {
-    console.log('[AnswerCall - Click]');
-    logData.writeLogData('[AnswerCall]');
+    RNCallKeep.backToForeground();
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
     RNCallKeep.setCurrentCallActive(callUUID);
-    RNCallKeep.backToForeground();
     BackgroundTimer.setTimeout(() => {
       RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
     }, 150);
