@@ -12,7 +12,7 @@ import * as RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
 import keyStoreData from './app/utils/keyStoreData';
-import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
+import { getHub, getHubAndReconnect, AddEvent, RemoveEvent, getSessionID, eventEnded } from './app/hubmanager/HubManager';
 import logData from './app/utils/logData';
 import CuocGoiDB from './app/database/CuocGoiDB';
 import CallTypeEnum from './app/hubmanager/CallTypeEnum';
@@ -309,10 +309,8 @@ const App = (props) => {
 
   });
 
-  conn.off('callEnded')
-  conn.on('callEnded', (callid, code, reason, id) => {
+  AddEvent(getSessionID(), eventEnded, (callid, code, reason, id) => {
     conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
-
     console.log('[CallEnded server]');
     storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
       if (isAnswerCall == 'false') {
@@ -323,6 +321,11 @@ const App = (props) => {
     RNCallKeep.endCall(callUUIDHienTai);
     Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM)
   });
+
+  // conn.off('callEnded')
+  // conn.on('callEnded', (callid, code, reason, id) => {
+    
+  // });
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
@@ -443,6 +446,7 @@ const App = (props) => {
 
       subscription.remove();
 
+      RemoveEvent(getSessionID());
       // Unsubscribe
       unsubscribe_NetInfo();
     }

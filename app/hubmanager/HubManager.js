@@ -20,7 +20,7 @@ const eventAccepted = "callAccepted";
 const eventDeclined = "callDeclined";
 const eventEnded = "callEnded";
 
-hub.off('Calling')
+hub.off('Calling');
 hub.on("Calling", (callid, msg, id) => {
         if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventCalling)){
             let onCalling = cb.get(id).get(eventCalling);
@@ -28,7 +28,7 @@ hub.on("Calling", (callid, msg, id) => {
         }
     })
 
-hub.off('receiveSignal')
+hub.off('receiveSignal');
 hub.on('receiveSignal', (signal, id) => {
         if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventSignal)){
             let onReceiveSignal = cb.get(id).get(eventSignal);
@@ -36,7 +36,7 @@ hub.on('receiveSignal', (signal, id) => {
         }
     });
 
-hub.off('ringing')
+hub.off('ringing');
 hub.on('ringing', (id) => {
         if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventRinging)){
             let onRinging = cb.get(id).get(eventRinging);
@@ -44,7 +44,7 @@ hub.on('ringing', (id) => {
         }
     });
 
-hub.off('callAccepted')
+hub.off('callAccepted');
 hub.on('callAccepted', (id) => {
         if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventAccepted)){
             let onAccepted = cb.get(id).get(eventAccepted);
@@ -52,7 +52,7 @@ hub.on('callAccepted', (id) => {
         }
     });
 
-hub.off('callDeclined')
+hub.off('callDeclined');
 hub.on('callDeclined', (callid, code, reason, id) => {
         if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventDeclined)){
             let onDeclined = cb.get(id).get(eventDeclined);
@@ -60,11 +60,13 @@ hub.on('callDeclined', (callid, code, reason, id) => {
         }
     });
 
-hub.off('callEnded')
+hub.off('callEnded');
 hub.on('callEnded', (callid, code, reason, id) => {
+        console.log(" /// Exite Call Ended Call Back ///");
         if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventEnded)){
+            console.log(" ~~~ Exite Call Ended Call Back ~~~")
             let onEnded = cb.get(id).get(eventEnded);
-            onEnded(callid, code, reason, id); 
+            onEnded(callid, code, reason, id);
         }
     });
 
@@ -169,7 +171,7 @@ function getHub() {
     return hub;
 }
 
-function getHubAndReconnect() {
+function getHubAndReconnect(callback) {
     logData.writeLogData('[ReJoin server]:' + JSON.stringify(hub.state));
     if (hub.state === HubConnectionState.Disconnected) {
         logData.writeLogData('[Disconnected] -> Reconnect');
@@ -186,6 +188,7 @@ function getHubAndReconnect() {
     hub.on('Registered', (number, id) => {
         LogSignalR.serverCallClient('Registered');
         session_id = id;
+
         try {
             hub.invoke("ConfirmEvent", "Registered", null);
         } catch (error) {

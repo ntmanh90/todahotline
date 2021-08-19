@@ -15,10 +15,10 @@ import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
 import statusCallEnum from '../../utils/statusCallEnum';
 import typeCallEnum from '../../utils/typeCallEnum';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Calltimer from '../../components/Calltimer';
 import PopUpDialerScreeen from '../cuocgoi/PopUpDialerScreeen';
-import TransferScreen from '../cuocgoi/Transfer Screen';
+import TransferScreen from '../cuocgoi/TransferScreen';
 import showUICallEnum from '../../utils/showUICallEnum';
 import NetInfo from "@react-native-community/netinfo";
 import Toast from 'react-native-simple-toast';
@@ -537,52 +537,10 @@ function CuocGoi({ route }) {
         }
     }
 
-
-
-    React.useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            storeData.getStoreDataValue(keyStoreData.isHold).then((isHoldData) => {
-                if (isHoldData != 'true') {
-                    loadParams();
-                }
-                else {
-                    setVisibleModel(true);
-                }
-            });
-
-            return () => {
-                RemoveEvent(getSessionID);
-                unsubscribe;
-            }
-        });
-    }, [navigation]);
-
-    useEffect(() => {
-        CallStatus();
-        console.log('[statusCall]: 3', statusCall);
-        if (statusCall == statusCallEnum.DaKetNoi) {
-            if (interValBitRate != 0)
-                BackgroundTimer.clearInterval(interValBitRate);
-
-            let interVal = BackgroundTimer.setInterval(() => {
-                getTinHieu();
-            }, 1000);
-            console.log('[interVal]', interVal);
-            setInterValBitRate(interVal);
-        }
-    }, [statusCall]);
-
-    useEffect(() => {
-        handleShowUI();
-    }, [showUI]);
-
-    useEffect(() => {
-
-    }, [visibleModel]);
-
-
-    useEffect(() => {
-        AddEvent(getSessionID(), eventCalling, (callid, msg, id) => {
+    useFocusEffect(
+        React.useCallback(() => {
+          // Do something when the screen is focused
+          AddEvent(getSessionID(), eventCalling, (callid, msg, id) => {
             console.log("MainCall Calling");
             logSignalR.serverCallClient('Calling');
             logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
@@ -635,9 +593,8 @@ function CuocGoi({ route }) {
     
         AddEvent(getSessionID() , eventDeclined, (callid, code, reason, id) => {
             conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
-    
             logData.writeLogData('Server call client: callDeclined');
-            logSignalR.serverCallClient('callEnded');
+            logSignalR.serverCallClient('callDeclined');
             RNCallKeep.endAllCalls();
             setStatusCall(statusCallEnum.DaKetThuc);
             resetState();
@@ -653,7 +610,59 @@ function CuocGoi({ route }) {
             resetState();
             Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
         });
+    
+         return () => {
+            // Do something when the screen is unfocused
+            // Useful for cleanup functions
+          };
+        }, [])
+    );
 
+
+
+    React.useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            storeData.getStoreDataValue(keyStoreData.isHold).then((isHoldData) => {
+                if (isHoldData != 'true') {
+                    loadParams();
+                }
+                else {
+                    setVisibleModel(true);
+                }
+            });
+
+            return () => {
+                RemoveEvent(getSessionID);
+                unsubscribe;
+            }
+        });
+    }, [navigation]);
+
+    useEffect(() => {
+        CallStatus();
+        console.log('[statusCall]: 3', statusCall);
+        if (statusCall == statusCallEnum.DaKetNoi) {
+            if (interValBitRate != 0)
+                BackgroundTimer.clearInterval(interValBitRate);
+
+            let interVal = BackgroundTimer.setInterval(() => {
+                getTinHieu();
+            }, 1000);
+            console.log('[interVal]', interVal);
+            setInterValBitRate(interVal);
+        }
+    }, [statusCall]);
+
+    useEffect(() => {
+        handleShowUI();
+    }, [showUI]);
+
+    useEffect(() => {
+
+    }, [visibleModel]);
+
+
+    useEffect(() => {
         RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
         RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
         RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
