@@ -78,7 +78,6 @@ function TransferScreen({ numberIncoming, isCuocGoiTransfer, hideTransfer, hideM
             else {
                 conn.invoke('Transfer', numberIncoming, number);
                 hideTransfer();
-                console.log('Chưa viết code tranfer sang cuộc gọi khác > 10 số')
             }
         } else {
             if (isCuocGoiTransfer) {
@@ -90,9 +89,9 @@ function TransferScreen({ numberIncoming, isCuocGoiTransfer, hideTransfer, hideM
 
             }
             else {
+
                 conn.invoke('Transfer', numberIncoming, number);
                 hideTransfer();
-                console.log('Chưa viết code tranfer sang cuộc gọi khác > 10 số')
             }
         }
     }

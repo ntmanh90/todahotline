@@ -539,82 +539,82 @@ function CuocGoi({ route }) {
 
     useFocusEffect(
         React.useCallback(() => {
-          // Do something when the screen is focused
-          AddEvent(getSessionID(), eventCalling, (callid, msg, id) => {
-            console.log("MainCall Calling");
-            logSignalR.serverCallClient('Calling');
-            logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
-            try {
-                conn.invoke("ConfirmEvent", "Calling", callid);
-            } catch (error) {
-                logSignalR.clientCallServerError('Calling', error);
-            }
-            console.log("Calling Home: ", callid);
-        })
-    
-        AddEvent(getSessionID(), eventSignal, (signal, id) => {
-            logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
+            // Do something when the screen is focused
+            AddEvent(getSessionID(), eventCalling, (callid, msg, id) => {
+                console.log("MainCall Calling");
+                logSignalR.serverCallClient('Calling');
+                logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
+                try {
+                    conn.invoke("ConfirmEvent", "Calling", callid);
+                } catch (error) {
+                    logSignalR.clientCallServerError('Calling', error);
+                }
+                console.log("Calling Home: ", callid);
+            })
+
+            AddEvent(getSessionID(), eventSignal, (signal, id) => {
+                logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
                 logData.writeLogData('server call client: receiveSignal CuocGoi ');
                 try {
                     conn.invoke("ConfirmEvent", "receiveSignal", null);
-    
+
                 } catch (error) {
                     logSignalR.clientCallServerError('receiveSignal', error);
                 }
                 // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
                 newSignal(signal);
-        })
-    
-        AddEvent(getSessionID(), eventRinging, (id) => {
-            setStatusCall(statusCallEnum.DoChuong);
-            logSignalR.serverCallClient('Ringing');
-            logData.writeLogData('server call client: Ringing');
-            try {
-                conn.invoke("ConfirmEvent", "Ringing", null);
-    
-            } catch (error) {
-                logSignalR.clientCallServerError('Ringing', error);
-            }
-            // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
-        });
-    
-        AddEvent(getSessionID(), eventAccepted, (id) => {
-            setTimeStart(new Date());
-    
-            logData.writeLogData('Server call client: callAccepted');
-            logSignalR.serverCallClient('callAccepted');
-            setStatusCall(statusCallEnum.DaKetNoi);
-            try {
-                conn.invoke("ConfirmEvent", "callAccepted", null);
-            } catch (error) {
-                logSignalR.clientCallServerError('callAccepted', error);
-            }
-        });
-    
-        AddEvent(getSessionID() , eventDeclined, (callid, code, reason, id) => {
-            conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
-            logData.writeLogData('Server call client: callDeclined');
-            logSignalR.serverCallClient('callDeclined');
-            RNCallKeep.endAllCalls();
-            setStatusCall(statusCallEnum.DaKetThuc);
-            resetState();
-            Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-        });
-    
-        AddEvent(getSessionID(), eventEnded , (callid, code, reason, id) => {
-            conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
-            logData.writeLogData('Server call client: callEnded');
-            logSignalR.serverCallClient('callEnded');
-            setStatusCall(statusCallEnum.DaKetThuc);
-            RNCallKeep.endAllCalls();
-            resetState();
-            Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-        });
-    
-         return () => {
-            // Do something when the screen is unfocused
-            // Useful for cleanup functions
-          };
+            })
+
+            AddEvent(getSessionID(), eventRinging, (id) => {
+                setStatusCall(statusCallEnum.DoChuong);
+                logSignalR.serverCallClient('Ringing');
+                logData.writeLogData('server call client: Ringing');
+                try {
+                    conn.invoke("ConfirmEvent", "Ringing", null);
+
+                } catch (error) {
+                    logSignalR.clientCallServerError('Ringing', error);
+                }
+                // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
+            });
+
+            AddEvent(getSessionID(), eventAccepted, (id) => {
+                setTimeStart(new Date());
+
+                logData.writeLogData('Server call client: callAccepted');
+                logSignalR.serverCallClient('callAccepted');
+                setStatusCall(statusCallEnum.DaKetNoi);
+                try {
+                    conn.invoke("ConfirmEvent", "callAccepted", null);
+                } catch (error) {
+                    logSignalR.clientCallServerError('callAccepted', error);
+                }
+            });
+
+            AddEvent(getSessionID(), eventDeclined, (callid, code, reason, id) => {
+                conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
+                logData.writeLogData('Server call client: callDeclined');
+                logSignalR.serverCallClient('callDeclined');
+                RNCallKeep.endAllCalls();
+                setStatusCall(statusCallEnum.DaKetThuc);
+                resetState();
+                Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+            });
+
+            AddEvent(getSessionID(), eventEnded, (callid, code, reason, id) => {
+                conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
+                logData.writeLogData('Server call client: callEnded');
+                logSignalR.serverCallClient('callEnded');
+                setStatusCall(statusCallEnum.DaKetThuc);
+                RNCallKeep.endAllCalls();
+                resetState();
+                Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+            });
+
+            return () => {
+                // Do something when the screen is unfocused
+                // Useful for cleanup functions
+            };
         }, [])
     );
 
