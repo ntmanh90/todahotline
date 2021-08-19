@@ -17,6 +17,8 @@ import { SearchBar } from 'react-native-elements';
 import storeData from '../../hooks/storeData';
 import Contacts from 'react-native-contacts';
 import keyStoreData from '../../utils/keyStoreData';
+import typeCallEnum from '../../utils/typeCallEnum';
+import { useNavigation } from '@react-navigation/native';
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
@@ -26,6 +28,8 @@ export default function tabBookTrenMay() {
   const [phoneBookList, setPhoneBookList] = useState([]);
   const [search, setSearch] = useState('');
   const [checkQuyenGoiRaNgoai, setCheckQuyenGoiRaNgoai] = useState('');
+
+  const navigation = useNavigation();
 
   useEffect(() => {
     requestReadContactsPermission();
@@ -115,6 +119,12 @@ export default function tabBookTrenMay() {
   }
 
   const handleCuocGoiDi = async (sdt, hoten) => {
+    sdt = String(sdt).replace(' ', '');
+    sdt = String(sdt).replace(' ', '');
+    sdt = String(sdt).replace(' ', '');
+    sdt = String(sdt).replace(' ', '');
+
+    console.log('[handleCuocGoiDi]', sdt, hoten);
     if (checkQuyenGoiRaNgoai !== '1') {
       Alert.alert(
         'Thông báo ',
@@ -130,7 +140,7 @@ export default function tabBookTrenMay() {
       );
     } else {
       setTimeout(() => {
-        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, sdt);
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, String(sdt).replace(" ", ""));
         storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, hoten);
         storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
         navigation.navigate('CuocGoi');

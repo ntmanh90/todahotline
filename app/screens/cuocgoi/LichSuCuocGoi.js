@@ -17,6 +17,8 @@ import storeData from '../../hooks/storeData';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
 import moment from 'moment';
 import CuocgoiDB from '../../database/CuocGoiDB';
+import keyStoreData from '../../utils/keyStoreData';
+import typeCallEnum from '../../utils/typeCallEnum';
 
 var db = openDatabase({ name: 'UserDatabase.db' });
 
@@ -56,11 +58,9 @@ export default function LichSuCuocGoi({ navigation, route }) {
         setPrefix(prefixData);
         var db = openDatabase({ name: 'UserDatabase.db' });
         db.transaction((tx) => {
-            tx.executeSql('SELECT * FROM CuocGoi WHERE kieu_cuoc_goi = ? or kieu_cuoc_goi = ? ORDER BY id_cuoc_goi DESC', [CallTypeEnum.IncomingCall, CallTypeEnum.OutboundCall],
+            tx.executeSql('SELECT * FROM CuocGoi WHERE kieu_cuoc_goi = ? or kieu_cuoc_goi = ? or kieu_cuoc_goi = ?  ORDER BY ngay_goi DESC', [CallTypeEnum.IncomingCall, CallTypeEnum.OutboundCall, CallTypeEnum.MissingCall],
                 (tx, { rows }) => {
                     let temp = [];
-                    console.log('Cuoc goi: ', rows);
-
                     for (let i = 0; i < rows.length; i++) {
                         temp.push(rows.item(i));
                     }
@@ -71,12 +71,11 @@ export default function LichSuCuocGoi({ navigation, route }) {
                     console.log('Error list cuoc goi: ', error);
                 }
             );
-            tx.executeSql('SELECT * FROM CuocGoi WHERE kieu_cuoc_goi = ? ORDER BY id_cuoc_goi DESC', [CallTypeEnum.MissingCall],
+            tx.executeSql('SELECT * FROM CuocGoi WHERE kieu_cuoc_goi = ? ORDER BY ngay_goi DESC', [CallTypeEnum.MissingCall],
                 (tx, { rows }) => {
                     console.log('cuoc goi nho', rows);
                     let temp = [];
                     for (let i = 0; i < rows.length; i++) {
-                        console.log('SQLite item Cuộc gọi: ', rows.item(i));
                         temp.push(rows.item(i));
                     }
 

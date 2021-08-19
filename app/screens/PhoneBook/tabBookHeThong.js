@@ -25,6 +25,7 @@ import ProgressApp from '../../components/ProgressApp';
 import Toast from 'react-native-simple-toast';
 import DanhBaDB from '../../database/DanhBaDB';
 import kieuDanhBa from '../../utils/kieuDanhBa';
+import typeCallEnum from '../../utils/typeCallEnum';
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
@@ -37,6 +38,49 @@ export default function tabBookHeThong() {
   const [search, setSearch] = useState('');
 
   const navigation = useNavigation();
+
+  const getDanhSachNoiBo = async () => {
+    let urlApiData = await storeData.getStoreDataValue(keyStoreData.urlApi);
+    let idctData = await storeData.getStoreDataValue(keyStoreData.idct);
+    let idnhanvienData = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
+    let checkThemDanhBaHeThong = await storeData.getStoreDataValue(keyStoreData.checkThemDanhBaHeThong);
+
+    setShowProcess(true);
+
+    let url = urlApiData + BaseURL.URL_LIST_PHONEBOOK_SYSTEM;
+    let params = {
+      idct: idctData,
+      idnhanvien: idnhanvienData,
+      token: '',
+      lastID: 0,
+    };
+    AppApi.RequestPOST(url, params, (err, json) => {
+      if (!err) {
+        setShowProcess(false);
+        if (json.data.status) {
+          var lisdanhba = json.data.dsdanhba;
+          console.log('respon -> ', json.data.dsdanhba);
+
+          setListNoiBo(lisdanhba);
+          setListNoiBoAll(lisdanhba);
+
+
+          if (checkThemDanhBaHeThong !== 'true') {
+            lisdanhba.map((item) => {
+              DanhBaDB.addDanhBa(item.tenlienhe, item.sodienthoai, item.tenlienhe.substring(0, 1), kieuDanhBa.HeThong);
+            });
+            storeData.setStoreDataValue(keyStoreData.checkThemDanhBaHeThong, true);
+          }
+        } else {
+
+        }
+      } else {
+        setShowProcess(false);
+
+      }
+    });
+  }
+
 
   useEffect(() => {
     getDanhSachNoiBo();
@@ -182,7 +226,13 @@ export default function tabBookHeThong() {
 
                   <TouchableOpacity
                     style={{ flexDirection: 'row', justifyContent: 'space-around' }}
-                    onPress={() => cuocGoiDi(item.sodienthoai)}>
+                    onPress={() => {
+                      storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, item.sodienthoai);
+                      storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, item.tenlienhe);
+                      storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+                      navigation.navigate('CuocGoi')
+                    }
+                    }>
                     <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 7, marginVertical: 5 }}>
                       <Image
                         source={require('../../Toda_Images/contactsV2.png')}
