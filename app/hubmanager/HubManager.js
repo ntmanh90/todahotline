@@ -22,71 +22,67 @@ const eventEnded = "callEnded";
 
 hub.off('Calling');
 hub.on("Calling", (callid, msg, id) => {
-        if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventCalling)){
-            let onCalling = cb.get(id).get(eventCalling);
-            onCalling(callid, msg, id); 
-        }
-    })
+    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventCalling)) {
+        let onCalling = cb.get(id).get(eventCalling);
+        onCalling(callid, msg, id);
+    }
+})
 
 hub.off('receiveSignal');
 hub.on('receiveSignal', (signal, id) => {
-        if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventSignal)){
-            let onReceiveSignal = cb.get(id).get(eventSignal);
-            onReceiveSignal(signal, id); 
-        }
-    });
+    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventSignal)) {
+        let onReceiveSignal = cb.get(id).get(eventSignal);
+        onReceiveSignal(signal, id);
+    }
+});
 
 hub.off('ringing');
 hub.on('ringing', (id) => {
-        if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventRinging)){
-            let onRinging = cb.get(id).get(eventRinging);
-            onRinging(id); 
-        }
-    });
+    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventRinging)) {
+        let onRinging = cb.get(id).get(eventRinging);
+        onRinging(id);
+    }
+});
 
 hub.off('callAccepted');
 hub.on('callAccepted', (id) => {
-        if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventAccepted)){
-            let onAccepted = cb.get(id).get(eventAccepted);
-            onAccepted(id); 
-        }
-    });
+    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventAccepted)) {
+        let onAccepted = cb.get(id).get(eventAccepted);
+        onAccepted(id);
+    }
+});
 
 hub.off('callDeclined');
 hub.on('callDeclined', (callid, code, reason, id) => {
-        if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventDeclined)){
-            let onDeclined = cb.get(id).get(eventDeclined);
-            onDeclined(callid, code, reason, id); 
-        }
-    });
+    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventDeclined)) {
+        let onDeclined = cb.get(id).get(eventDeclined);
+        onDeclined(callid, code, reason, id);
+    }
+});
 
 hub.off('callEnded');
 hub.on('callEnded', (callid, code, reason, id) => {
-        console.log(" /// Exite Call Ended Call Back ///");
-        if(cb.size > 0 && cb.get(id) && cb.get(id).get(eventEnded)){
-            console.log(" ~~~ Exite Call Ended Call Back ~~~")
-            let onEnded = cb.get(id).get(eventEnded);
-            onEnded(callid, code, reason, id);
-        }
-    });
+    console.log(" /// Exite Call Ended Call Back ///");
+    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventEnded)) {
+        console.log(" ~~~ Exite Call Ended Call Back ~~~")
+        let onEnded = cb.get(id).get(eventEnded);
+        onEnded(callid, code, reason, id);
+    }
+});
 
-function AddEvent(id, loai, callback)
-{
-    console.log(id == session_id ? "Event Call" : "Event Sub Call: " + id);
-    if(!cb.get(id))
+function AddEvent(id, loai, callback) {
+    if (!cb.get(id))
         cb.set(id, new Map());
 
     cb.get(id).set(loai, callback);
 }
 
-function getSessionID()
-{
+function getSessionID() {
     return session_id;
 }
 
-function RemoveEvent(id)
-{
-    if(cb.get(id))
+function RemoveEvent(id) {
+    if (cb.get(id))
         cb.delete(id);
 }
 
@@ -202,5 +198,7 @@ function getHubAndReconnect(callback) {
     return hub;
 }
 
-export { getHub, connectServer, reconnectServer, getHubAndReconnect, AddEvent, RemoveEvent, getSessionID,
-     eventCalling, eventRinging, eventSignal, eventAccepted, eventDeclined, eventEnded }
+export {
+    getHub, connectServer, reconnectServer, getHubAndReconnect, AddEvent, RemoveEvent, getSessionID,
+    eventCalling, eventRinging, eventSignal, eventAccepted, eventDeclined, eventEnded
+}

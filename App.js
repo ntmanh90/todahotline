@@ -321,7 +321,7 @@ const App = (props) => {
 
   // conn.off('callEnded')
   // conn.on('callEnded', (callid, code, reason, id) => {
-    
+
   // });
 
   conn.off('MissedCall')
@@ -424,7 +424,7 @@ const App = (props) => {
       if (conn.state !== HubConnectionState.Connected) {
         // console.log('Disconnected');
         setDisSignal(true);
-        //conn = getHubAndReconnect();
+        conn = getHubAndReconnect();
       }
       if (conn.state === HubConnectionState.Connected) {
         //console.log('Connected');

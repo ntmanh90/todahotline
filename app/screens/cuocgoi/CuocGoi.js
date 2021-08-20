@@ -35,6 +35,7 @@ var bitratePrew = 0;
 var coutTinHieuYeu = 0;
 var connectionCheckBitRate = null;
 var stremRTC = null;
+var sdtTransfer = '';
 
 BackgroundTimer.start();
 
@@ -104,6 +105,7 @@ function CuocGoi({ route }) {
             setTxtStatusCall('');
             connectionCheckBitRate = null;
             stremRTC = null;
+            sdtTransfer = '';
 
             setTimeStart(new Date());
             handleShowUI();
@@ -340,6 +342,8 @@ function CuocGoi({ route }) {
         }
 
         if (value) {
+            connectionCheckBitRate.getRemoteStreams()[0].getAudioTracks()[0].enabled = false;
+
             try {
                 conn = getHubAndReconnect();
                 conn.invoke("Hold", sessionCallId);
@@ -348,6 +352,8 @@ function CuocGoi({ route }) {
             }
         }
         else {
+            connectionCheckBitRate.getRemoteStreams()[0].getAudioTracks()[0].enabled = true;
+
             if (isclick == 1) {
                 try {
                     conn.invoke("UnHold", sessionCallId);
@@ -495,8 +501,9 @@ function CuocGoi({ route }) {
 
     const loadParams = async () => {
         let _type = await storeData.getStoreDataValue(keyStoreData.typeCall);
+        let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
         if (_type == typeCallEnum.outgoingCall) {
-            console.log('[Outcomming call]');
+            sdtTransfer = somayle;
             let _soDienThoaiDi = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDi);
             let _hoTenDienThoaiDi = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDi);
             setPhonenumber(_soDienThoaiDi);
@@ -514,11 +521,12 @@ function CuocGoi({ route }) {
             onStartCall(_soDienThoaiDi, _hoTenDienThoaiDi);
         }
         else if (_type == typeCallEnum.IncomingCall) {
-            console.log('[IncomingCall]');
             let _soDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
             let _hoTenDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDen);
             setPhonenumber(_soDienThoaiDen);
             setCallName(_hoTenDienThoaiDen);
+
+            sdtTransfer = _soDienThoaiDen;
 
             if (_soDienThoaiDen == '' || _soDienThoaiDen == null) {
                 logData.writeLogData('Số điện thoại không đúng định dạng.');
