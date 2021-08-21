@@ -552,11 +552,14 @@ function CuocGoi({ route }) {
 
     const handleShowUI = () => {
         if (showUI == showUICallEnum.UITransfer) {
-            onHold(true, 0).then(() => {
-                setIsCall(false);
-                setIsTransfer(true);
-                setIsDTMF(false);
-            });
+            // onHold(true, 0).then(() => {
+            //     setIsCall(false);
+            //     setIsTransfer(true);
+            //     setIsDTMF(false);
+            // });
+            setIsCall(false);
+            setIsTransfer(true);
+            setIsDTMF(false);
 
         }
         else if (showUI == showUICallEnum.UIDialer) {
