@@ -5,7 +5,7 @@ import { Icon } from 'react-native-elements';
 import storeData from '../../hooks/storeData';
 import keyStoreData from '../../utils/keyStoreData';
 import { RTCPeerConnection, mediaDevices, RTCSessionDescription, } from 'react-native-webrtc';
-import { getHubAndReconnect, AddEvent, RemoveEvent, getSessionID, eventAccepted, eventCalling, eventRinging, eventSignal, eventDeclined, eventEnded } from '../../hubmanager/HubManager';
+import { getHubAndReconnect } from '../../hubmanager/HubManager';
 import logSignalR from '../../utils/customLogSignalR';
 import logData from '../../utils/logData';
 import CuocgoiDB from '../../database/CuocGoiDB';
@@ -15,7 +15,7 @@ import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
 import statusCallEnum from '../../utils/statusCallEnum';
 import typeCallEnum from '../../utils/typeCallEnum';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import Calltimer from '../../components/Calltimer';
 import PopUpDialerScreeen from '../cuocgoi/PopUpDialerScreeen';
 import TransferScreen from '../cuocgoi/TransferScreen';
@@ -35,7 +35,6 @@ var bitratePrew = 0;
 var coutTinHieuYeu = 0;
 var connectionCheckBitRate = null;
 var stremRTC = null;
-var sdtTransfer = '';
 
 BackgroundTimer.start();
 
@@ -105,7 +104,6 @@ function CuocGoi({ route }) {
             setTxtStatusCall('');
             connectionCheckBitRate = null;
             stremRTC = null;
-            sdtTransfer = '';
 
             setTimeStart(new Date());
             handleShowUI();
@@ -262,7 +260,7 @@ function CuocGoi({ route }) {
                                 onUpdateCall();
                             }
                             if (coutTinHieuYeu >= 25) {
-                                handleEndCallTinHieuYeu();
+                                //handleEndCallTinHieuYeu();
                             }
                         }
                         // else if (bitrate - bitratePrew == 0) {
@@ -300,6 +298,84 @@ function CuocGoi({ route }) {
             }
         };
     }
+
+    conn.off('Calling')
+    conn.on("Calling", (callid, msg, id) => {
+        logSignalR.serverCallClient('Calling');
+        logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
+        try {
+            conn.invoke("ConfirmEvent", "Calling", callid);
+        } catch (error) {
+            logSignalR.clientCallServerError('Calling', error);
+        }
+        console.log("Calling Home: ", callid);
+    })
+
+    conn.off('receiveSignal')
+    conn.on('receiveSignal', (signal, id) => {
+        logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
+        logData.writeLogData('server call client: receiveSignal CuocGoi ');
+        try {
+            conn.invoke("ConfirmEvent", "receiveSignal", null);
+
+        } catch (error) {
+            logSignalR.clientCallServerError('receiveSignal', error);
+        }
+        // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
+        newSignal(signal);
+    });
+
+    conn.off('ringing')
+    conn.on('ringing', (id) => {
+        setStatusCall(statusCallEnum.DoChuong);
+        logSignalR.serverCallClient('Ringing');
+        logData.writeLogData('server call client: Ringing');
+        try {
+            conn.invoke("ConfirmEvent", "Ringing", null);
+
+        } catch (error) {
+            logSignalR.clientCallServerError('Ringing', error);
+        }
+        // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
+    });
+
+    conn.off('callAccepted')
+    conn.on('callAccepted', (id) => {
+        setTimeStart(new Date());
+
+        logData.writeLogData('Server call client: callAccepted');
+        logSignalR.serverCallClient('callAccepted');
+        setStatusCall(statusCallEnum.DaKetNoi);
+        try {
+            conn.invoke("ConfirmEvent", "callAccepted", null);
+        } catch (error) {
+            logSignalR.clientCallServerError('callAccepted', error);
+        }
+    });
+
+    conn.off('callDeclined')
+    conn.on('callDeclined', (callid, code, reason, id) => {
+        conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
+
+        logData.writeLogData('Server call client: callDeclined');
+        logSignalR.serverCallClient('callEnded');
+        RNCallKeep.endAllCalls();
+        setStatusCall(statusCallEnum.DaKetThuc);
+        resetState();
+        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+    });
+
+    conn.off('callEnded')
+    conn.on('callEnded', (callid, code, reason, id) => {
+        conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
+
+        logData.writeLogData('Server call client: callEnded');
+        logSignalR.serverCallClient('callEnded');
+        setStatusCall(statusCallEnum.DaKetThuc);
+        RNCallKeep.endAllCalls();
+        resetState();
+        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+    });
 
     // conn.off('UpdatingCall')
     // conn.on('UpdatingCall', (sdp, session_id) => {
@@ -342,8 +418,6 @@ function CuocGoi({ route }) {
         }
 
         if (value) {
-            connectionCheckBitRate.getRemoteStreams()[0].getAudioTracks()[0].enabled = false;
-
             try {
                 conn = getHubAndReconnect();
                 conn.invoke("Hold", sessionCallId);
@@ -352,8 +426,6 @@ function CuocGoi({ route }) {
             }
         }
         else {
-            connectionCheckBitRate.getRemoteStreams()[0].getAudioTracks()[0].enabled = true;
-
             if (isclick == 1) {
                 try {
                     conn.invoke("UnHold", sessionCallId);
@@ -501,9 +573,8 @@ function CuocGoi({ route }) {
 
     const loadParams = async () => {
         let _type = await storeData.getStoreDataValue(keyStoreData.typeCall);
-        let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
         if (_type == typeCallEnum.outgoingCall) {
-            sdtTransfer = somayle;
+            console.log('[Outcomming call]');
             let _soDienThoaiDi = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDi);
             let _hoTenDienThoaiDi = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDi);
             setPhonenumber(_soDienThoaiDi);
@@ -521,12 +592,11 @@ function CuocGoi({ route }) {
             onStartCall(_soDienThoaiDi, _hoTenDienThoaiDi);
         }
         else if (_type == typeCallEnum.IncomingCall) {
+            console.log('[IncomingCall]');
             let _soDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
             let _hoTenDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.hoTenDienThoaiDen);
             setPhonenumber(_soDienThoaiDen);
             setCallName(_hoTenDienThoaiDen);
-
-            sdtTransfer = _soDienThoaiDen;
 
             if (_soDienThoaiDen == '' || _soDienThoaiDen == null) {
                 logData.writeLogData('Số điện thoại không đúng định dạng.');
@@ -545,87 +615,6 @@ function CuocGoi({ route }) {
         }
     }
 
-    useFocusEffect(
-        React.useCallback(() => {
-            // Do something when the screen is focused
-            AddEvent(getSessionID(), eventCalling, (callid, msg, id) => {
-                console.log("MainCall Calling");
-                logSignalR.serverCallClient('Calling');
-                logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
-                try {
-                    conn.invoke("ConfirmEvent", "Calling", callid);
-                } catch (error) {
-                    logSignalR.clientCallServerError('Calling', error);
-                }
-                console.log("Calling Home: ", callid);
-            })
-
-            AddEvent(getSessionID(), eventSignal, (signal, id) => {
-                logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
-                logData.writeLogData('server call client: receiveSignal CuocGoi ');
-                try {
-                    conn.invoke("ConfirmEvent", "receiveSignal", null);
-
-                } catch (error) {
-                    logSignalR.clientCallServerError('receiveSignal', error);
-                }
-                // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
-                newSignal(signal);
-            })
-
-            AddEvent(getSessionID(), eventRinging, (id) => {
-                setStatusCall(statusCallEnum.DoChuong);
-                logSignalR.serverCallClient('Ringing');
-                logData.writeLogData('server call client: Ringing');
-                try {
-                    conn.invoke("ConfirmEvent", "Ringing", null);
-
-                } catch (error) {
-                    logSignalR.clientCallServerError('Ringing', error);
-                }
-                // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
-            });
-
-            AddEvent(getSessionID(), eventAccepted, (id) => {
-                setTimeStart(new Date());
-
-                logData.writeLogData('Server call client: callAccepted');
-                logSignalR.serverCallClient('callAccepted');
-                setStatusCall(statusCallEnum.DaKetNoi);
-                try {
-                    conn.invoke("ConfirmEvent", "callAccepted", null);
-                } catch (error) {
-                    logSignalR.clientCallServerError('callAccepted', error);
-                }
-            });
-
-            AddEvent(getSessionID(), eventDeclined, (callid, code, reason, id) => {
-                conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
-                logData.writeLogData('Server call client: callDeclined');
-                logSignalR.serverCallClient('callDeclined');
-                RNCallKeep.endAllCalls();
-                setStatusCall(statusCallEnum.DaKetThuc);
-                resetState();
-                Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-            });
-
-            AddEvent(getSessionID(), eventEnded, (callid, code, reason, id) => {
-                conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
-                logData.writeLogData('Server call client: callEnded');
-                logSignalR.serverCallClient('callEnded');
-                setStatusCall(statusCallEnum.DaKetThuc);
-                RNCallKeep.endAllCalls();
-                resetState();
-                Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-            });
-
-            return () => {
-                // Do something when the screen is unfocused
-                // Useful for cleanup functions
-            };
-        }, [])
-    );
-
 
 
     React.useEffect(() => {
@@ -640,7 +629,6 @@ function CuocGoi({ route }) {
             });
 
             return () => {
-                RemoveEvent(getSessionID);
                 unsubscribe;
             }
         });

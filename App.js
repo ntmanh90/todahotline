@@ -12,7 +12,7 @@ import * as RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
 import keyStoreData from './app/utils/keyStoreData';
-import { getHub, getHubAndReconnect, AddEvent, RemoveEvent, getSessionID, eventEnded } from './app/hubmanager/HubManager';
+import { getHub, getHubAndReconnect } from './app/hubmanager/HubManager';
 import logData from './app/utils/logData';
 import CuocGoiDB from './app/database/CuocGoiDB';
 import CallTypeEnum from './app/hubmanager/CallTypeEnum';
@@ -61,6 +61,7 @@ if (!isIOS) {
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
   RNCallKeep.setAvailable(true);
+
 }
 
 const getNewUuid = () => uuid.v4().toLowerCase();
@@ -143,9 +144,11 @@ const App = (props) => {
   };
 
   const answerCall = async ({ callUUID }) => {
-    RNCallKeep.backToForeground();
+    console.log('[AnswerCall - Click]');
+    logData.writeLogData('[AnswerCall]');
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
     RNCallKeep.setCurrentCallActive(callUUID);
+    RNCallKeep.backToForeground();
     BackgroundTimer.setTimeout(() => {
       RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
     }, 150);
@@ -306,8 +309,10 @@ const App = (props) => {
 
   });
 
-  AddEvent(getSessionID(), eventEnded, (callid, code, reason, id) => {
+  conn.off('callEnded')
+  conn.on('callEnded', (callid, code, reason, id) => {
     conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
+
     console.log('[CallEnded server]');
     storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
       if (isAnswerCall == 'false') {
@@ -318,11 +323,6 @@ const App = (props) => {
     RNCallKeep.endCall(callUUIDHienTai);
     Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM)
   });
-
-  // conn.off('callEnded')
-  // conn.on('callEnded', (callid, code, reason, id) => {
-
-  // });
 
   conn.off('MissedCall')
   conn.on('MissedCall', (number, name) => {
@@ -424,7 +424,7 @@ const App = (props) => {
       if (conn.state !== HubConnectionState.Connected) {
         // console.log('Disconnected');
         setDisSignal(true);
-        conn = getHubAndReconnect();
+        //conn = getHubAndReconnect();
       }
       if (conn.state === HubConnectionState.Connected) {
         //console.log('Connected');
@@ -443,7 +443,6 @@ const App = (props) => {
 
       subscription.remove();
 
-      RemoveEvent(getSessionID());
       // Unsubscribe
       unsubscribe_NetInfo();
     }

@@ -11,81 +11,6 @@ let hub = new HubConnectionBuilder()
     // .configureLogging(LogLevel.Information)
     .build();
 
-var cb = new Map();
-var session_id = "";
-const eventCalling = "Calling";
-const eventSignal = "receiveSignal";
-const eventRinging = "ringing";
-const eventAccepted = "callAccepted";
-const eventDeclined = "callDeclined";
-const eventEnded = "callEnded";
-
-hub.off('Calling');
-hub.on("Calling", (callid, msg, id) => {
-    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventCalling)) {
-        let onCalling = cb.get(id).get(eventCalling);
-        onCalling(callid, msg, id);
-    }
-})
-
-hub.off('receiveSignal');
-hub.on('receiveSignal', (signal, id) => {
-    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventSignal)) {
-        let onReceiveSignal = cb.get(id).get(eventSignal);
-        onReceiveSignal(signal, id);
-    }
-});
-
-hub.off('ringing');
-hub.on('ringing', (id) => {
-    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventRinging)) {
-        let onRinging = cb.get(id).get(eventRinging);
-        onRinging(id);
-    }
-});
-
-hub.off('callAccepted');
-hub.on('callAccepted', (id) => {
-    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventAccepted)) {
-        let onAccepted = cb.get(id).get(eventAccepted);
-        onAccepted(id);
-    }
-});
-
-hub.off('callDeclined');
-hub.on('callDeclined', (callid, code, reason, id) => {
-    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventDeclined)) {
-        let onDeclined = cb.get(id).get(eventDeclined);
-        onDeclined(callid, code, reason, id);
-    }
-});
-
-hub.off('callEnded');
-hub.on('callEnded', (callid, code, reason, id) => {
-    console.log(" /// Exite Call Ended Call Back ///");
-    if (cb.size > 0 && cb.get(id) && cb.get(id).get(eventEnded)) {
-        console.log(" ~~~ Exite Call Ended Call Back ~~~")
-        let onEnded = cb.get(id).get(eventEnded);
-        onEnded(callid, code, reason, id);
-    }
-});
-
-function AddEvent(id, loai, callback) {
-    if (!cb.get(id))
-        cb.set(id, new Map());
-
-    cb.get(id).set(loai, callback);
-}
-
-function getSessionID() {
-    return session_id;
-}
-
-function RemoveEvent(id) {
-    if (cb.get(id))
-        cb.delete(id);
-}
-
 function connectServer() {
 
     try {
@@ -119,14 +44,6 @@ function connectServer() {
                     storeData.setStoreDataValue('Registered', true)
                     storeData.setStoreDataValue('SessionCallId', id)
                 });
-
-                // conn.off('ReceivedSubCallId')
-                // conn.on('ReceivedSubCallId', (subcall_sessionid) => {
-                //     conn.invoke("ConfirmEvent", "ReceivedSubCallId", null).catch((error) => console.log(error));
-                //     conn.
-                //     subSessionCall = subcall_sessionid;
-                //     onStartCall(phonenumber, callName);
-                // });
 
             } catch (error) {
                 console.log('Hub Error: ', error);
@@ -167,7 +84,7 @@ function getHub() {
     return hub;
 }
 
-function getHubAndReconnect(callback) {
+function getHubAndReconnect() {
     logData.writeLogData('[ReJoin server]:' + JSON.stringify(hub.state));
     if (hub.state === HubConnectionState.Disconnected) {
         logData.writeLogData('[Disconnected] -> Reconnect');
@@ -183,8 +100,6 @@ function getHubAndReconnect(callback) {
     hub.off('Registered');
     hub.on('Registered', (number, id) => {
         LogSignalR.serverCallClient('Registered');
-        session_id = id;
-
         try {
             hub.invoke("ConfirmEvent", "Registered", null);
         } catch (error) {
@@ -198,7 +113,4 @@ function getHubAndReconnect(callback) {
     return hub;
 }
 
-export {
-    getHub, connectServer, reconnectServer, getHubAndReconnect, AddEvent, RemoveEvent, getSessionID,
-    eventCalling, eventRinging, eventSignal, eventAccepted, eventDeclined, eventEnded
-}
+export { getHub, connectServer, reconnectServer, getHubAndReconnect }
