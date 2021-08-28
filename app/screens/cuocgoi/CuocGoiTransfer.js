@@ -30,6 +30,8 @@ var connectionRTC = null;
 var stremRTC = null;
 var coutTinHieuYeu = 0;
 var subSessionCall = '';
+var _callID;
+var timeoutID;
 
 BackgroundTimer.start();
 
@@ -89,6 +91,8 @@ function CuocGoiTransfer({ route }) {
             setTimeStart(new Date());
             handleShowUI();
             setVisibleModel(false);
+            _callID = "";
+            if(connectionRTC) connectionRTC.close();
             navigation.goBack();
         }, 1000);
 
@@ -173,17 +177,45 @@ function CuocGoiTransfer({ route }) {
                             //kết nối yếu
 
                             setBitrate('Tín hiệu yếu');
+                            if(coutTinHieuYeu == 0) InCallManager.startRingback('_BUNDLE_');
                             coutTinHieuYeu = coutTinHieuYeu + 1;
+                            if(coutTinHieuYeu == 3)
+                            {
+                                InCallManager.startRingback('_BUNDLE_');
+                                InCallManager.setSpeakerphoneOn(isSpeaker);
+                            }
                             //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
                             if (coutTinHieuYeu % 5 == 0) {
-                                onUpdateCall();
+                                onUpdateCall(true);
                             }
-                            if (coutTinHieuYeu >= 25) {
-                                //handleEndCallTinHieuYeu();
+                            if (coutTinHieuYeu >= 45) {
+                                InCallManager.stopRingback();
+                                handleEndCallTinHieuYeu();
                             }
                         }
                         else {
                             //kết nối tốt
+                            if(coutTinHieuYeu > 0)
+                            {
+                                InCallManager.stopRingback();
+                                conn.on('callEnded', (callid, code, reason, id) => {
+                                    conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
+                                    if(_callID == callid)
+                                    {
+                                        if(timeoutID)
+                                            BackgroundTimer.clearTimeout(timeoutID);
+                                        logData.writeLogData('Server call client: callEnded');
+                                        logSignalR.serverCallClient('callEnded');
+                                        setStatusCall(statusCallEnum.DaKetThuc);
+                                        if (id == subSessionCall) {
+                                            conn.invoke("RemoveSubCall", subSessionCall);
+                                        }
+                                        //RNCallKeep.endAllCalls();
+                                        resetState();
+                                        Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+                                    }
+                                });
+                            }
                             coutTinHieuYeu = 0;
                             setBitrate('Tín hiệu tốt');
                         }
@@ -193,6 +225,20 @@ function CuocGoiTransfer({ route }) {
                 });
             });
         }
+    }
+
+    const handleEndCallTinHieuYeu = () => {
+        console.log('[handleEndCallTinHieuYeu]');
+        setStatusCall(statusCallEnum.DaKetThuc);
+        conn = getHubAndReconnect();
+        try {
+            conn.invoke('hangUp', subSessionCall).then(() => {
+                logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
+            }).catch();
+        } catch (error) {}
+        Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+        BackgroundTimer.clearInterval(interValBitRate);
+        resetState();
     }
 
     const newSignal = (data) => {
@@ -226,14 +272,18 @@ function CuocGoiTransfer({ route }) {
 
     const AddEventCall = () => {
         conn.on("Calling", (callid, msg, id) => {
-            logSignalR.serverCallClient('Calling');
-            logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
-            try {
-                conn.invoke("ConfirmEvent", "Calling", callid);
-            } catch (error) {
-                logSignalR.clientCallServerError('Calling', error);
+            if(subSessionCall == id)
+            {
+                _callID = callid;
+                logSignalR.serverCallClient('Calling');
+                logData.writeLogData('server call client: Calling, callid: ' + JSON.stringify(callid));
+                try {
+                    conn.invoke("ConfirmEvent", "Calling", callid);
+                } catch (error) {
+                    logSignalR.clientCallServerError('Calling', error);
+                }
+                console.log("Calling Home: ", callid);
             }
-            console.log("Calling Home: ", callid);
         });
 
         conn.on('receiveSignal', (signal, id) => {
@@ -258,7 +308,7 @@ function CuocGoiTransfer({ route }) {
             } catch (error) {
                 logSignalR.clientCallServerError('Ringing', error);
             }
-            // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
+            //Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
         });
 
         conn.on('callAccepted', (id) => {
@@ -276,7 +326,7 @@ function CuocGoiTransfer({ route }) {
             conn.invoke("ConfirmEvent", "callDeclined", callid).catch((error) => console.log(error));
     
             logData.writeLogData('Server call client: callDeclined');
-            logSignalR.serverCallClient('callEnded');
+            logSignalR.serverCallClient('callDeclined');
             RNCallKeep.endAllCalls();
             setStatusCall(statusCallEnum.DaKetThuc);
             resetState();
@@ -285,16 +335,20 @@ function CuocGoiTransfer({ route }) {
 
         conn.on('callEnded', (callid, code, reason, id) => {
             conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
-    
-            logData.writeLogData('Server call client: callEnded');
-            logSignalR.serverCallClient('callEnded');
-            setStatusCall(statusCallEnum.DaKetThuc);
-            if (id == subSessionCall) {
-                conn.invoke("RemoveSubCall", subSessionCall);
+            if(_callID == callid)
+            {
+                if(timeoutID)
+                    BackgroundTimer.clearTimeout(timeoutID);
+                logData.writeLogData('Server call client: callEnded');
+                logSignalR.serverCallClient('callEnded');
+                setStatusCall(statusCallEnum.DaKetThuc);
+                if (id == subSessionCall) {
+                    conn.invoke("RemoveSubCall", subSessionCall);
+                }
+                //RNCallKeep.endAllCalls();
+                resetState();
+                Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
             }
-            //RNCallKeep.endAllCalls();
-            resetState();
-            Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
         });
     };
     
@@ -335,13 +389,15 @@ function CuocGoiTransfer({ route }) {
         console.log('[isHold]', value, isclick, isHold);
         if (isclick == 1) {
             setIsHold(value);
+            this.isHold = value;
         }
 
         if (value) {
             try {
                 conn = getHubAndReconnect();
-                conn.invoke("Hold", subSessionCall);
-                setRemoteAudio(false);
+                //conn.invoke("Hold", subSessionCall);
+                //setRemoteAudio(false);
+                onUpdateCall(false);
             } catch {
                 logData.writeLogData('Error invoke Hold');
             }
@@ -349,8 +405,9 @@ function CuocGoiTransfer({ route }) {
         else {
             if (isclick == 1) {
                 try {
-                    conn.invoke("UnHold", subSessionCall);
-                    setRemoteAudio(true);
+                    //conn.invoke("UnHold", subSessionCall);
+                    //setRemoteAudio(true);
+                    onUpdateCall(true);
                 } catch {
                     logData.writeLogData('Error invoke UnHold');
                 }
@@ -358,8 +415,9 @@ function CuocGoiTransfer({ route }) {
             else {
                 if (isHold == false) {
                     try {
-                        conn.invoke("UnHold", subSessionCall);
-                        setRemoteAudio(true);
+                        ///conn.invoke("UnHold", subSessionCall);
+                        //setRemoteAudio(true);
+                        onUpdateCall(true);
                     } catch {
                         logData.writeLogData('Error invoke UnHold');
                     }
@@ -397,19 +455,22 @@ function CuocGoiTransfer({ route }) {
 
 
     const onHangUp = async () => {
-        BackgroundTimer.clearInterval(interValBitRate);
+        
         conn = getHubAndReconnect();
         console.log('hangUp');
-        //conn.invoke('hangUp', subSessionCall).catch((error) => console.log(error));
-        conn.invoke("RemoveSubCall", subSessionCall)
-        setStatusCall(statusCallEnum.DaKetThuc);
+        conn.invoke("hangUp", subSessionCall)
         if (coutTinHieuYeu > 2 && coutTinHieuYeu < 25) {
             useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
         }
 
-        resetState();
+        timeoutID = BackgroundTimer.setTimeout(() => {
+            BackgroundTimer.clearInterval(interValBitRate);
+            setStatusCall(statusCallEnum.DaKetThuc);
+            resetState();
+            Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+        }, 10000);
 
-        Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+        
     };
 
     const onDTMF = (dialString) => {
@@ -421,8 +482,8 @@ function CuocGoiTransfer({ route }) {
         }
     }
 
-    const onUpdateCall = async () => {
-        connectionRTC.createOffer({ iceRestart: true }).then((offer) => {
+    const onUpdateCall = async (check) => {
+        connectionRTC.createOffer({ iceRestart: true, offerToReceiveAudio: check }).then((offer) => {
             connectionRTC.setLocalDescription(offer)
                 .then(() => {
                     conn.invoke("UpdateOffer", connectionRTC.localDescription.sdp, subSessionCall);
@@ -526,7 +587,6 @@ function CuocGoiTransfer({ route }) {
 
         return () => {
             RemoveEventCall();
-            connectionRTC.close();
             RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
             RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
             RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);

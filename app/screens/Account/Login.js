@@ -86,8 +86,9 @@ function Login({ navigation }) {
                             console.log("Token: ", json)
                         }
                     })
+
                     BackgroundTimer.setTimeout(() => {
-                        connectServer()
+                        connectServer(true)
                     }, 300);
 
                     navigation.navigate('BanPhim',);

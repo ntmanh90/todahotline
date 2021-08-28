@@ -3,6 +3,7 @@ import { ILogger, LogLevel, HubConnectionBuilder, HubConnectionState } from '@mi
 import storeData from '../hooks/storeData';
 import LogSignalR from '../utils/customLogSignalR';
 import logData from '../utils/logData';
+import NetInfo from "@react-native-community/netinfo";
 
 
 let hub = new HubConnectionBuilder()
@@ -10,48 +11,79 @@ let hub = new HubConnectionBuilder()
     //.withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
     // .configureLogging(LogLevel.Information)
     .build();
+hub.serverTimeoutInMilliseconds = 120000;
 
-function connectServer() {
+let _onConnected;
 
-    try {
-        storeData.getStoreDataObject('sip_user').then((sipUser) => {
-            console.log('start sip', sipUser);
-            try {
+function onConnected(cb)
+{
+    console.log("ONCONNECTED NÈ.");
+    _onConnected = cb;
+}
+
+function connectServer(check) {
+
+    try{
+        NetInfo.fetch().then(state => {
+
+            if(state.isConnected) {
                 if (hub.state !== HubConnectionState.Disconnected) {
                     console.log('đã vào hàm reconnect');
-                    reconnectServer();
+                    if(check){
+                        JoinServer();
+                    }
+                    else{
+                        reconnectServer();
+                    }
                 }
                 else {
-                    console.log('bắt đầu gọi hềm kết nối server');
-                    logData.writeLogData('[Join server]:' + sipUser.user + ", " + sipUser.mact);
+                    console.log('bắt đầu gọi hàm kết nối server');
                     hub.start().then(() => {
-                        hub.invoke('Join',
-                            sipUser.user,
-                            sipUser.mact,
-                            2
-                        ).catch();
-                    });
+                        if(check){
+                            JoinServer();
+                        }
+                        else{
+                            reconnectServer();
+                        }
+                    });  
                 }
+    
+                console.log("Internet connected");
+            }
+            else
+            {
+                setTimeout(() => connectServer(check), 2000);
+            }
+        });
+    }
+    catch(error){
+        console.log(error);
+    }   
+}
 
-                hub.off('Registered');
-                hub.on('Registered', (number, id) => {
-                    LogSignalR.serverCallClient('Registered');
-                    try {
-                        hub.invoke("ConfirmEvent", "Registered", null);
-                    } catch (error) {
-                        LogSignalR.clientCallServerError('Registered', error)
-                    }
-                    storeData.setStoreDataValue('Registered', true)
-                    storeData.setStoreDataValue('SessionCallId', id)
-                });
+function JoinServer() {
 
+    console.log('client call Join to Server');
+    try {
+        storeData.getStoreDataObject('sip_user').then((sipUser) => {
+            console.log('sip_user: ', sipUser);
+            logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
+            try {
+                hub.invoke('Join',
+                    sipUser.user,
+                    sipUser.mact,
+                    2
+                ).catch();
             } catch (error) {
                 console.log('Hub Error: ', error);
                 LogSignalR.clientCallServerError('Join', error);
+                setTimeout(() => connectServer(true), 2000);
             }
         });
+
     } catch (ex) {
         console.log(ex);
+        setTimeout(() => connectServer(true), 2000);
     }
 }
 
@@ -70,17 +102,37 @@ function reconnectServer() {
                 ).catch();
             } catch (error) {
                 console.log('Hub Error: ', error);
-                LogSignalR.clientCallServerError('Join', error);
+                LogSignalR.clientCallServerError('ReJoin', error);
+                setTimeout(() => connectServer(), 2000);
             }
         });
 
     } catch (ex) {
         console.log(ex);
+        setTimeout(() => connectServer(), 2000);
     }
 }
 
+hub.off('Registered');
+hub.on('Registered', (number, id) => {
+    console.log('Registered : ' + id);
+    LogSignalR.serverCallClient('Registered');
+    try {
+        hub.invoke("ConfirmEvent", "Registered", null);
+    } catch (error) {
+        LogSignalR.clientCallServerError('Registered', error);
+    }
+    if(_onConnected)
+    {
+        console.log('_onConnected : ' + id);
+        _onConnected();
+    }
+                    
+    storeData.setStoreDataValue('Registered', true);
+    storeData.setStoreDataValue('SessionCallId', id);
+});
+
 function getHub() {
-    hub.serverTimeoutInMilliseconds = 120000;
     return hub;
 }
 
@@ -96,21 +148,20 @@ function getHubAndReconnect() {
         logData.writeLogData('[Connecting] -> Reconnect');
         reconnectServer();
     }
+    // hub.off('Registered');
+    // hub.on('Registered', (number, id) => {
+    //     LogSignalR.serverCallClient('Registered');
+    //     try {
+    //         hub.invoke("ConfirmEvent", "Registered", null);
+    //     } catch (error) {
+    //         LogSignalR.clientCallServerError('Registered', error)
+    //     }
+    //     if(_onConnected) onConnected();
+    //     storeData.setStoreDataValue('Registered', true)
+    //     storeData.setStoreDataValue('SessionCallId', id)
+    // });
 
-    hub.off('Registered');
-    hub.on('Registered', (number, id) => {
-        LogSignalR.serverCallClient('Registered');
-        try {
-            hub.invoke("ConfirmEvent", "Registered", null);
-        } catch (error) {
-            LogSignalR.clientCallServerError('Registered', error)
-        }
-        storeData.setStoreDataValue('Registered', true)
-        storeData.setStoreDataValue('SessionCallId', id)
-    });
-
-    hub.serverTimeoutInMilliseconds = 120000;
     return hub;
 }
 
-export { getHub, connectServer, reconnectServer, getHubAndReconnect }
+export { getHub, connectServer, reconnectServer, getHubAndReconnect, onConnected }

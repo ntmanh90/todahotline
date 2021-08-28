@@ -20,6 +20,7 @@ import colors from '../../theme/colors';
 import keyStoreData from '../../utils/keyStoreData';
 import ProgressApp from '../../components/ProgressApp';
 import BackgroundTimer from 'react-native-background-timer';
+import { getHubAndReconnect } from '../../hubmanager/HubManager';
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
@@ -73,6 +74,8 @@ export default function Caidat({ navigation }) {
                 body: JSON.stringify(params)
             }).then((responce) => {
                 setShowProcess(false);
+                var conn = getHubAndReconnect();
+                conn.invoke('SignOut').catch(); 
                 if (responce.status) {
                     BackgroundTimer.setTimeout(() => {
                         try {
@@ -86,8 +89,6 @@ export default function Caidat({ navigation }) {
                             removeDataLogin();
                         }
                     }, 1000);
-
-                    // conn.invoke('SignOut', somayle).catch();
                     // conn.stop();
                 }
             })

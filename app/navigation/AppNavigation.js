@@ -15,7 +15,8 @@ import DoiMatKhau from '../screens/Account/DoiMatKhau';
 
 const Drawer = createDrawerNavigator();
 
-function AppNavigation(props) {
+const AppNavigation = () => {
+
     return (
         <NavigationContainer ref={navigationRef}>
             <Drawer.Navigator drawerContent={(props) => <DrawerContent {...props} />}>
@@ -31,6 +32,6 @@ function AppNavigation(props) {
             </Drawer.Navigator>
         </NavigationContainer >
     );
-}
+};
 
 export default AppNavigation;
