@@ -90,22 +90,29 @@ const App = (props) => {
     let _soDienThoaiDen = soDienThoaiDen;
     let hoTen = _soDienThoaiDen;
 
-    db.transaction((tx) => {
-      tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [_soDienThoaiDen],
-        (tx, { rows }) => {
-          console.log('getHoTenTheoSoDienThoai', rows);
-          if (rows.length > 0) {
-            if (rows.item(0).ho_ten) {
-              hoTen = rows.item(0).ho_ten;
-              storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, hoTen);
+    try
+    {
+      db.transaction((tx) => {
+        tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [_soDienThoaiDen],
+          (tx, { rows }) => {
+            console.log('getHoTenTheoSoDienThoai', rows);
+            if (rows.length > 0) {
+              if (rows.item(0).ho_ten) {
+                hoTen = rows.item(0).ho_ten;
+                storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, hoTen);
+              }
             }
+          },
+          (tx, error) => {
+            console.log('Error list cuoc goi: ', error, tx);
           }
-        },
-        (tx, error) => {
-          console.log('Error list cuoc goi: ', error, tx);
-        }
-      );
-    });
+        );
+      });
+    }
+    catch(err){
+      console.log(err);
+    }
+    
     //logData.writeLogData('[displayIncomingCall]: ' + _soDienThoaiDen + ", " + hoTen);
     //RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
 
@@ -121,8 +128,8 @@ const App = (props) => {
       songuon: _soDienThoaiDen,
       somayle: somayle,
       prefix: prefix,
-      uniqueid: paramNoti.uniqueid ?? '',
-      channel: paramNoti.channel ?? '',
+      uniqueid: paramNoti ? (paramNoti.uniqueid ?? '') : '',
+      channel: paramNoti ? (paramNoti.channel ?? '') : '',
     }
     let url = http + BaseURL.URL_CHECK_INCOMINGCAL;
     AppApi.RequestPOST(url, params, (err, json) => {
@@ -130,11 +137,14 @@ const App = (props) => {
 
       if (!err) {
         logData.writeLogData('[CallAPI: checkcuocgoi] send | result: ' + JSON.stringify(json.data.status));
+        console.debug(json.data);
         if (json.data.status) {
+          console.log('[Lan dau hien thi Incomming Call]');
           RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
           logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
           RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
         } else {
+          console.log('[Lan dau khong hien thi duoc Incomming Call]');
           CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
           return;
         }
@@ -146,12 +156,21 @@ const App = (props) => {
     });
   };
 
-  const _handleAppStateChange = (nextAppState) => {
+  const _handleAppStateChange = async (nextAppState) => {
     if ((appState == "inactive" || appState == "background") && nextAppState === 'active') {
       if(reconnectTimeoutID) BackgroundTimer.clearTimeout(reconnectTimeoutID);
-      reconnectTimeoutID = BackgroundTimer.setTimeout(() => {
-        connectServer();
-      }, 300);
+      let isLoginData = await storeData.getStoreDataValue('isLogin');
+      setIsLogin(isLoginData);
+      if (isLoginData !== 'true') {
+        RootNavigation.navigate('Login');
+      }
+      else
+      {
+        reconnectTimeoutID = BackgroundTimer.setTimeout(() => {
+          connectServer();
+        }, 300);
+      }
+      
       logData.writeLogData('App has come to the foreground!');
     }
 
@@ -383,7 +402,7 @@ const App = (props) => {
           storeData.setStoreDataValue('tennhanvien', '');
           storeData.setStoreDataValue('isLogin', false);
 
-          conn.invoke('SignOut').catch();
+          //conn.invoke('SignOut').catch();
           conn.stop();
           RootNavigation.navigate('Login');
         }

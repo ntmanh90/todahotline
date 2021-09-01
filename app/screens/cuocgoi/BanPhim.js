@@ -17,6 +17,8 @@ import BaseURL from '../../utils/BaseURL';
 import AppApi from '../../api/Client';
 import RNRestart from 'react-native-restart';
 import logData from '../../utils/logData';
+import NetInfo from "@react-native-community/netinfo";
+import Toast from 'react-native-simple-toast';
 
 BackgroundTimer.start();
 const IOS = Platform.OS === 'ios';
@@ -43,28 +45,37 @@ function BanPhim({ navigation }) {
             }
         }
 
-        let termHoTen = soDienThoai;
-        db.transaction((tx) => {
-            tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [soDienThoai],
-                (tx, { rows }) => {
-                    console.log('getHoTenTheoSoDienThoai', rows);
-                    if (rows.length > 0) {
-                        termHoTen = rows.item(0).ho_ten;
-                    }
-                },
-                (tx, error) => {
-                    console.log('Error check tên số điện thoại ', error);
-                }
-            );
-        });
-        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
-        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
-        storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
-        let termSDT = soDienThoai;
-        setSoDienThoai('');
-        console.log('Dữ liệu truyền sang màn hình cuộc gọi: ', termSDT, termHoTen, typeCallEnum.outgoingCall);
-        navigation.navigate('CuocGoi');
+        NetInfo.fetch().then(state => {
 
+            if(state.isConnected) {
+                let termHoTen = soDienThoai;
+                db.transaction((tx) => {
+                    tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [soDienThoai],
+                        (tx, { rows }) => {
+                            console.log('getHoTenTheoSoDienThoai', rows);
+                            if (rows.length > 0) {
+                                termHoTen = rows.item(0).ho_ten;
+                            }
+                        },
+                        (tx, error) => {
+                            console.log('Error check tên số điện thoại ', error);
+                        }
+                    );
+                });
+                storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
+                storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
+                storeData.setStoreDataValue(keyStoreData.typeCall, typeCallEnum.outgoingCall);
+                let termSDT = soDienThoai;
+                setSoDienThoai('');
+                console.log('Dữ liệu truyền sang màn hình cuộc gọi: ', termSDT, termHoTen, typeCallEnum.outgoingCall);
+                navigation.navigate('CuocGoi');
+            }
+            else
+            {
+                logData.writeLogData('[Call Internet Error. Show Toast]');
+                Toast.showWithGravity("Mất kết nối Internet. Vui lòng kiểm tra lại đường truyền.", Toast.LONG, Toast.BOTTOM);
+            }
+        });
     }
 
     const handleKeypadPressed = (value) => {

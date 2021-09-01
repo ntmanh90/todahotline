@@ -33,7 +33,6 @@ conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
     storeData.setStoreDataValue(keyStoreData.callid, callid);
 
     DeviceEventEmitter.emit('displayIncomingCallEvent');
-
 });
 
 

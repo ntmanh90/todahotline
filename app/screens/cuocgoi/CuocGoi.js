@@ -26,6 +26,7 @@ import InCallManager from 'react-native-incall-manager';
 import useSendMissCall from '../../hooks/useSendMissCall';
 import statusMissCallType from '../../utils/statusMissCallType';
 import { isLandscape } from 'react-native-device-info';
+import { variant } from 'styled-system';
 
 const widthScreen = Dimensions.get('window').width;
 const heightScreen = Dimensions.get('window').height;
@@ -37,8 +38,8 @@ var connectionCheckBitRate = null;
 var _callID = "";
 var sessionID = "";
 var timeoutID;
-var timeoutBitrateID;
 var stremRTC = null;
+var isconnectionHold = false;
 
 BackgroundTimer.start();
 
@@ -60,7 +61,6 @@ const webrtcConstraints = { audio: true, video: false };
 const isIOS = Platform.OS === 'ios';
 
 function CuocGoi({ route }) {
-    const [connectionRTC, setConnectionRTC] = useState(null);
     const [isTransfer, setIsTransfer] = useState(false);
     const [isDTMF, setIsDTMF] = useState(false);
     const [isCall, setIsCall] = useState(true);
@@ -94,7 +94,6 @@ function CuocGoi({ route }) {
             };
             storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
             storeData.setStoreDataValue(keyStoreData.isHold, false);
-            setConnectionRTC(null);
             setPhonenumber('');
             setIsHold(false);
             setBitrate('');
@@ -106,8 +105,10 @@ function CuocGoi({ route }) {
             setIsSpeaker(false);
             setIsCuocGoiTransfer(false);
             setTxtStatusCall('');
-            connectionCheckBitRate = null;
             stremRTC = null;
+            sessionID = '';
+            _callID = "";
+            isconnectionHold = false;
 
             setTimeStart(new Date());
             handleShowUI();
@@ -116,8 +117,8 @@ function CuocGoi({ route }) {
             storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, '');
             storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, '');
             storeData.setStoreDataValue(keyStoreData.soDienThoai, '');
-            _callID = "";
             if(connectionCheckBitRate) connectionCheckBitRate.close();
+            connectionCheckBitRate = null;
             InCallManager.stopRingback();
             InCallManager.stop();
             navigation.navigate('BanPhim');
@@ -152,14 +153,14 @@ function CuocGoi({ route }) {
     };
 
     /// Handle SignalR //////////////////////////////////
-    const callbackIceCandidateJanus = (evt, callid) => {
+    const callbackIceCandidateJanus = (evt, id) => {
         conn = getHubAndReconnect();
         if (evt.candidate) {
             //Found a new candidate
             Januscandidates.push(JSON.stringify({ candidate: evt.candidate }));
         } else {
             try {
-                conn.invoke('SendCandidate', Januscandidates, callid).then(() => {
+                conn.invoke('SendCandidate', Januscandidates, id).then(() => {
                     console.log('invoke: SendCandidate cuộc gọi đi ', phonenumber);
                     logData.writeLogData('invoke: SendCandidate cuộc gọi đi ' + phonenumber.toString())
                 });
@@ -201,7 +202,6 @@ function CuocGoi({ route }) {
             conn.invoke('CallAsterisk', number, connection.localDescription.sdp, sessionCall).then(() => {
                 logData.writeLogData('invoke: CallAsterisk cuộc gọi đi ' + number);
             });
-            setConnectionRTC(connection);
             connectionCheckBitRate = connection;
             setStatusCall(statusCallEnum.DangKetNoi);
             // setconsole.log('----connection', connection);
@@ -232,7 +232,6 @@ function CuocGoi({ route }) {
                             logSignalR.clientCallServer('AnswerCallAsterisk')
                             conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
                                 logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi ');
-                                setConnectionRTC(connection);
                                 connectionCheckBitRate = connection;
                                 //console.log('[connection]', connection);
                                 setStatusCall(statusCallEnum.DaKetNoi);
@@ -258,7 +257,7 @@ function CuocGoi({ route }) {
                         const bitrate = parseFloat(report.bytesReceived);
                         //console.log('[bitrate]', report);
                         //console.log('[bitrate]: ', bitrate);
-                        if (bitrate - bitratePrew <= 0 && !this.isHold ) {
+                        if (bitrate - bitratePrew <= 0 && !isconnectionHold ) {
                             //kết nối yếu
 
                             setBitrate('Tín hiệu yếu');
@@ -268,9 +267,11 @@ function CuocGoi({ route }) {
                                 InCallManager.startRingback('_BUNDLE_');
                                 InCallManager.setSpeakerphoneOn(isSpeaker);
                             }
-                            //console.log('[Tín hiệu yếu]', coutTinHieuYeu);
-                            if (coutTinHieuYeu % 3 == 0 ) {
-                                onUpdateCall(true);
+
+                            console.log('[Tín hiệu yếu]', coutTinHieuYeu);
+
+                            if (coutTinHieuYeu % 3 ==  0 ) {
+                                onUpdateCall();
                             }
 
                             if (coutTinHieuYeu >= 45) {
@@ -288,6 +289,7 @@ function CuocGoi({ route }) {
                             if(coutTinHieuYeu > 0)
                             {
                                 InCallManager.stopRingback();
+                                InCallManager.setSpeakerphoneOn(isSpeaker);
                                 conn.off('callEnded');
                                 conn.on('callEnded', (callid, code, reason, id) => {
                                     console.log("CallID :" + _callID);
@@ -366,22 +368,12 @@ function CuocGoi({ route }) {
         }
     }
 
-    const setRemoteAudio = (check) => {
-        var streams = connectionCheckBitRate.getRemoteStreams();
-        streams.forEach(stream => {
-            var tracks = stream.getAudioTracks();
-            tracks.forEach(track => {
-                track.enabled = check;
-            });
-        });
-    }
-
     const onHold = async (value, isclick) => {
         let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
         console.log('[isHold]', value, isclick, isHold);
         if (isclick == 1) {
             setIsHold(value);
-            this.isHold = value;
+            isconnectionHold = value;
             storeData.setStoreDataValue(keyStoreData.isHold, value);
         }
 
@@ -390,7 +382,7 @@ function CuocGoi({ route }) {
                 conn = getHubAndReconnect();
                 //conn.invoke("Hold", sessionCallId);
                 //setRemoteAudio(false);
-                onUpdateCall(false);
+                onHoldCall(false);
             } catch {
                 logData.writeLogData('Error invoke Hold');
             }
@@ -400,7 +392,7 @@ function CuocGoi({ route }) {
                 try {
                     //conn.invoke("UnHold", sessionCallId);
                     //setRemoteAudio(true);
-                    onUpdateCall(true);
+                    onHoldCall(true);
                 } catch {
                     logData.writeLogData('Error invoke UnHold');
                 }
@@ -410,7 +402,7 @@ function CuocGoi({ route }) {
                     try {
                         //conn.invoke("UnHold", sessionCallId);
                         //setRemoteAudio(true);
-                        onUpdateCall(true);
+                        onHoldCall(true);
                     } catch {
                         logData.writeLogData('Error invoke UnHold');
                     }
@@ -488,15 +480,47 @@ function CuocGoi({ route }) {
         }
     }
 
-    const onUpdateCall = async (check) => {
-        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: check }).then((offer) => {
-            connectionCheckBitRate.setLocalDescription(offer)
-                .then(() => {
-                    conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionCallId);
-                })
-                .catch();
-        }).catch();
+    const onUpdateCall = () => {
+        NetInfo.fetch().then(state => {
+            if(state.isConnected) {
+                if(connectionCheckBitRate)
+                {
+                    console.log("[Update Call]");
+                    connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: true }).then((offer) => {
+                        connectionCheckBitRate.setLocalDescription(offer)
+                            .then(() => {
+                                conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionID);
+                            })
+                            .catch();
+                    }).catch();
+                }
+            }
+        });
+    }
+
+    const onHoldCall = (check) => {
+        NetInfo.fetch().then(state => {
+
+            if(state.isConnected) {
+                if(connectionCheckBitRate)
+                {
+                    console.log("[OnHold Call] : " + check.toString());
+                    connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: check }).then((offer) => {
+                        connectionCheckBitRate.setLocalDescription(offer)
+                            .then(() => {
+                                conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionID);
+                            })
+                            .catch();
+                    }).catch();
+
+                    connectionCheckBitRate.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionID);
+                }
+            }
+            else
+            {
+                Toast.showWithGravity("Mất kết nối Internet. Vui lòng kiểm tra lại đường truyền và thử lại.", Toast.LONG, Toast.BOTTOM);
+            }
+        });
     }
 
     /// end xử lý nút bấm UI ///
@@ -609,6 +633,8 @@ function CuocGoi({ route }) {
 
     useFocusEffect(
         React.useCallback(() => {
+            InCallManager.setSpeakerphoneOn(isSpeaker);
+
             conn.off('Calling');
             conn.on("Calling", (callid, msg, id) => {
                 if(sessionID == id)

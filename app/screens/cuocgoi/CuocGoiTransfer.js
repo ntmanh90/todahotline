@@ -12,7 +12,7 @@ import CuocgoiDB from '../../database/CuocGoiDB';
 import RNCallKeep from 'react-native-callkeep';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
 import statusCallEnum from '../../utils/statusCallEnum';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Calltimer from '../../components/Calltimer';
 import PopUpDialerScreeen from './PopUpDialerScreeen';
 import TransferScreen from './TransferScreen';
@@ -84,7 +84,6 @@ function CuocGoiTransfer({ route }) {
             setIsSpeaker(false);
             setTxtStatusCall('');
             subSessionCall = '';
-            connectionRTC = null;
             stremRTC = null;
             coutTinHieuYeu = 0;
 
@@ -93,7 +92,9 @@ function CuocGoiTransfer({ route }) {
             setVisibleModel(false);
             _callID = "";
             if(connectionRTC) connectionRTC.close();
-            navigation.goBack();
+            connectionRTC = null;
+            InCallManager.stopRingback();
+            navigation.navigate('CuocGoi');
         }, 1000);
 
     }
@@ -548,6 +549,14 @@ function CuocGoiTransfer({ route }) {
         }
         conn.invoke('SubCall')
     }
+
+    useFocusEffect(
+        React.useCallback(() => {
+          return () => {
+            RemoveEventCall();
+          }
+        }, [])
+    );
 
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
