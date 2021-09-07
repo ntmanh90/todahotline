@@ -6576,7 +6576,7 @@ react-native-background-timer@^2.4.1:
 
 react-native-callkeep@^4.2.0:
   version "4.2.0"
-  resolved "https://registry.npmjs.org/react-native-callkeep/-/react-native-callkeep-4.2.0.tgz"
+  resolved "https://registry.yarnpkg.com/react-native-callkeep/-/react-native-callkeep-4.2.0.tgz#84f20eaf07a4b3494502bf9156dbdbf4b7617122"
   integrity sha512-52cA2izvw46K3M6SElV8cH+jUxvH9CYOrsnpIgnBtWLnJDcCehRNIZ0rSGfV3entxBgErCLBeIHHv9nEkMDdFQ==
 
 react-native-codegen@^0.0.6:

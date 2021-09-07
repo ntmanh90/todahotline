@@ -318,7 +318,7 @@ function Login({ navigation }) {
                     }}
                 />
 
-                <Button title="Đăng nhập" onPress={LoginApi} containerStyle={styles.borderButton} buttonStyle={{ borderRadius: 20 }} />
+                <Button title="Đăng nhập"  onPress={LoginApi} containerStyle={styles.borderButton} buttonStyle={{ borderRadius: 20 }} />
 
                 <Text
                     style={[

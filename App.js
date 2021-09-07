@@ -37,7 +37,6 @@ var appState;
 var reconnectTimeoutID, startTimeoutID;
 
 BackgroundTimer.start();
-
 RNCallKeep.setup({
   ios: {
     appName: 'CallKeepDemo',
@@ -59,7 +58,7 @@ RNCallKeep.setup({
   },
 });
 if (!isIOS) {
-  console.log('đã vào mục này');
+  console.log('Là Android đã vào mục này');
   RNCallKeep.backToForeground();
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
@@ -143,6 +142,7 @@ const App = (props) => {
           RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
           logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
           RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
+          RNCallKeep.backToForeground();
         } else {
           console.log('[Lan dau khong hien thi duoc Incomming Call]');
           CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
@@ -187,6 +187,7 @@ const App = (props) => {
       RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
     }, 150);
 
+    //RNCallKeep.rejectCall();
     RootNavigation.navigate('CuocGoi');
   };
 
@@ -196,6 +197,8 @@ const App = (props) => {
     const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
     let isAnswerCall = await storeData.getStoreDataValue(keyStoreData.isAnswerCall);
+
+    
     if (isAnswerCall === 'true') {
       conn.invoke('hangUp', sessionCallId).then(() => {
         logData.writeLogData('Invoke: hangUp | App, SDT: ' + sdt);

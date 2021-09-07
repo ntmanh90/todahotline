@@ -212,41 +212,28 @@ function CuocGoi({ route }) {
 
     const incomingcall = async (sdp, sessionCall) => {
         conn = getHubAndReconnect();
-        //console.log('incomingcall', sessionCall, sdp);
         let stream = await mediaDevices.getUserMedia(webrtcConstraints);
         stremRTC = stream;
-        let connection = new RTCPeerConnection(configuration);
+        var connection = new RTCPeerConnection(configuration);
 
-        console.log('connection');
-        connection.onicecandidate = (evt) =>
-            callbackIceCandidateJanus(evt, sessionCall); // ICE Candidate Callback
-        connection.onicecandidateerror = (error) =>
-            callbackIceCandidateJanusError(error);
+        connection.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionCall); // ICE Candidate Callback
+        connection.onicecandidateerror = (error) => callbackIceCandidateJanusError(error);
         connection.addStream(stream);
-        connection.setRemoteDescription(sdp).then(() => {
-            try {
-                console.log('setRemoteDescription');
-                connection.createAnswer().then((jsep) => {
-                    connection.setLocalDescription(jsep).then(() => {
-                        try {
-                            logSignalR.clientCallServer('AnswerCallAsterisk')
-                            conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
-                                logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi ');
-                                connectionCheckBitRate = connection;
-                                //console.log('[connection]', connection);
-                                setStatusCall(statusCallEnum.DaKetNoi);
-                            });
-                        } catch (error) {
-                            console.log('AnswerCallAsterisk Error call out', error);
-                        }
-                    });
-                });
+        await connection.setRemoteDescription(sdp);
+        let answer = await connection.createAnswer();
+        await connection.setLocalDescription(answer);
 
-            }
-            catch (error) {
-                logSignalR.clientCallServerError('AnswerCallAsterisk', error);
-            }
-        })
+        try {
+            logSignalR.clientCallServer('AnswerCallAsterisk')
+            conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
+                logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi ');
+            });
+
+            connectionCheckBitRate = connection;
+            setStatusCall(statusCallEnum.DaKetNoi);
+        } catch (error) {
+            console.log('AnswerCallAsterisk Error call out', error);
+        }
     }
 
     const getTinHieu = async () => {
@@ -481,21 +468,13 @@ function CuocGoi({ route }) {
     }
 
     const onUpdateCall = () => {
-        NetInfo.fetch().then(state => {
-            if(state.isConnected) {
-                if(connectionCheckBitRate)
-                {
-                    console.log("[Update Call]");
-                    connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: true }).then((offer) => {
-                        connectionCheckBitRate.setLocalDescription(offer)
-                            .then(() => {
+        conn = getHubAndReconnect();
+        connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: true }).then((offer) => {
+        connectionCheckBitRate.setLocalDescription(offer).then(() => {
                                 conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionID);
-                            })
-                            .catch();
-                    }).catch();
-                }
-            }
-        });
+            })
+            .catch();
+        }).catch();
     }
 
     const onHoldCall = (check) => {
@@ -534,7 +513,7 @@ function CuocGoi({ route }) {
     const didPerformSetMutedCallAction = async ({ muted, callUUID }) => {
         //Gọi hàm xử lý sự kiện mute 
         //setIsMute(muted);
-        RNCallKeep.setMutedCall(callUUID, muted);
+        //RNCallKeep.setMutedCall(callUUID, muted);
     };
 
     const didToggleHoldCallAction = async ({ hold, callUUID }) => {
@@ -782,22 +761,15 @@ function CuocGoi({ route }) {
 
 
     useEffect(() => {
-        RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
-        RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
-        RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+        // RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
+        // RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+        // RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
 
-        // const unsubscribe_NetInfo_CuocGoi = NetInfo.addEventListener(state => {
-        //     if (state.isConnected) {
-        //         BackgroundTimer.setTimeout(() => {
-        //             onUpdateCall();
-        //         }, 2000);
-        //     }
-        // });
 
         return () => {
-            RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
-            RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
-            RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
+            // RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
+            // RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
+            // RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
             //unsubscribe_NetInfo_CuocGoi();
         }
     }, []);
