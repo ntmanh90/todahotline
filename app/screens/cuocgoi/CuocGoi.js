@@ -467,13 +467,14 @@ function CuocGoi({ route }) {
         }
     }
 
-    const onUpdateCall = () => {
-        conn = getHubAndReconnect();
-        connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: true }).then((offer) => {
-        connectionCheckBitRate.setLocalDescription(offer).then(() => {
-                                conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionID);
-            })
-            .catch();
+    const onUpdateCall = async () => {
+        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
+        connectionCheckBitRate.createOffer({ iceRestart: true }).then((offer) => {
+            connectionCheckBitRate.setLocalDescription(offer)
+                .then(() => {
+                    conn.invoke("UpdateOffer", connectionCheckBitRate.localDescription.sdp, sessionCallId);
+                })
+                .catch();
         }).catch();
     }
 
