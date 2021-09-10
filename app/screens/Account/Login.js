@@ -123,7 +123,6 @@ function Login({ navigation }) {
             return;
         }
 
-        console.log('[renderProcess]', renderProcess);
         var params = 'idct=' + maCongTy;
         var url = BaseUrl.URL_LOGININFO + params;
         console.log(url);

@@ -142,7 +142,7 @@ const App = (props) => {
           RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
           logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
           RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
-          RNCallKeep.backToForeground();
+          //RNCallKeep.backToForeground();
         } else {
           console.log('[Lan dau khong hien thi duoc Incomming Call]');
           CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);

@@ -288,7 +288,7 @@ function CuocGoi({ route }) {
                                         logData.writeLogData('Server call client: callEnded');
                                         logSignalR.serverCallClient('callEnded');
                                         setStatusCall(statusCallEnum.DaKetThuc);
-                                        RNCallKeep.endAllCalls();
+                                        //RNCallKeep.endAllCalls();
                                         resetState();
                                         Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
                                     }
@@ -444,7 +444,7 @@ function CuocGoi({ route }) {
             timeoutID = BackgroundTimer.setTimeout(() => {
                 setStatusCall(statusCallEnum.DaKetThuc);
                 try {
-                RNCallKeep.endAllCalls();
+                //RNCallKeep.endAllCalls();
                 } catch (error) {}
                 Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
                 BackgroundTimer.clearInterval(interValBitRate);
@@ -529,7 +529,7 @@ function CuocGoi({ route }) {
         setStatusCall(statusCallEnum.DaKetThuc);
         conn = getHubAndReconnect();
         try {
-            RNCallKeep.endAllCalls();
+            //RNCallKeep.endAllCalls();
             conn.invoke('hangUp', sessionID).then(() => {
                 logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
             }).catch();
@@ -680,7 +680,7 @@ function CuocGoi({ route }) {
         
                 logData.writeLogData('Server call client: callDeclined');
                 logSignalR.serverCallClient('callEnded');
-                RNCallKeep.endAllCalls();
+                //RNCallKeep.endAllCalls();
                 setStatusCall(statusCallEnum.DaKetThuc);
                 resetState();
                 Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
@@ -697,7 +697,7 @@ function CuocGoi({ route }) {
                     logData.writeLogData('Server call client: callEnded');
                     logSignalR.serverCallClient('callEnded');
                     setStatusCall(statusCallEnum.DaKetThuc);
-                    RNCallKeep.endAllCalls();
+                    //RNCallKeep.endAllCalls();
                     resetState();
                     Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
                 }
