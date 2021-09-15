@@ -19,6 +19,7 @@ import RNRestart from 'react-native-restart';
 import logData from '../../utils/logData';
 import NetInfo from "@react-native-community/netinfo";
 import Toast from 'react-native-simple-toast';
+import Contacts from 'react-native-contacts';
 
 BackgroundTimer.start();
 const IOS = Platform.OS === 'ios';

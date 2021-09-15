@@ -30,6 +30,7 @@ function Login({ navigation }) {
     const check_Permission = useCheckPermistion();
 
     const handleLogin = async () => {
+        console.log('[handleLogin]');
         let idpush = await messaging().getToken();
         console.log('idpush', idpush);
         let idpushkit = ''

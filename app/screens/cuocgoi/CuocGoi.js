@@ -59,7 +59,6 @@ const configuration = {
 var Januscandidates = new Array();
 const webrtcConstraints = { audio: true, video: false };
 
-const isIOS = Platform.OS === 'ios';
 
 function CuocGoi({ route }) {
     const [isTransfer, setIsTransfer] = useState(false);
@@ -128,7 +127,11 @@ function CuocGoi({ route }) {
     }
 
     const onStartCall = async (so_dien_thoai, ho_ten) => {
-        InCallManager.setSpeakerphoneOn(false);
+        if(!isIOS)
+        {
+            InCallManager.setSpeakerphoneOn(false);
+        }
+        
         conn = getHubAndReconnect();
         console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
 
@@ -140,7 +143,10 @@ function CuocGoi({ route }) {
     }
 
     const onAnswerCall = async (number) => {
-        InCallManager.setSpeakerphoneOn(false);
+        if(!isIOS)
+        {
+            InCallManager.setSpeakerphoneOn(false);
+        }
         logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
         let signalData = await storeData.getStoreDataObject(keyStoreData.signalWebRTC);
         let SessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
@@ -253,7 +259,11 @@ function CuocGoi({ route }) {
                             if(coutTinHieuYeu == 3)
                             {
                                 InCallManager.startRingback('_BUNDLE_');
-                                InCallManager.setSpeakerphoneOn(isSpeaker);
+                                if(!isIOS)
+                                {
+                                    InCallManager.setSpeakerphoneOn(isSpeaker);
+                                }
+                                
                             }
 
                             console.log('[Tín hiệu yếu]', coutTinHieuYeu);
@@ -277,7 +287,10 @@ function CuocGoi({ route }) {
                             if(coutTinHieuYeu > 0)
                             {
                                 InCallManager.stopRingback();
-                                InCallManager.setSpeakerphoneOn(isSpeaker);
+                                if(!isIOS)
+                                {
+                                    InCallManager.setSpeakerphoneOn(isSpeaker);
+                                }
                                 conn.off('callEnded');
                                 conn.on('callEnded', (callid, code, reason, id) => {
                                     console.log("CallID :" + _callID);
@@ -417,7 +430,10 @@ function CuocGoi({ route }) {
     }
     const onSpeaker = () => {
         console.log("onSpeaker: ", !isSpeaker)
-        InCallManager.setSpeakerphoneOn(!isSpeaker);
+        if(!isIOS)
+        {
+            InCallManager.setSpeakerphoneOn(!isSpeaker);
+        }
         setIsSpeaker(!isSpeaker);
     }
     const onMute = () => {
@@ -506,22 +522,7 @@ function CuocGoi({ route }) {
 
     /// end xử lý nút bấm UI ///
 
-    //RN Call Keep
-
-    const didPerformDTMFAction = ({ callUUID, digits }) => {
-        //Gọi hàm xử lý sự kiện bấm số khi dùng UI call mặc định
-    };
-
-    const didPerformSetMutedCallAction = async ({ muted, callUUID }) => {
-        //Gọi hàm xử lý sự kiện mute 
-        //setIsMute(muted);
-        //RNCallKeep.setMutedCall(callUUID, muted);
-    };
-
-    const didToggleHoldCallAction = async ({ hold, callUUID }) => {
-        //Họi hàm xử lý sự kiện hold
-
-    };
+ 
 
     //End RN Call Keep
     const handleEndCallTinHieuYeu = () => {
@@ -760,21 +761,6 @@ function CuocGoi({ route }) {
     useEffect(() => {
 
     }, [visibleModel]);
-
-
-    useEffect(() => {
-        // RNCallKeep.addEventListener('didPerformDTMFAction', didPerformDTMFAction);
-        // RNCallKeep.addEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
-        // RNCallKeep.addEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
-
-
-        return () => {
-            // RNCallKeep.removeEventListener('didPerformDTMFAction', didPerformDTMFAction);
-            // RNCallKeep.removeEventListener('didPerformSetMutedCallAction', didPerformSetMutedCallAction);
-            // RNCallKeep.removeEventListener('didToggleHoldCallAction', didToggleHoldCallAction);
-            //unsubscribe_NetInfo_CuocGoi();
-        }
-    }, []);
 
     return (
         <Modal style={{ height: heightScreen, width: widthScreen }}

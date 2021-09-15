@@ -6,15 +6,22 @@ platform :ios, '11.0'
 target 'todahotline' do
   config = use_native_modules!
 
+  pod 'react-native-contacts', :path => '../node_modules/react-native-contacts' 
+  pod 'RNCallKeep', :path => '../node_modules/react-native-callkeep'
+
+
   use_react_native!(
     :path => config[:reactNativePath],
     # to enable hermes on iOS, change `false` to `true` and then install pods
     :hermes_enabled => false
   )
 
-  pod 'RNCallKeep', :path => '../node_modules/react-native-callkeep'
-  pod 'react-native-contacts', :path => '../node_modules/react-native-contacts' 
-  pod 'ReactNativeIncallManager', :path => '../node_modules/react-native-incall-manager'
+  # pod 'ReactNativeIncallManager', :path => '../node_modules/react-native-incall-manager'
+  # pod 'RNCallKeep', :path => '../node_modules/react-native-callkeep'
+
+ 
+  
+
 
   target 'todahotlineTests' do
     inherit! :complete
