@@ -31,6 +31,7 @@ function BanPhim({ navigation }) {
     const [listSearhDanhBa, setListSearhDanhBa] = useState([]);
     const [checkDongBoDanhBa, setCheckDongBoDanhBa] = useState(false);
     const [showTip, setTip] = useState(false);
+    const [copyOrParse, setCopyOrParse] = useState('Copy');
     const check_Permission = useCheckPermistion();
 
     const cuocGoiDi = async () => {
@@ -113,11 +114,37 @@ function BanPhim({ navigation }) {
     }
 
     const copyOrFetch = async () => {
-        setTip(false);
-        if (soDienThoai.length > 0) {
-            Clipboard.setString(soDienThoai.toString());
+       let textCopy = await Clipboard.getString();
+        if (textCopy.length > 0) {
+            setSoDienThoai(textCopy);
+            Clipboard.setString('');
         }
+        else
+        {
+            if(soDienThoai.length > 0)
+            {
+                Clipboard.setString(soDienThoai.toString());
+            }
+        }
+        setTip(false);
     }
+
+    const showTipCopy = async () => {
+        let textCopy = await Clipboard.getString();
+        console.log('[textCopy]', textCopy);
+         if (textCopy.length > 0) {
+            setCopyOrParse('Paste');
+            setTip(true);
+         }
+         else
+         {
+            setCopyOrParse('Copy');
+             if(soDienThoai.length > 0)
+             {
+                 setTip(true);
+             }
+         }
+     }
 
     const getDanhSachNoiBo = async () => {
         let urlApiData = await storeData.getStoreDataValue(keyStoreData.urlApi);
@@ -315,7 +342,7 @@ function BanPhim({ navigation }) {
                         isVisible={showTip}
                         content={
                             <TouchableOpacity onPress={copyOrFetch}>
-                                <Text> Copy </Text>
+                                <Text> {copyOrParse} </Text>
                             </TouchableOpacity>
                         }
                         onClose={() => setTip(false)}
@@ -324,10 +351,10 @@ function BanPhim({ navigation }) {
                         topAdjustment={0}
                     >
                         <TouchableOpacity
-                            style={[{ width: '100%', marginTop: 20 }, styles.button]}
-                            onPress={() => setTip(true)}
+                            style={[{ width: 300, height:30, marginTop: 20 }, styles.button]}
+                            onPress={showTipCopy}
                         >
-                            <Text style={{ fontSize: 24 }}>{soDienThoai}</Text>
+                            <Text style={{ fontSize: 24, textAlign:'center' }}>{soDienThoai}</Text>
                         </TouchableOpacity>
                     </Tooltip>
                 </View>
