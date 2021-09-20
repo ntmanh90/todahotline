@@ -82,26 +82,23 @@ const App = (props) => {
   }
 
   const displayIncomingCall = async () => {
-    if(!isIOS)
-    {
+    if (!isIOS) {
       RNCallKeep.registerPhoneAccount();
       RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
     }
-    else
-    {
+    else {
       InCallManager.stopRingback();
     }
-    
+
     conn = getHubAndReconnect();
     logData.writeLogData('[displayIncomingCall]');
     const callUUID = uuid.v4().toLowerCase();
-    console.log('[CallUUIDHienTai]',callUUIDHienTai.toString());
+    console.log('[CallUUIDHienTai]', callUUIDHienTai.toString());
     setCallUUIDHienTai(callUUID);
     let _soDienThoaiDen = soDienThoaiDen;
     let hoTen = _soDienThoaiDen;
 
-    try
-    {
+    try {
       db.transaction((tx) => {
         tx.executeSql("SELECT * FROM DanhBa WHERE so_dien_thoai = ?", [_soDienThoaiDen],
           (tx, { rows }) => {
@@ -119,10 +116,10 @@ const App = (props) => {
         );
       });
     }
-    catch(err){
+    catch (err) {
       console.log(err);
     }
-    
+
     //logData.writeLogData('[displayIncomingCall]: ' + _soDienThoaiDen + ", " + hoTen);
     //RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
 
@@ -150,15 +147,14 @@ const App = (props) => {
         console.debug(json.data);
         if (json.data.status) {
           console.log('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
-          
+
           logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
-          
-          if(!isIOS)
-          {
+
+          if (!isIOS) {
             RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
             PushNotification.removeAllDeliveredNotifications();
           }
-         
+
           //RNCallKeep.backToForeground();
         } else {
           console.log('[Lan dau khong hien thi duoc Incomming Call]');
@@ -181,21 +177,20 @@ const App = (props) => {
       if (isLoginData !== 'true') {
         RootNavigation.navigate('Login');
       }
-      else
-      {
+      else {
         setTimeout(() => {
           connectServer();
         }, 300);
       }
-      
+
       logData.writeLogData('App has come to the foreground!');
     }
 
     appState = nextAppState;
   }
 
-  const answerCall = async ({callUUID}) => {
-    
+  const answerCall = async ({ callUUID }) => {
+
     InCallManager.stopRingback();
 
     console.log('[AnswerCall - Click]');
@@ -203,42 +198,36 @@ const App = (props) => {
 
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
 
-    if(!isIOS)
-    {
+    if (!isIOS) {
       RNCallKeep.setCurrentCallActive(callUUID);
       RNCallKeep.backToForeground();
       setTimeout(() => {
         RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
       }, 150);
     }
-    else
-    {
-      storeData.setStoreDataValue(keyStoreData.callUUID,callUUID.toString());
+    else {
+      storeData.setStoreDataValue(keyStoreData.callUUID, callUUID.toString());
       InCallManager.start({ media: 'audio', ringback: '_BUNDLE_' });
     }
 
     let timeOut = 0;
-    if(soDienThoaiDen=='')
-    {
-      let timeInterval = setInterval(()=>{
+    if (soDienThoaiDen == '') {
+      let timeInterval = setInterval(() => {
         timeOut = timeOut + 100;
-        if(soDienThoaiDen!='')
-        {
-          
+        if (soDienThoaiDen != '') {
+
           clearInterval(timeInterval);
           RootNavigation.navigate('CuocGoi');
         }
-        if(timeOut > 3000)
-        {
+        if (timeOut > 3000) {
           clearInterval(timeInterval);
         }
-      },100);
+      }, 100);
     }
-    else
-    {
+    else {
       RootNavigation.navigate('CuocGoi');
     }
-    
+
   };
 
   const endCall = async ({ callUUID }) => {
@@ -271,15 +260,13 @@ const App = (props) => {
       Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM)
     }
 
-    if(!isIOS)
-    {
+    if (!isIOS) {
       RNCallKeep.endCall(callUUID);
     }
-    else 
-    {
+    else {
       let a = RNCallKeep.getCalls();
-      console.log('[getCalls]',a);
-      
+      console.log('[getCalls]', a);
+
       RNCallKeep.endAllCalls();
       InCallManager.stop({ busytone: '_DEFAULT_' });
     }
@@ -289,13 +276,12 @@ const App = (props) => {
   };
 
   const requestUserPermission = async () => {
-    if(isIOS)
-    {
+    if (isIOS) {
       const authStatus = await messaging().requestPermission();
       const enabled =
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-  
+
       if (enabled) {
         console.log('Authorization status:', authStatus);
       }
@@ -410,9 +396,8 @@ const App = (props) => {
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
-    
-    if(_callID == callid)
-    {
+
+    if (_callID == callid) {
       console.log('[CallEnded server]');
       storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
         if (isAnswerCall == 'false') {
@@ -420,28 +405,26 @@ const App = (props) => {
           storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
         }
       })
-      if(!isIOS)
-      {
+      if (!isIOS) {
         conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
         RNCallKeep.endCall(callUUID);
       }
-      else 
-      {
+      else {
         let a = RNCallKeep.getCalls();
-        console.log('[getCalls]',a);
+        console.log('[getCalls]', a);
         InCallManager.stop({ busytone: '_DEFAULT_' });
 
-        storeData.getStoreDataValue(keyStoreData.callUUID).then(_callUUID=>{
-          if(_callUUID!=null)
+        storeData.getStoreDataValue(keyStoreData.callUUID).then(_callUUID => {
+          if (_callUUID != null)
             RNCallKeep.endCall(_callUUID);
           else
             RNCallKeep.endAllCalls();
         })
-        
+
         conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
       }
- 
-       
+
+
       Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM)
     }
   });
@@ -457,7 +440,7 @@ const App = (props) => {
   /// Kết thúc xử lý kết nối signalR ////
   useEffect(() => {
     var objCallid = storeData.getStoreDataValue(keyStoreData.callid);
-    if(objCallid)
+    if (objCallid)
       _callID = objCallid.toString();
     //RNCallKeep.endAllCalls();
     requestUserPermission();
@@ -541,26 +524,25 @@ const App = (props) => {
     });
 
     appState = AppState.currentState;
-     setTimeout(() => {
+    setTimeout(() => {
       onConnected(() => {
         console.log("OnConnected setDisSignal.");
         setDisSignal(false);
       });
 
       var checkIsLogin = storeData.getStoreDataObject(keyStoreData.isLogin);
-      if(checkIsLogin)
-      {
+      if (checkIsLogin) {
         console.log("Reconnect Server nè.")
         connectServer();
-      } 
+      }
     }, 300);
 
     conn.onclose((e) => {
       console.log("Mất kết nối server.");
-     setTimeout(() => {
+      setTimeout(() => {
         connectServer();
       }, 300);
-      
+
       setDisSignal(true);
     });
 
@@ -572,7 +554,7 @@ const App = (props) => {
     RNCallKeep.addEventListener('endCall', endCall);
 
     return () => {
-      
+
       RNCallKeep.removeEventListener('answerCall', answerCall);
       RNCallKeep.removeEventListener('endCall', endCall);
       BackgroundTimer.stop();
@@ -585,90 +567,91 @@ const App = (props) => {
 
   }, []);
 
-  useEffect(()=>{
+  useEffect(() => {
+    if (isIOS) {
+
       console.log('[vao cau hinh push kit]');
-          // --- anywhere which is most comfortable and appropriate for you,
-        // --- usually ASAP, ex: in your app.js or at some global scope.
-    
-    
-          // --- NOTE: You still need to subscribe / handle the rest events as usuall.
-          // --- This is just a helper whcih cache and propagate early fired events if and only if for
-          // --- "the native events which DID fire BEFORE js bridge is initialed",
-          // --- it does NOT mean this will have events each time when the app reopened.
-    
-    
-          // ===== Step 1: subscribe `register` event =====
-          // --- this.onVoipPushNotificationRegistered
-          VoipPushNotification.addEventListener('register', (token) => {
-              // --- send token to your apn provider server
-              storeData.setStoreDataValue('tokenPuskit',token);
-          });
-    
-          // ===== Step 2: subscribe `notification` event =====
-          // --- this.onVoipPushNotificationiReceived
-          VoipPushNotification.addEventListener('notification', (notification) => {
-              // --- when receive remote voip push, register your VoIP client, show local notification ... etc
-              console.log('[Voip putkit gửi về]', notification);
-              
-              logData.writeLogData('[Wakeup putkit]');
-              
-               setTimeout(() => {
-               let paramNotiData = {
-                   uniqueid: notification.uniqueid,
-                   channel: notification.uuid,
-                   thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
-                 };
-                 console.log('[paramNotiData]', paramNotiData);
-                 storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-               }, 200);
-              // --- optionally, if you `addCompletionHandler` from the native side, once you have done the js jobs to initiate a call, call `completion()`
-               VoipPushNotification.onVoipNotificationCompleted(notification.uuid);
-          });
-    
-          // ===== Step 3: subscribe `didLoadWithEvents` event =====
-          VoipPushNotification.addEventListener('didLoadWithEvents', (events) => {
-              // --- this will fire when there are events occured before js bridge initialized
-              // --- use this event to execute your event handler manually by event type
-              console.log('[putkit gửi về 2]');
+      // --- anywhere which is most comfortable and appropriate for you,
+      // --- usually ASAP, ex: in your app.js or at some global scope.
 
-              if (!events || !Array.isArray(events) || events.length < 1) {
-                  return;
-              }
-              for (let voipPushEvent of events) {
-                  let { name, data } = voipPushEvent;
-                  // console.log('[voipPushEvent]',voipPushEvent)
 
-                  if (name === VoipPushNotification.RNVoipPushRemoteNotificationsRegisteredEvent) {
-                      // onVoipPushNotificationRegistered(data);
-                  } else if (name === VoipPushNotification.RNVoipPushRemoteNotificationReceivedEvent) {
-                      // onVoipPushNotificationiReceived(data);
-                  }
-              }
-          });
-    
-          // ===== Step 4: register =====
-          // --- it will be no-op if you have subscribed before (like in native side)
-          // --- but will fire `register` event if we have latest cahced voip token ( it may be empty if no token at all )
-          VoipPushNotification.registerVoipToken(); // --- register token
-    
-          return()=>{
-            VoipPushNotification.removeEventListener('didLoadWithEvents');
-            VoipPushNotification.removeEventListener('register');
-            VoipPushNotification.removeEventListener('notification');
-          }  
-    
-    
-  },[]);
-  
+      // --- NOTE: You still need to subscribe / handle the rest events as usuall.
+      // --- This is just a helper whcih cache and propagate early fired events if and only if for
+      // --- "the native events which DID fire BEFORE js bridge is initialed",
+      // --- it does NOT mean this will have events each time when the app reopened.
+
+
+      // ===== Step 1: subscribe `register` event =====
+      // --- this.onVoipPushNotificationRegistered
+      VoipPushNotification.addEventListener('register', (token) => {
+        // --- send token to your apn provider server
+        storeData.setStoreDataValue('tokenPuskit', token);
+      });
+
+      // ===== Step 2: subscribe `notification` event =====
+      // --- this.onVoipPushNotificationiReceived
+      VoipPushNotification.addEventListener('notification', (notification) => {
+        // --- when receive remote voip push, register your VoIP client, show local notification ... etc
+        console.log('[Voip putkit gửi về]', notification);
+
+        logData.writeLogData('[Wakeup putkit]');
+
+        setTimeout(() => {
+          let paramNotiData = {
+            uniqueid: notification.uniqueid,
+            channel: notification.uuid,
+            thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
+          };
+          console.log('[paramNotiData]', paramNotiData);
+          storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+        }, 200);
+        // --- optionally, if you `addCompletionHandler` from the native side, once you have done the js jobs to initiate a call, call `completion()`
+        VoipPushNotification.onVoipNotificationCompleted(notification.uuid);
+      });
+
+      // ===== Step 3: subscribe `didLoadWithEvents` event =====
+      VoipPushNotification.addEventListener('didLoadWithEvents', (events) => {
+        // --- this will fire when there are events occured before js bridge initialized
+        // --- use this event to execute your event handler manually by event type
+        console.log('[putkit gửi về 2]');
+
+        if (!events || !Array.isArray(events) || events.length < 1) {
+          return;
+        }
+        for (let voipPushEvent of events) {
+          let { name, data } = voipPushEvent;
+          // console.log('[voipPushEvent]',voipPushEvent)
+
+          if (name === VoipPushNotification.RNVoipPushRemoteNotificationsRegisteredEvent) {
+            // onVoipPushNotificationRegistered(data);
+          } else if (name === VoipPushNotification.RNVoipPushRemoteNotificationReceivedEvent) {
+            // onVoipPushNotificationiReceived(data);
+          }
+        }
+      });
+
+      // ===== Step 4: register =====
+      // --- it will be no-op if you have subscribed before (like in native side)
+      // --- but will fire `register` event if we have latest cahced voip token ( it may be empty if no token at all )
+      VoipPushNotification.registerVoipToken(); // --- register token
+
+      return () => {
+        VoipPushNotification.removeEventListener('didLoadWithEvents');
+        VoipPushNotification.removeEventListener('register');
+        VoipPushNotification.removeEventListener('notification');
+      }
+    }
+
+  }, []);
+
 
   useEffect(() => {
-    if(!isIOS)
-    {
+    if (!isIOS) {
       RNCallKeep.registerPhoneAccount();
     }
-  
+
     checkLogin();
-    
+
   }, [isLogin]);
 
 
