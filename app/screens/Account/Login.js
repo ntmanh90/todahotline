@@ -91,7 +91,8 @@ function Login({ navigation }) {
                     BackgroundTimer.setTimeout(() => {
                         connectServer(true)
                     }, 300);
-
+                    setRenderProcess(false);
+                    
                     navigation.navigate('BanPhim',);
 
                 } else {

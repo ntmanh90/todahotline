@@ -67,7 +67,7 @@ function JoinServer() {
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('sip_user: ', sipUser);
-            logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
+            // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
                 hub.invoke('Join',
                     sipUser.user,
@@ -93,7 +93,7 @@ function reconnectServer() {
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('sip_user: ', sipUser);
-            logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
+           // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
                 hub.invoke('ReJoin',
                     sipUser.user,
@@ -137,7 +137,7 @@ function getHub() {
 }
 
 function getHubAndReconnect() {
-    logData.writeLogData('[ReJoin server]:' + JSON.stringify(hub.state));
+  //  logData.writeLogData('[ReJoin server]:' + JSON.stringify(hub.state));
     if (hub.state === HubConnectionState.Disconnected) {
         logData.writeLogData('[Disconnected] -> Reconnect');
         hub.start().then(() => {
@@ -145,7 +145,7 @@ function getHubAndReconnect() {
         });
     }
     if (hub.state === HubConnectionState.Connecting) {
-        logData.writeLogData('[Connecting] -> Reconnect');
+       // logData.writeLogData('[Connecting] -> Reconnect');
         reconnectServer();
     }
     // hub.off('Registered');

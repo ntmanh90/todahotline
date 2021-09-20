@@ -28,6 +28,8 @@ import statusMissCallType from '../../utils/statusMissCallType';
 import { isLandscape } from 'react-native-device-info';
 import { variant } from 'styled-system';
 
+BackgroundTimer.start();
+
 const widthScreen = Dimensions.get('window').width;
 const heightScreen = Dimensions.get('window').height;
 const isIOS = Platform.OS === 'ios';
@@ -42,7 +44,7 @@ var timeoutID;
 var stremRTC = null;
 var isconnectionHold = false;
 
-BackgroundTimer.start();
+
 
 const configuration = {
     iceServers: [
@@ -82,11 +84,11 @@ function CuocGoi({ route }) {
     const navigation = useNavigation();
     const useSendMissCallHook = useSendMissCall();
 
-    const resetState = () => {
+    const resetState =  () => {
         console.log('[resetState Cuoc Goi]');
-        BackgroundTimer.setTimeout(() => {
+        setTimeout( async() => {
             if (interValBitRate != 0)
-                BackgroundTimer.clearInterval(interValBitRate);
+                clearInterval(interValBitRate);
 
             let paramNotiData = {
                 uniqueid: "",
@@ -122,15 +124,24 @@ function CuocGoi({ route }) {
             InCallManager.stopRingback();
             InCallManager.stop();
             navigation.navigate('BanPhim');
+
+            if(isIOS)
+            {
+                let _callUUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+                if(_callUUID!=null)
+                    RNCallKeep.endCall(_callUUID);
+                else
+                    RNCallKeep.endAllCalls();
+    
+                storeData.setStoreDataValue(keyStoreData.callUUID,'');
+            }
+
         }, 1000);
 
     }
 
     const onStartCall = async (so_dien_thoai, ho_ten) => {
-        if(!isIOS)
-        {
             InCallManager.setSpeakerphoneOn(false);
-        }
         
         conn = getHubAndReconnect();
         console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
@@ -143,10 +154,10 @@ function CuocGoi({ route }) {
     }
 
     const onAnswerCall = async (number) => {
-        if(!isIOS)
-        {
-            InCallManager.setSpeakerphoneOn(false);
-        }
+        
+        InCallManager.setSpeakerphoneOn(false);
+        
+        console.log('[tra loi cuoc goi]');
         logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
         let signalData = await storeData.getStoreDataObject(keyStoreData.signalWebRTC);
         let SessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
@@ -218,6 +229,9 @@ function CuocGoi({ route }) {
     }
 
     const incomingcall = async (sdp, sessionCall) => {
+        InCallManager.stopRingback();
+        console.log('[incomingcall cuoc goi]');
+
         conn = getHubAndReconnect();
         let stream = await mediaDevices.getUserMedia(webrtcConstraints);
         stremRTC = stream;
@@ -231,6 +245,7 @@ function CuocGoi({ route }) {
         await connection.setLocalDescription(answer);
 
         try {
+            console.log('[AnswerCallAsterisk]: true');
             logSignalR.clientCallServer('AnswerCallAsterisk')
             conn.invoke('AnswerCallAsterisk', true, connection.localDescription.sdp, sessionCall).then(() => {
                 logData.writeLogData('Invoke AnswerCallAsterisk App: true | trả lời cuộc gọi ');
@@ -259,14 +274,11 @@ function CuocGoi({ route }) {
                             if(coutTinHieuYeu == 3)
                             {
                                 InCallManager.startRingback('_BUNDLE_');
-                                if(!isIOS)
-                                {
-                                    InCallManager.setSpeakerphoneOn(isSpeaker);
-                                }
+                                InCallManager.setSpeakerphoneOn(isSpeaker);
                                 
                             }
 
-                            console.log('[Tín hiệu yếu]', coutTinHieuYeu);
+                           // console.log('[Tín hiệu yếu]', coutTinHieuYeu);
 
                             if (coutTinHieuYeu % 3 ==  0 ) {
                                 onUpdateCall();
@@ -287,22 +299,17 @@ function CuocGoi({ route }) {
                             if(coutTinHieuYeu > 0)
                             {
                                 InCallManager.stopRingback();
-                                if(!isIOS)
-                                {
-                                    InCallManager.setSpeakerphoneOn(isSpeaker);
-                                }
+                                InCallManager.setSpeakerphoneOn(isSpeaker);
+                                
                                 conn.off('callEnded');
                                 conn.on('callEnded', (callid, code, reason, id) => {
                                     console.log("CallID :" + _callID);
                                     if(_callID == callid)
                                     {
-                                        if(timeoutID)
-                                            BackgroundTimer.clearTimeout(timeoutID);
                                         conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
                                         logData.writeLogData('Server call client: callEnded');
                                         logSignalR.serverCallClient('callEnded');
                                         setStatusCall(statusCallEnum.DaKetThuc);
-                                        if(isIOS) RNCallKeep.endAllCalls();
                                         resetState();
                                         Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
                                     }
@@ -430,10 +437,7 @@ function CuocGoi({ route }) {
     }
     const onSpeaker = () => {
         console.log("onSpeaker: ", !isSpeaker)
-        if(!isIOS)
-        {
-            InCallManager.setSpeakerphoneOn(!isSpeaker);
-        }
+        InCallManager.setSpeakerphoneOn(!isSpeaker);
         setIsSpeaker(!isSpeaker);
     }
     const onMute = () => {
@@ -450,7 +454,15 @@ function CuocGoi({ route }) {
 
             let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
             console.log('hangUp');
-            conn.invoke('hangUp', sessionCallId).then(() => {
+            conn.invoke('hangUp', sessionCallId).then( async() => {
+                if(isIOS)
+                {
+                    let _callUUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+                    if(_callUUID!=null)
+                        RNCallKeep.endCall(_callUUID);
+                    else
+                        RNCallKeep.endAllCalls();
+                }
                 logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
             }).catch();
 
@@ -458,15 +470,12 @@ function CuocGoi({ route }) {
                 useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
             }
 
-            timeoutID = BackgroundTimer.setTimeout(() => {
+            setTimeout(() => {
                 setStatusCall(statusCallEnum.DaKetThuc);
-                try {
-                  if(isIOS) RNCallKeep.endAllCalls();
-                } catch (error) {}
                 Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-                BackgroundTimer.clearInterval(interValBitRate);
+                clearInterval(interValBitRate);
                 resetState();
-            },10000);
+            },1000);
         }
         catch
         {
@@ -531,14 +540,13 @@ function CuocGoi({ route }) {
         setStatusCall(statusCallEnum.DaKetThuc);
         conn = getHubAndReconnect();
         try {
-            if(isIOS) RNCallKeep.endAllCalls();
             conn.invoke('hangUp', sessionID).then(() => {
                 logData.writeLogData('Invoke: hangUp | App, số điện thoại đến: ' + phonenumber);
             }).catch();
         } catch (error) {}
         
         Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-        BackgroundTimer.clearInterval(interValBitRate);
+        clearInterval(interValBitRate);
         resetState();
     }
 
@@ -682,7 +690,6 @@ function CuocGoi({ route }) {
         
                 logData.writeLogData('Server call client: callDeclined');
                 logSignalR.serverCallClient('callEnded');
-                if(isIOS) RNCallKeep.endAllCalls();
                 setStatusCall(statusCallEnum.DaKetThuc);
                 resetState();
                 Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
@@ -693,13 +700,10 @@ function CuocGoi({ route }) {
                 console.log("CallID :" + _callID);
                 if(_callID == callid)
                 {
-                    if(timeoutID)
-                        BackgroundTimer.clearTimeout(timeoutID);
                     conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
                     logData.writeLogData('Server call client: callEnded');
                     logSignalR.serverCallClient('callEnded');
                     setStatusCall(statusCallEnum.DaKetThuc);
-                    if(isIOS) RNCallKeep.endAllCalls();
                     resetState();
                     Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
                 }
@@ -737,16 +741,14 @@ function CuocGoi({ route }) {
         console.log('Cuoc goi navigation effect');
     }, [navigation]);
 
-    console.log('Cuoc goi is rendered!');
-
     useEffect(() => {
         CallStatus();
         console.log('[statusCall]: 3', statusCall);
         if (statusCall == statusCallEnum.DaKetNoi) {
             if (interValBitRate != 0)
-                BackgroundTimer.clearInterval(interValBitRate);
+                clearInterval(interValBitRate);
 
-            let interVal = BackgroundTimer.setInterval(() => {
+            let interVal = setInterval(() => {
                 getTinHieu();
             }, 1000);
             console.log('[interVal]', interVal);

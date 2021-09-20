@@ -11,7 +11,7 @@ import dongBoDanhBaHeThong from '../../utils/dongBoDanhBaHeThong';
 import DeviceInfo from 'react-native-device-info';
 import { openDatabase } from 'react-native-sqlite-storage';
 import Tooltip from "react-native-walkthrough-tooltip";
-import BackgroundTimer from 'react-native-background-timer';
+
 import typeCallEnum from '../../utils/typeCallEnum';
 import BaseURL from '../../utils/BaseURL';
 import AppApi from '../../api/Client';
@@ -21,7 +21,7 @@ import NetInfo from "@react-native-community/netinfo";
 import Toast from 'react-native-simple-toast';
 import Contacts from 'react-native-contacts';
 
-BackgroundTimer.start();
+
 const IOS = Platform.OS === 'ios';
 var db = openDatabase({ name: 'UserDatabase.db' });
 
@@ -461,7 +461,8 @@ function BanPhim({ navigation }) {
                 }
 
             </View>
-            {checkDongBoDanhBa == true && <ProgressApp />}
+            
+            {/* {checkDongBoDanhBa == true && <ProgressApp />} */}
         </SafeAreaView>
     );
 }

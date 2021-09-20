@@ -33,7 +33,6 @@ var subSessionCall = '';
 var _callID;
 var timeoutID;
 
-BackgroundTimer.start();
 
 const configuration = {
     iceServers: [
@@ -73,9 +72,9 @@ function CuocGoiTransfer({ route }) {
     let callName = route.params.subCallName ?? '';
 
     const resetState = () => {
-        BackgroundTimer.setTimeout(() => {
+        setTimeout(() => {
             if (interValBitRate != 0)
-                BackgroundTimer.clearInterval(interValBitRate);
+                clearInterval(interValBitRate);
 
             setIsHold(false);
             setBitrate('');
@@ -203,8 +202,7 @@ function CuocGoiTransfer({ route }) {
                                     conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
                                     if(_callID == callid)
                                     {
-                                        if(timeoutID)
-                                            BackgroundTimer.clearTimeout(timeoutID);
+                                        clearTimeout(timeoutID);
                                         logData.writeLogData('Server call client: callEnded');
                                         logSignalR.serverCallClient('callEnded');
                                         setStatusCall(statusCallEnum.DaKetThuc);
@@ -238,7 +236,7 @@ function CuocGoiTransfer({ route }) {
             }).catch();
         } catch (error) {}
         Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-        BackgroundTimer.clearInterval(interValBitRate);
+        clearInterval(interValBitRate);
         resetState();
     }
 
@@ -339,7 +337,7 @@ function CuocGoiTransfer({ route }) {
             if(_callID == callid)
             {
                 if(timeoutID)
-                    BackgroundTimer.clearTimeout(timeoutID);
+                clearTimeout(timeoutID);
                 logData.writeLogData('Server call client: callEnded');
                 logSignalR.serverCallClient('callEnded');
                 setStatusCall(statusCallEnum.DaKetThuc);
@@ -464,12 +462,12 @@ function CuocGoiTransfer({ route }) {
             useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
         }
 
-        timeoutID = BackgroundTimer.setTimeout(() => {
-            BackgroundTimer.clearInterval(interValBitRate);
+        setTimeout(() => {
+            clearInterval(interValBitRate);
             setStatusCall(statusCallEnum.DaKetThuc);
             resetState();
             Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-        }, 10000);
+        }, 1000);
 
         
     };
@@ -575,9 +573,9 @@ function CuocGoiTransfer({ route }) {
         console.log('[statusCall]: ', statusCall);
         if (statusCall == statusCallEnum.DaKetNoi) {
             if (interValBitRate != 0)
-                BackgroundTimer.clearInterval(interValBitRate);
+                clearInterval(interValBitRate);
 
-            let interVal = BackgroundTimer.setInterval(() => {
+            let interVal = setInterval(() => {
                 getTinHieu();
             }, 1000);
             console.log('[interVal]', interVal);

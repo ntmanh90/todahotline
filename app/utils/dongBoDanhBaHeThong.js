@@ -15,7 +15,7 @@ const addDanhBa = () => {
                 // console.log('contact', contact);
                 if (contact.phoneNumbers.length > 0) {
                     if (IOS) {
-                        DanhBaDB.addDanhBa(element.familyName + " " + element.givenName, contact.phoneNumbers[0].number, contact.givenName.substring(0, 1), KieuDanhBa.HeThong);
+                        DanhBaDB.addDanhBa(contact.familyName + " " + contact.givenName, contact.phoneNumbers[0].number, contact.givenName.substring(0, 1), KieuDanhBa.HeThong);
                     }
                     else {
                         DanhBaDB.addDanhBa(contact.displayName, contact.phoneNumbers[0].number, contact.displayName.substring(0, 1), KieuDanhBa.HeThong);

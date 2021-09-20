@@ -47,9 +47,9 @@ const addCuocGoi = (sdt, type) => {
       'SELECT * FROM DanhBa WHERE so_dien_thoai = ?',
       [sdt],
       (tx, { rows }) => {
-        console.log('SQLlite list DanhBa: ', rows);
+        //console.log('SQLlite list DanhBa: ', rows);
         if (rows.length > 0) {
-          console.log('SQLlite list DanhBa: ', rows);
+         // console.log('SQLlite list DanhBa: ', rows);
           ho_ten_danh_ba = rows.item(0).ho_ten;
           anh_dai_dien_danh_ba = rows.item(0).anh_dai_dien;
         }
@@ -71,13 +71,13 @@ const addCuocGoi = (sdt, type) => {
             'UPDATE CuocGoi SET so_lan_goi = so_lan_goi + 1, ngay_goi = ? where id_cuoc_goi = ?',
             [dateNow, id_cuoc_goi],
             (tx, results) => {
-              console.log('SQLite Results UPDATE cuocgoi', results.rowsAffected);
+             // console.log('SQLite Results UPDATE cuocgoi', results.rowsAffected);
 
               tx.executeSql(
                 'INSERT INTO ChiTietCuocGoi (id_cuoc_goi, ngay_goi, kieu_cuoc_goi) VALUES (?,?,?)',
                 [id_cuoc_goi, dateNow, type],
                 (tx, results) => {
-                  console.log('SQLite Results add ChiTietCuocGoi', results.insertId);
+                 // console.log('SQLite Results add ChiTietCuocGoi', results.insertId);
                 },
                 (error) => {
                   console.log('SQLlite error add ChiTietCuocGoi: ', error);
@@ -104,13 +104,13 @@ const addCuocGoi = (sdt, type) => {
             [ho_ten_danh_ba, sdt, 1, anh_dai_dien_danh_ba, type, dateNow],
             (tx, results) => {
               id_cuoc_goi = results.insertId;
-              console.log('SQLite Results add CuocGoi', results.insertId);
+             // console.log('SQLite Results add CuocGoi', results.insertId);
 
               tx.executeSql(
                 'INSERT INTO ChiTietCuocGoi (id_cuoc_goi, ngay_goi, kieu_cuoc_goi) VALUES (?,?,?)',
                 [id_cuoc_goi, dateNow, type],
                 (tx, results) => {
-                  console.log('SQLite Results add ChiTietCuocGoi', results.insertId);
+                 // console.log('SQLite Results add ChiTietCuocGoi', results.insertId);
                 },
                 (error) => {
                   console.log('SQLlite error add ChiTietCuocGoi: ', error);
@@ -137,7 +137,7 @@ const deleteCuocGoi = (id) => {
       'DELETE FROM  CuocGoi where id_cuoc_goi = ?',
       [id],
       (tx, results) => {
-        console.log('SQL delete CuocGoi: ', results.rowsAffected);
+       // console.log('SQL delete CuocGoi: ', results.rowsAffected);
         if (results.rowsAffected > 0) {
           tx.executeSql(
             'DELETE FROM ChiTietCuocGoi where id_cuoc_goi = ?',

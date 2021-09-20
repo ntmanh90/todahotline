@@ -33,6 +33,7 @@
 		AC3BB8B026EF5536005CCA46 /* EvilIcons.js.flow in Resources */ = {isa = PBXBuildFile; fileRef = AC3BB89E26EF5536005CCA46 /* EvilIcons.js.flow */; };
 		AC3BB8B126EF5536005CCA46 /* FontAwesome.js.flow in Resources */ = {isa = PBXBuildFile; fileRef = AC3BB89F26EF5536005CCA46 /* FontAwesome.js.flow */; };
 		ACAD973226F1A3B30075DC41 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = ACAD973126F1A3B30075DC41 /* GoogleService-Info.plist */; };
+		ACAD973426F1E5770075DC41 /* PushKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ACAD973326F1E5770075DC41 /* PushKit.framework */; };
 		ACD4E34D26F05BA1008CE95A /* CallKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ACD4E34C26F05BA1008CE95A /* CallKit.framework */; };
 		ACD4E34F26F05BB8008CE95A /* Intents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ACD4E34E26F05BB8008CE95A /* Intents.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 /* End PBXBuildFile section */
@@ -82,6 +83,7 @@
 		AC3BB89E26EF5536005CCA46 /* EvilIcons.js.flow */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = EvilIcons.js.flow; sourceTree = "<group>"; };
 		AC3BB89F26EF5536005CCA46 /* FontAwesome.js.flow */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = FontAwesome.js.flow; sourceTree = "<group>"; };
 		ACAD973126F1A3B30075DC41 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../../../../../../Users/tuanmanh/Desktop/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		ACAD973326F1E5770075DC41 /* PushKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PushKit.framework; path = System/Library/Frameworks/PushKit.framework; sourceTree = SDKROOT; };
 		ACD4E34C26F05BA1008CE95A /* CallKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CallKit.framework; path = System/Library/Frameworks/CallKit.framework; sourceTree = SDKROOT; };
 		ACD4E34E26F05BB8008CE95A /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
 		ACD4E35026F08066008CE95A /* todahotline.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = todahotline.entitlements; path = todahotline/todahotline.entitlements; sourceTree = "<group>"; };
@@ -102,6 +104,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ACAD973426F1E5770075DC41 /* PushKit.framework in Frameworks */,
 				ACD4E34F26F05BB8008CE95A /* Intents.framework in Frameworks */,
 				ACD4E34D26F05BA1008CE95A /* CallKit.framework in Frameworks */,
 				152071343B4AA1FDB5BB6EC5 /* libPods-todahotline.a in Frameworks */,
@@ -146,6 +149,7 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				ACAD973326F1E5770075DC41 /* PushKit.framework */,
 				ACD4E34E26F05BB8008CE95A /* Intents.framework */,
 				ACD4E34C26F05BA1008CE95A /* CallKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
@@ -673,7 +677,7 @@
 					"$(SRCROOT)/../node_modules/react-native-callkeep/ios/RNCallKeep",
 				);
 				INFOPLIST_FILE = todahotline/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -777,7 +781,7 @@
 					"$(SRCROOT)/../node_modules/react-native-callkeep/ios/RNCallKeep",
 				);
 				INFOPLIST_FILE = todahotline/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

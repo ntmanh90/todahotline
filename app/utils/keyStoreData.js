@@ -36,5 +36,6 @@ export default {
     thoiGianNhanCuocGoi: 'thoiGianNhanCuocGoi',
     nguoiGoiTuHangUp: 'nguoiGoiTuHangUp',
     isHold: 'isHold',
-    isJoin: 'isJoin'
+    isJoin: 'isJoin',
+    callUUID:'callUUID',
 }

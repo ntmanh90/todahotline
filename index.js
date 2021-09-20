@@ -16,7 +16,7 @@ import moment from 'moment';
 
 var db = openDatabase({ name: 'UserDatabase.db' });
 var conn = getHubAndReconnect();
-BackgroundTimer.start();
+// BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
 conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {

@@ -11,7 +11,7 @@
 
 #import <PushKit/PushKit.h>                    /* <------ add this line */
 #import "RNVoipPushNotificationManager.h"      /* <------ add this line */
-
+#import "RNFBMessagingModule.h"
 
 
 #ifdef FB_SONARKIT_ENABLED
@@ -37,40 +37,33 @@ static void InitializeFlipper(UIApplication *application) {
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  if ([FIRApp defaultApp] == nil) {
-      [FIRApp configure];
-    }
-    
+
 #ifdef FB_SONARKIT_ENABLED
   InitializeFlipper(application);
 #endif
+  
+  if ([FIRApp defaultApp] == nil) {
+      [FIRApp configure];
+    }
 
+  
   UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
   center.delegate = self;
 
   RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:launchOptions];
   
-  // ===== (THIS IS OPTIONAL BUT RECOMMENDED) =====
-  // --- register VoipPushNotification here ASAP rather than in JS. Doing this from the JS side may be too slow for some use cases
-  // --- see: https://github.com/react-native-webrtc/react-native-voip-push-notification/issues/59#issuecomment-691685841
-  [RNVoipPushNotificationManager voipRegistration];
-  // ===== (THIS IS OPTIONAL BUT RECOMMENDED) =====
+  NSDictionary *appProperties = [RNFBMessagingModule addCustomPropsToUserProps:nil withLaunchOptions:launchOptions];
   
   RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:bridge
                                                    moduleName:@"todahotline"
-                                            initialProperties:nil];
-
-  if (@available(iOS 13.0, *)) {
-      rootView.backgroundColor = [UIColor systemBackgroundColor];
-  } else {
-      rootView.backgroundColor = [UIColor whiteColor];
-  }
+                                            initialProperties:appProperties];
 
   self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
   UIViewController *rootViewController = [UIViewController new];
   rootViewController.view = rootView;
   self.window.rootViewController = rootViewController;
   [self.window makeKeyAndVisible];
+  
   return YES;
 }
 
@@ -113,51 +106,38 @@ static void InitializeFlipper(UIApplication *application) {
   // --- The system calls this method when a previously provided push token is no longer valid for use. No action is necessary on your part to reregister the push type. Instead, use this method to notify your server not to send push notifications using the matching push token.
 }
 
+
 // --- Handle incoming pushes
 - (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion
 {
   
-  [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
 
-  // --- NOTE: apple forced us to invoke callkit ASAP when we receive voip push
-  // --- see: react-native-callkeep
-
-  // --- Retrieve information from your voip push payload
-//  NSLog(@"%@", payload.dictionaryPayload);
-
-//  NSString *uuid = payload.dictionaryPayload[@"uuid"];
   NSString *callerName = [NSString stringWithFormat:@"%@", payload.dictionaryPayload[@"songuon"]];
   NSString *phone = [NSString stringWithFormat:@"%@", payload.dictionaryPayload[@"songuon"]];
-
-//  NSString *handle = payload.dictionaryPayload[@"songuon"];
-//  NSString *UUID = [[NSUUID UUID] UUIDString];
-  NSString *jsonString = [[NSUserDefaults standardUserDefaults] objectForKey:@"Contacts"];
-  NSData *data = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
-  id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-  NSString *jsonString2 = [[NSUserDefaults standardUserDefaults] objectForKey:@"Prefix"];
-  NSData *data2 = [jsonString2 dataUsingEncoding:NSUTF8StringEncoding];
-  id json2 = [NSJSONSerialization JSONObjectWithData:data2 options:0 error:nil];
-  NSString * prefix = [NSString stringWithFormat:@"%@", [json2 objectForKey:@"data"]];
-  NSArray *arrContact = [json objectForKey:@"data"];
-  for (int i = 0; i<arrContact.count; i ++) {
-    NSDictionary * dic = [arrContact objectAtIndex:i];
-    if ([phone isEqualToString:[NSString stringWithFormat:@"%@", [dic objectForKey:@"contact_phone"]]] || [[NSString stringWithFormat:@"%@%@", prefix, phone] isEqualToString:[NSString stringWithFormat:@"%@", [dic objectForKey:@"contact_phone"]]] || [phone isEqualToString:[NSString stringWithFormat:@"%@%@", prefix, [dic objectForKey:@"contact_phone"]]]) {
-      callerName = [NSString stringWithFormat:@"%@", [dic objectForKey:@"contact_name"]];
-      break;
-    }
-  }
-//  [payload.dictionaryPayload setValue:UUID forKey:@"uuid"];
+  NSString *uuid = [[NSUUID UUID] UUIDString];
+ 
+  [RNCallKeep reportNewIncomingCall:uuid
+                             handle:payload.dictionaryPayload[@"songuon"]
+                         handleType:@"generic"
+                           hasVideo:NO
+                localizedCallerName:payload.dictionaryPayload[@"songuon"]
+                    supportsHolding:YES
+                       supportsDTMF:YES
+                   supportsGrouping:YES
+                 supportsUngrouping:YES
+                        fromPushKit:YES
+                            payload:nil
+              withCompletionHandler:completion
+   ];
+    
   // --- this is optional, only required if you want to call `completion()` on the js side
-//  [RNVoipPushNotificationManager addCompletionHandler:UUID completionHandler:completion];
-
-  // --- Process the received push
-
-  // --- You should make sure to report to callkit BEFORE execute `completion()`
-  [RNCallKeep reportNewIncomingCall:[[NSUUID UUID] UUIDString] handle:payload.dictionaryPayload[@"songuon"] handleType:@"generic" hasVideo:NO localizedCallerName:callerName supportsHolding:YES supportsDTMF:YES supportsGrouping:YES supportsUngrouping:YES fromPushKit:YES payload:nil withCompletionHandler:completion];
-//  [RNCallKeep reportNewIncomingCall:uuid handle:handle handleType:@"generic" hasVideo:false localizedCallerName:callerName fromPushKit: YES payload:nil];
-//
-//   --- You don't need to call it if you stored `completion()` and will call it on the js side.
-//  completion();
+    [RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
+  
+    // --- Process the received push
+    [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
+    // --- You don't need to call it if you stored `completion()` and will call it on the js side.
+    completion();
+  
 }
 
 
@@ -165,7 +145,7 @@ static void InitializeFlipper(UIApplication *application) {
 // Required for the register event.
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
 {
- [RNCPushNotificationIOS didRegisterForRemoteNotificationsWithDeviceToken:deviceToken];
+  [RNCPushNotificationIOS didRegisterForRemoteNotificationsWithDeviceToken:deviceToken];
 }
 // Required for the notification event. You must call the completion handler after handling the remote notification.
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
@@ -183,7 +163,7 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void (^)(void))completionHandler
 {
-  [RNCPushNotificationIOS didReceiveNotificationResponse:response];
+   [RNCPushNotificationIOS didReceiveNotificationResponse:response];
 }
 
 

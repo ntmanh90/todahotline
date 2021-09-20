@@ -49,7 +49,7 @@ export default function ChiTietLichSuCuocGoi({ navigation, route }) {
         setAnhDaiDien(anh_dai_dien);
         setIdCuocGoi(id_cuoc_goi);
 
-        console.log('id_cuoc_goi', id_cuoc_goi);
+        //console.log('id_cuoc_goi', id_cuoc_goi);
         var db = openDatabase({ name: 'UserDatabase.db' });
         db.transaction((tx) => {
             tx.executeSql('SELECT * FROM ChiTietCuocGoi WHERE id_cuoc_goi = ? ORDER BY id_ct_cuoc_goi DESC', [id_cuoc_goi],

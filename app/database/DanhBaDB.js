@@ -13,7 +13,7 @@ const addDanhBa = (ten, sdt, anh_dai_dien, type) => {
             'INSERT INTO DanhBa (ho_ten, so_dien_thoai, anh_dai_dien,kieu_danh_ba) VALUES (?,?,?,?)',
             [ten, sdt, anh_dai_dien, type],
             (tx, results) => {
-              console.log('Results addContact', sdt, results.rowsAffected);
+              //console.log('Results addContact', sdt, results.rowsAffected);
             },
             (error) => {
               console.log('error addContact', error);;
@@ -36,7 +36,7 @@ const listDanhBa = () => {
       'SELECT * FROM DanhBa',
       [],
       (tx, { rows }) => {
-        console.log('Results list DanhBa', rows.length);
+       // console.log('Results list DanhBa', rows.length);
       },
       (error) => {
         console.log('error list DanhBa', error);;
@@ -51,7 +51,7 @@ const updateDanhBa = (id, ten, sdt) => {
       'UPDATE DanhBa set ho_ten=?, so_dien_thoai=? where id_danh_ba=?',
       [ten, sdt, id],
       (tx, results) => {
-        console.log('Results updateContact', results.rowsAffected);
+       // console.log('Results updateContact', results.rowsAffected);
       },
       (error) => {
         console.log('error updateContact', error);
@@ -66,7 +66,7 @@ const deleteDanhBa = (id) => {
       'DELETE FROM  DanhBa where id_danh_ba=?',
       [id],
       (tx, results) => {
-        console.log('Results deleteDanhBa', results.rowsAffected);
+        ///console.log('Results deleteDanhBa', results.rowsAffected);
       },
       (error) => {
         console.log('error deleteDanhBa', error);
