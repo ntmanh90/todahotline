@@ -167,6 +167,7 @@ const App = (props) => {
         }
       }
       else {
+        RNCallKeep.endAllCalls();
         CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
         return;
       }
@@ -196,7 +197,7 @@ const App = (props) => {
 
   const answerCall = async ({callUUID}) => {
     
-    InCallManager.stopRingback();
+   
 
     console.log('[AnswerCall - Click]');
     logData.writeLogData('[AnswerCall]');
@@ -242,6 +243,7 @@ const App = (props) => {
   };
 
   const endCall = async ({ callUUID }) => {
+    
     console.log('[Endcall click]', callUUID);
     logData.writeLogData('[EndCall]');
     conn = getHubAndReconnect();
@@ -249,6 +251,10 @@ const App = (props) => {
     let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
     let isAnswerCall = await storeData.getStoreDataValue(keyStoreData.isAnswerCall);
 
+    if(isIOS)
+    {
+      InCallManager.stop();
+    }
 
     if (isAnswerCall === 'true') {
       conn.invoke('hangUp', sessionCallId).then(() => {
@@ -281,7 +287,6 @@ const App = (props) => {
       console.log('[getCalls]',a);
       
       RNCallKeep.endAllCalls();
-      InCallManager.stop({ busytone: '_DEFAULT_' });
     }
 
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
@@ -413,7 +418,7 @@ const App = (props) => {
     
     if(_callID == callid)
     {
-      console.log('[CallEnded server]');
+      logData.writeLogData('[CallEnded server]');
       storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
         if (isAnswerCall == 'false') {
           console.log('[sendMissCallToServer] APP');
@@ -427,8 +432,6 @@ const App = (props) => {
       }
       else 
       {
-        let a = RNCallKeep.getCalls();
-        console.log('[getCalls]',a);
         InCallManager.stop({ busytone: '_DEFAULT_' });
 
         storeData.getStoreDataValue(keyStoreData.callUUID).then(_callUUID=>{
