@@ -200,11 +200,11 @@ const App = (props) => {
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
 
     if (!isIOS) {
-      RNCallKeep.setCurrentCallActive(callUUID);
+      //RNCallKeep.setCurrentCallActive(callUUID);
       RNCallKeep.backToForeground();
-      setTimeout(() => {
-        RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
-      }, 150);
+      // setTimeout(() => {
+      //   RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
+      // }, 150);
     }
     else {
       storeData.setStoreDataValue(keyStoreData.callUUID, callUUID.toString());
@@ -267,7 +267,7 @@ const App = (props) => {
     }
 
     if (!isIOS) {
-      RNCallKeep.endCall(callUUID);
+      RNCallKeep.endAllCalls;
     }
     else {
       let a = RNCallKeep.getCalls();
@@ -401,34 +401,22 @@ const App = (props) => {
 
   conn.off('callEnded')
   conn.on('callEnded', (callid, code, reason, id) => {
-<<<<<<< HEAD
-    
-    if(_callID == callid)
-    {
-      logData.writeLogData('[CallEnded server]');
-=======
-
     if (_callID == callid) {
-      console.log('[CallEnded server]');
->>>>>>> ae1287f0969f0abb9d8946885db3b2e2a9f92322
       storeData.getStoreDataValue(keyStoreData.isAnswerCall).then((isAnswerCall) => {
+        if(!isAnswerCall) return;
         if (isAnswerCall == 'false') {
           console.log('[sendMissCallToServer] APP');
           storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
         }
       })
       if (!isIOS) {
+        console.log('[CallEnded server Android]');
         conn.invoke("ConfirmEvent", "callEnded", callid).catch((error) => console.log(error));
-        RNCallKeep.endCall(callUUID);
+        RNCallKeep.endAllCalls();
       }
-<<<<<<< HEAD
-      else 
-      {
-=======
       else {
         let a = RNCallKeep.getCalls();
         console.log('[getCalls]', a);
->>>>>>> ae1287f0969f0abb9d8946885db3b2e2a9f92322
         InCallManager.stop({ busytone: '_DEFAULT_' });
 
         storeData.getStoreDataValue(keyStoreData.callUUID).then(_callUUID => {
@@ -487,6 +475,7 @@ const App = (props) => {
           }, 200);
         }
         if (notification.data.type == "DangXuat") {
+          console.log("[App Dang Xuat]");
           storeData.setStoreDataValue(keyStoreData.isLogin, false);
           storeData.setStoreDataObject('sip_user', {});
           storeData.setStoreDataValue('tennhanvien', '');

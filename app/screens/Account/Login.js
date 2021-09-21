@@ -19,7 +19,7 @@ import CuocGoiDB from '../../database/CuocGoiDB';
 import useCheckPermistion from '../../hooks/useCheckPermistion';
 
 
-const IOS = Platform.OS === 'ios';
+const isIOS = Platform.OS === 'ios';
 
 BackgroundTimer.start();
 
@@ -33,7 +33,7 @@ function Login({ navigation }) {
     const handleLogin = async () => {
         console.log('[handleLogin]');
         let idpush = '';
-        if(isIOS)
+        if(!isIOS)
             idpush = await messaging().getToken();
         console.log('idpush', idpush);
         let idpushkit = ''
@@ -192,7 +192,7 @@ function Login({ navigation }) {
 
     //Xin quyền gọi
     const requestPermissionsAndroid = () => {
-        if (!IOS) {
+        if (!isIOS) {
             PermissionsAndroid.request(
                 PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
                 {

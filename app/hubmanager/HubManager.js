@@ -66,7 +66,7 @@ function JoinServer() {
     console.log('client call Join to Server');
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
-            console.log('sip_user: ', sipUser);
+            if(!sipUser) return;
             // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
                 hub.invoke('Join',
@@ -93,6 +93,7 @@ function reconnectServer() {
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
             console.log('sip_user: ', sipUser);
+            if(!sipUser) return;
            // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
                 hub.invoke('ReJoin',

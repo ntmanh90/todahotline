@@ -520,6 +520,7 @@ function CuocGoi({ route }) {
                     }).catch();
 
                     connectionCheckBitRate.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionID);
+                    connectionCheckBitRate.getAudioTracks()[0].enabled = check;
                 }
             }
             else
@@ -673,7 +674,11 @@ function CuocGoi({ route }) {
             conn.off('callAccepted');
             conn.on('callAccepted', (id) => {
                 setTimeStart(new Date());
-        
+                let interVal = setInterval(() => {
+                    getTinHieu();
+                }, 1000);
+
+                setInterValBitRate(interVal);
                 logData.writeLogData('Server call client: callAccepted');
                 logSignalR.serverCallClient('callAccepted');
                 setStatusCall(statusCallEnum.DaKetNoi);
@@ -748,11 +753,7 @@ function CuocGoi({ route }) {
             if (interValBitRate != 0)
                 clearInterval(interValBitRate);
 
-            let interVal = setInterval(() => {
-                getTinHieu();
-            }, 1000);
-            console.log('[interVal]', interVal);
-            setInterValBitRate(interVal);
+            //console.log('[interVal]', interVal);
         }
     }, [statusCall]);
 
