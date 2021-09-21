@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList } from 'react-native';
 import { openDatabase } from 'react-native-sqlite-storage';
 import moment from 'moment';
+import { Button } from 'react-native-elements/dist/buttons/Button';
 
 var db = openDatabase({ name: 'UserDatabase.db' });
 
@@ -38,6 +39,7 @@ function LogScreen({ navigation }) {
     }, [navigation]);
     return (
         <SafeAreaView style={{ flex: 1 }}>
+            <Button title='back' onPress={()=>navigation.goBack()}></Button>
             <FlatList data={data || []}
                 keyExtractor={(item, index) => index.toString()}
                 renderItem={({ item, index }) => {

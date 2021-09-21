@@ -73,15 +73,10 @@ static void InitializeFlipper(UIApplication *application) {
   completionHandler(UNNotificationPresentationOptionSound | UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionBadge);
 }
 
-- (BOOL)application:(UIApplication *)application
- continueUserActivity:(NSUserActivity *)userActivity
-   restorationHandler:(void(^)(NSArray * __nullable restorableObjects))restorationHandler
- {
-   return [RNCallKeep application:application
-            continueUserActivity:userActivity
-              restorationHandler:restorationHandler];
- }
+- (BOOL)application:(UIApplication *)application continueUserActivity:(NSUserActivity *)userActivity restorationHandler:(void (^)(NSArray<id<UIUserActivityRestoring>> * _Nullable))restorationHandler{
+  return [RNCallKeep application:application continueUserActivity:userActivity restorationHandler:restorationHandler];
 
+}
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
 {
@@ -111,7 +106,9 @@ static void InitializeFlipper(UIApplication *application) {
 - (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion
 {
   
-
+  // --- Process the received push
+  [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
+  
   NSString *callerName = [NSString stringWithFormat:@"%@", payload.dictionaryPayload[@"songuon"]];
   NSString *phone = [NSString stringWithFormat:@"%@", payload.dictionaryPayload[@"songuon"]];
   NSString *uuid = [[NSUUID UUID] UUIDString];
@@ -133,10 +130,8 @@ static void InitializeFlipper(UIApplication *application) {
   // --- this is optional, only required if you want to call `completion()` on the js side
     [RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
   
-    // --- Process the received push
-    [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
     // --- You don't need to call it if you stored `completion()` and will call it on the js side.
-    completion();
+    //completion();
   
 }
 
@@ -145,25 +140,25 @@ static void InitializeFlipper(UIApplication *application) {
 // Required for the register event.
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
 {
-  [RNCPushNotificationIOS didRegisterForRemoteNotificationsWithDeviceToken:deviceToken];
+  // [RNCPushNotificationIOS didRegisterForRemoteNotificationsWithDeviceToken:deviceToken];
 }
 // Required for the notification event. You must call the completion handler after handling the remote notification.
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
 fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
-  [RNCPushNotificationIOS didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
+  // [RNCPushNotificationIOS didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
 }
 // Required for the registrationError event.
 - (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
 {
- [RNCPushNotificationIOS didFailToRegisterForRemoteNotificationsWithError:error];
+ // [RNCPushNotificationIOS didFailToRegisterForRemoteNotificationsWithError:error];
 }
 // Required for localNotification event
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
 didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void (^)(void))completionHandler
 {
-   [RNCPushNotificationIOS didReceiveNotificationResponse:response];
+   // [RNCPushNotificationIOS didReceiveNotificationResponse:response];
 }
 
 

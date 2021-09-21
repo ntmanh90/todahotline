@@ -8,6 +8,8 @@ target 'todahotline' do
 
   pod 'react-native-contacts', :path => '../node_modules/react-native-contacts' 
   pod 'RNCallKeep', :path => '../node_modules/react-native-callkeep'
+  pod 'ReactNativeIncallManager', :path => '../node_modules/react-native-incall-manager'
+
 
 
   use_react_native!(

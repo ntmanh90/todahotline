@@ -18,6 +18,7 @@ import keyStoreData from '../../utils/keyStoreData';
 import CuocGoiDB from '../../database/CuocGoiDB';
 import useCheckPermistion from '../../hooks/useCheckPermistion';
 
+
 const IOS = Platform.OS === 'ios';
 
 BackgroundTimer.start();
@@ -31,7 +32,9 @@ function Login({ navigation }) {
 
     const handleLogin = async () => {
         console.log('[handleLogin]');
-        let idpush = await messaging().getToken();
+        let idpush = '';
+        if(isIOS)
+            idpush = await messaging().getToken();
         console.log('idpush', idpush);
         let idpushkit = ''
         if (Platform.OS == 'ios') {
