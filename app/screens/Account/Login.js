@@ -17,9 +17,10 @@ import ProgressApp from '../../components/ProgressApp';
 import keyStoreData from '../../utils/keyStoreData';
 import CuocGoiDB from '../../database/CuocGoiDB';
 import useCheckPermistion from '../../hooks/useCheckPermistion';
+import InCallManager from 'react-native-incall-manager';
 
 
-const IOS = Platform.OS === 'ios';
+const isIOS = Platform.OS === 'ios';
 
 BackgroundTimer.start();
 
@@ -33,8 +34,7 @@ function Login({ navigation }) {
     const handleLogin = async () => {
         console.log('[handleLogin]');
         let idpush = '';
-        if(isIOS)
-            idpush = await messaging().getToken();
+        idpush = await messaging().getToken();
         console.log('idpush', idpush);
         let idpushkit = ''
         if (Platform.OS == 'ios') {
@@ -192,7 +192,7 @@ function Login({ navigation }) {
 
     //Xin quyền gọi
     const requestPermissionsAndroid = () => {
-        if (!IOS) {
+        if (!isIOS) {
             PermissionsAndroid.request(
                 PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
                 {
@@ -256,6 +256,12 @@ function Login({ navigation }) {
                         }
                     });
                 });
+        }
+        else
+        {
+            if (InCallManager.recordPermission !== 'granted') {
+                InCallManager.requestRecordPermission();
+        }
         }
     }
 

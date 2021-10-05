@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>377831802375-paee33f7d86vftt9h7eng4jst6gdb01i.apps.googleusercontent.com</string>
+	<string>377831802375-togtquevbefs30tou7b4tlfdc7hv65t2.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.377831802375-paee33f7d86vftt9h7eng4jst6gdb01i</string>
+	<string>com.googleusercontent.apps.377831802375-togtquevbefs30tou7b4tlfdc7hv65t2</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>377831802375-mmnamtjepn0ijue7p8ehpvth5smdgdqi.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.LH.SipSoftPhone-Toda-Swift</string>
+	<string>com.lh.todammc</string>
 	<key>PROJECT_ID</key>
 	<string>toda-hotline</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,7 +31,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:377831802375:ios:6b36336205bef27f</string>
+	<string>1:377831802375:ios:3a80140de34d7cc327cca2</string>
 	<key>DATABASE_URL</key>
 	<string>https://toda-hotline.firebaseio.com</string>
 </dict>

@@ -66,6 +66,8 @@ function JoinServer() {
     console.log('client call Join to Server');
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
+            if(!sipUser)
+                return;
             console.log('sip_user: ', sipUser);
             // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
@@ -92,6 +94,7 @@ function reconnectServer() {
     console.log('client call ReJoin to Server');
     try {
         storeData.getStoreDataObject('sip_user').then((sipUser) => {
+            if(!sipUser) return;
             console.log('sip_user: ', sipUser);
            // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
             try {
