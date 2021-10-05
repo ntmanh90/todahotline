@@ -28,8 +28,6 @@ import statusMissCallType from '../../utils/statusMissCallType';
 import { isLandscape } from 'react-native-device-info';
 import { variant } from 'styled-system';
 
-BackgroundTimer.start();
-
 const widthScreen = Dimensions.get('window').width;
 const heightScreen = Dimensions.get('window').height;
 const isIOS = Platform.OS === 'ios';
@@ -39,8 +37,8 @@ var bitratePrew = 0;
 var coutTinHieuYeu = 0;
 var connectionCheckBitRate = null;
 var _callID = "";
+var object = { timeoutID: null, intervalBitrate: null, temp: 1 };
 var sessionID = "";
-var timeoutID;
 var stremRTC = null;
 var isconnectionHold = false;
 
@@ -61,6 +59,76 @@ const configuration = {
 var Januscandidates = new Array();
 const webrtcConstraints = { audio: true, video: false };
 
+const AppSettimeout = (cb, timeout, obj) => {
+    if(isIOS){
+        if(obj && obj.timeoutID){
+            clearTimeout(obj.timeoutID);
+        } 
+        else if(obj)
+        {
+            obj.timeoutID = setTimeout(() => {
+                cb();
+            }, timeout);
+        }
+        else{
+            setTimeout(() => {
+                cb();
+            }, timeout);
+        }
+    }
+    else{
+        if(obj && obj.timeoutID){
+            BackgroundTimer.clearTimeout(obj.timeoutID);
+        } 
+        else if(obj)
+        {
+            obj.timeoutID = BackgroundTimer.setTimeout(() => {
+                cb();
+            }, timeout);
+        }
+        else{
+            BackgroundTimer.setTimeout(() => {
+                cb();
+            }, timeout);
+        }
+    }
+};
+
+const AppCleartimeout = (obj) => {
+    if(isIOS){
+        if(obj.timeoutID) clearTimeout(obj.timeoutID);
+    }
+    else{
+        if(obj.timeoutID) BackgroundTimer.clearTimeout(obj.timeoutID);
+    }
+    obj.timeoutID = null;
+}
+
+const AppSetinterval = (cb, interval, obj) => {
+    if(isIOS){
+        if(obj && obj.intervalBitrate) clearInterval(obj.intervalBitrate);
+        obj.intervalBitrate = setInterval(() => {
+            cb();
+        }, interval);
+    }
+    else{
+        if(obj && obj.intervalBitrate) BackgroundTimer.clearInterval(obj.intervalBitrate);
+        obj.intervalBitrate = BackgroundTimer.setInterval(() => {
+            cb();
+        }, interval);
+    }
+};
+
+const AppClearinterval = (obj) => {
+    if(isIOS){
+        if(obj.intervalBitrate) clearInterval(obj.intervalBitrate);
+    }
+    else{
+        if(obj.intervalBitrate) BackgroundTimer.clearInterval(obj.intervalBitrate);
+    }
+    obj.intervalBitrate = null;
+};
+
 
 function CuocGoi({ route }) {
     const [isTransfer, setIsTransfer] = useState(false);
@@ -76,7 +144,6 @@ function CuocGoi({ route }) {
     const [bitrate, setBitrate] = useState('');
     const [isMute, setIsMute] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
-    const [interValBitRate, setInterValBitRate] = useState(0);
     const [showUI, setShowUI] = useState(1);
     const [isCuocGoiTransfer, setIsCuocGoiTransfer] = useState(false);
     const [visibleModel, setVisibleModel] = useState(true);
@@ -86,9 +153,8 @@ function CuocGoi({ route }) {
 
     const resetState =  () => {
         console.log('[resetState Cuoc Goi]');
-        setTimeout( async() => {
-            if (interValBitRate != 0)
-                clearInterval(interValBitRate);
+        AppSettimeout( async() => {
+            AppClearinterval(object);
 
             let paramNotiData = {
                 uniqueid: "",
@@ -145,11 +211,16 @@ function CuocGoi({ route }) {
         
         conn = getHubAndReconnect();
         console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
+        AppSettimeout(()=>{
+            conn = getHubAndReconnect();
+            conn.invoke('hangUp', sessionID).then().catch();
+            resetState();
+        }, 20 * 1000, object);
 
-        let sessionCallId = await storeData.getStoreDataValue(keyStoreData.SessionCallId);
-        outgoingCall(so_dien_thoai, sessionCallId);
+        outgoingCall(so_dien_thoai, sessionID);
 
         CuocgoiDB.addCuocGoi(so_dien_thoai, CallTypeEnum.OutboundCall);
+    
         //Hiển thị màn hình cuộc gọi nhưng chưa đếm giây
     }
 
@@ -260,7 +331,7 @@ function CuocGoi({ route }) {
 
     const getTinHieu = async () => {
         if (connectionCheckBitRate) {
-            connectionCheckBitRate.getStats(null).then(stats => {
+            connectionCheckBitRate.getStats().then(stats => {
                 stats.forEach(report => {
                     if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
                         const bitrate = parseFloat(report.bytesReceived);
@@ -388,9 +459,9 @@ function CuocGoi({ route }) {
         if (value) {
             try {
                 conn = getHubAndReconnect();
-                //conn.invoke("Hold", sessionCallId);
+                conn.invoke("Hold", sessionCallId);
                 //setRemoteAudio(false);
-                onHoldCall(false);
+                //onHoldCall(false);
             } catch {
                 logData.writeLogData('Error invoke Hold');
             }
@@ -398,9 +469,9 @@ function CuocGoi({ route }) {
         else {
             if (isclick == 1) {
                 try {
-                    //conn.invoke("UnHold", sessionCallId);
+                    conn.invoke("UnHold", sessionCallId);
                     //setRemoteAudio(true);
-                    onHoldCall(true);
+                    //onHoldCall(true);
                 } catch {
                     logData.writeLogData('Error invoke UnHold');
                 }
@@ -408,9 +479,9 @@ function CuocGoi({ route }) {
             else {
                 if (isHold == false) {
                     try {
-                        //conn.invoke("UnHold", sessionCallId);
+                        conn.invoke("UnHold", sessionCallId);
                         //setRemoteAudio(true);
-                        onHoldCall(true);
+                        //onHoldCall(true);
                     } catch {
                         logData.writeLogData('Error invoke UnHold');
                     }
@@ -470,12 +541,11 @@ function CuocGoi({ route }) {
                 useSendMissCallHook.request(phonenumber, statusMissCallType.KetNoiYeuDTVKetThuc);
             }
 
-            setTimeout(() => {
+            AppSettimeout(() => {
                 setStatusCall(statusCallEnum.DaKetThuc);
                 Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-                clearInterval(interValBitRate);
                 resetState();
-            },1000);
+            },1000, object);
         }
         catch
         {
@@ -510,7 +580,7 @@ function CuocGoi({ route }) {
             if(state.isConnected) {
                 if(connectionCheckBitRate)
                 {
-                    console.log("[OnHold Call] : " + check.toString());
+                    //console.log("[OnHold Call] : " + check.toString());
                     connectionCheckBitRate.createOffer({ iceRestart: true, offerToReceiveAudio: check }).then((offer) => {
                         connectionCheckBitRate.setLocalDescription(offer)
                             .then(() => {
@@ -519,7 +589,7 @@ function CuocGoi({ route }) {
                             .catch();
                     }).catch();
 
-                    connectionCheckBitRate.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionID);
+                    //connectionCheckBitRate.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionID);
                     connectionCheckBitRate.getAudioTracks()[0].enabled = check;
                 }
             }
@@ -547,7 +617,6 @@ function CuocGoi({ route }) {
         } catch (error) {}
         
         Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-        clearInterval(interValBitRate);
         resetState();
     }
 
@@ -645,6 +714,7 @@ function CuocGoi({ route }) {
         
             conn.off('receiveSignal');
             conn.on('receiveSignal', (signal, id) => {
+                console.log("[ReceiveSignal]");
                 logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
                 logData.writeLogData('server call client: receiveSignal CuocGoi ');
                 try {
@@ -655,6 +725,7 @@ function CuocGoi({ route }) {
                 }
                 // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
                 newSignal(signal);
+                AppCleartimeout(object);
             });
         
             conn.off('ringing');
@@ -664,7 +735,6 @@ function CuocGoi({ route }) {
                 logData.writeLogData('server call client: Ringing');
                 try {
                     conn.invoke("ConfirmEvent", "Ringing", null);
-        
                 } catch (error) {
                     logSignalR.clientCallServerError('Ringing', error);
                 }
@@ -674,11 +744,13 @@ function CuocGoi({ route }) {
             conn.off('callAccepted');
             conn.on('callAccepted', (id) => {
                 setTimeStart(new Date());
-                let interVal = setInterval(() => {
-                    getTinHieu();
-                }, 1000);
+                console.log("[Goi Get Tin Hieu]");
 
-                setInterValBitRate(interVal);
+                AppSetinterval(() => {
+                    getTinHieu();
+                    console.log("[Interval Get Tin Hieu]");
+                }, 1000, object);
+
                 logData.writeLogData('Server call client: callAccepted');
                 logSignalR.serverCallClient('callAccepted');
                 setStatusCall(statusCallEnum.DaKetNoi);
@@ -749,12 +821,6 @@ function CuocGoi({ route }) {
     useEffect(() => {
         CallStatus();
         console.log('[statusCall]: 3', statusCall);
-        if (statusCall == statusCallEnum.DaKetNoi) {
-            if (interValBitRate != 0)
-                clearInterval(interValBitRate);
-
-            //console.log('[interVal]', interVal);
-        }
     }, [statusCall]);
 
     useEffect(() => {

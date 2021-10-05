@@ -36,8 +36,9 @@ var db = openDatabase({ name: 'UserDatabase.db' });
 var soDienThoaiDen = '';
 var _callID = "";
 var appState;
-var answerClick = false
-var reconnectTimeoutID, startTimeoutID;
+var answerClick = false;
+var objectStart = {id: null, mark: 1};
+var objectRestart = {id: null, mark: 1};
 
 BackgroundTimer.start();
 RNCallKeep.setup({
@@ -61,12 +62,33 @@ RNCallKeep.setup({
   },
 });
 if (!isIOS) {
-  console.log('Là Android đã vào mục này');
   RNCallKeep.backToForeground();
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
   RNCallKeep.setAvailable(true);
+}
 
+const AppSettimeout = (cb, timeout , object) => {
+  if(isIOS){
+    setTimeout(() => {
+      cb();
+    }, timeout);
+  }
+  else{
+    if(object.id) BackgroundTimer.clearTimeout(object.id);
+    if(object)
+    {
+      object.id = BackgroundTimer.setTimeout(() => {
+        cb();
+      }, timeout );
+    }
+    else{
+      BackgroundTimer.setTimeout(() => {
+        cb();
+      }, timeout );
+    }
+    
+  }
 }
 
 const App = (props) => {
@@ -84,7 +106,7 @@ const App = (props) => {
   const displayIncomingCall = async () => {
     if (!isIOS) {
       RNCallKeep.registerPhoneAccount();
-      RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
+      //RNCallKeep.toggleAudioRouteSpeaker(_callID, false);
     }
     else {
       InCallManager.stopRingback();
@@ -95,7 +117,7 @@ const App = (props) => {
     const callUUID = uuid.v4().toLowerCase();
     console.log('[CallUUIDHienTai]', callUUIDHienTai.toString());
     setCallUUIDHienTai(callUUID);
-    let _soDienThoaiDen = soDienThoaiDen;
+    let _soDienThoaiDen = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     let hoTen = _soDienThoaiDen;
 
     try {
@@ -120,54 +142,55 @@ const App = (props) => {
       console.log(err);
     }
 
+    console.log('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
+    logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
+
+    conn.invoke("ConfirmEvent", "IncomingCallAsterisk", _callID).catch((error) => console.log(error));
+    if(!isIOS) {
+      RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
+      PushNotification.removeAllDeliveredNotifications();
+    }
+
     //logData.writeLogData('[displayIncomingCall]: ' + _soDienThoaiDen + ", " + hoTen);
     //RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
 
-    let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
-    let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
-    let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
-    let paramNoti = await storeData.getStoreDataObject(keyStoreData.paramNoti);
-    let prefix = await storeData.getStoreDataObject(keyStoreData.Prefix);
+    // let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
+    // let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
+    // let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
+    // let paramNoti = await storeData.getStoreDataObject(keyStoreData.paramNoti);
+    // let prefix = await storeData.getStoreDataObject(keyStoreData.Prefix);
 
-    var params = {
-      mact: mact,
-      sodich: somayle,
-      songuon: _soDienThoaiDen,
-      somayle: somayle,
-      prefix: prefix,
-      uniqueid: paramNoti ? (paramNoti.uniqueid ?? '') : '',
-      channel: paramNoti ? (paramNoti.channel ?? '') : '',
-    }
-    let url = http + BaseURL.URL_CHECK_INCOMINGCAL;
-    AppApi.RequestPOST(url, params, (err, json) => {
-      logData.writeLogData('[CallAPI: checkcuocgoi] send | ', JSON.stringify(params));
+    // var params = {
+    //   mact: mact,
+    //   sodich: somayle,
+    //   songuon: _soDienThoaiDen,
+    //   somayle: somayle,
+    //   prefix: prefix,
+    //   uniqueid: paramNoti ? (paramNoti.uniqueid ?? '') : '',
+    //   channel: paramNoti ? (paramNoti.channel ?? '') : '',
+    // }
+    // let url = http + BaseURL.URL_CHECK_INCOMINGCAL;
+    // AppApi.RequestPOST(url, params, (err, json) => {
+    //   logData.writeLogData('[CallAPI: checkcuocgoi] send | ', JSON.stringify(params));
 
-      if (!err) {
-        logData.writeLogData('[CallAPI: checkcuocgoi] send | result: ' + JSON.stringify(json.data.status));
-        console.debug(json.data);
-        if (json.data.status) {
-          console.log('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
-
-          logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
-
-          if (!isIOS) {
-            RNCallKeep.displayIncomingCall(callUUID, _soDienThoaiDen, hoTen, 'number', false);
-            PushNotification.removeAllDeliveredNotifications();
-          }
-
-          //RNCallKeep.backToForeground();
-        } else {
-          console.log('[Lan dau khong hien thi duoc Incomming Call]');
-          CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
-          return;
-        }
-      }
-      else {
-        RNCallKeep.endAllCalls();
-        CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
-        return;
-      }
-    });
+    //   if (!err) {
+    //     logData.writeLogData('[CallAPI: checkcuocgoi] send | result: ' + JSON.stringify(json.data.status));
+    //     console.debug(json.data);
+    //     if (json.data.status) {
+          
+    //       //RNCallKeep.backToForeground();
+    //     } else {
+    //       console.log('[Lan dau khong hien thi duoc Incomming Call]');
+    //       CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
+    //       return;
+    //     }
+    //   }
+    //   else {
+    //     RNCallKeep.endAllCalls();
+    //     CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
+    //     return;
+    //   }
+    // });
   };
 
   const _handleAppStateChange = async (nextAppState) => {
@@ -179,9 +202,9 @@ const App = (props) => {
         RootNavigation.navigate('Login');
       }
       else {
-        setTimeout(() => {
+        AppSettimeout(() => {
           connectServer();
-        }, 300);
+        }, 300, objectRestart);
       }
 
       logData.writeLogData('App has come to the foreground!');
@@ -216,10 +239,10 @@ const App = (props) => {
       let timeInterval = setInterval(() => {
         timeOut = timeOut + 100;
         if (soDienThoaiDen != '') {
-
           clearInterval(timeInterval);
           RootNavigation.navigate('CuocGoi');
         }
+        
         if (timeOut > 3000) {
           clearInterval(timeInterval);
         }
@@ -372,15 +395,15 @@ const App = (props) => {
   //conn.off('SendMessage');
   conn.on("SendMessage", (sentUser, message) => {
     console.log('[Message server trả về]');
-    setTimeout(() => {
+    AppSettimeout(() => {
       Toast.showWithGravity(message, Toast.LONG, Toast.BOTTOM)
     }, 1000);
   });
 
   conn.off('IncomingCallAsterisk')
   conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    conn.invoke("ConfirmEvent", "IncomingCallAsterisk", callid).catch((error) => console.log(error));
     console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+    RNCallKeep.backToForeground();
     logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
     var signal = JSON.parse(data);
     storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
@@ -530,24 +553,24 @@ const App = (props) => {
     });
 
     appState = AppState.currentState;
-    setTimeout(() => {
+    AppSettimeout(() => {
       onConnected(() => {
-        console.log("OnConnected setDisSignal.");
+        //console.log("OnConnected setDisSignal.");
         setDisSignal(false);
       });
 
       var checkIsLogin = storeData.getStoreDataObject(keyStoreData.isLogin);
       if (checkIsLogin) {
-        console.log("Reconnect Server nè.")
+        //console.log("Reconnect Server nè.")
         connectServer();
       }
-    }, 300);
+    }, 300, objectStart);
 
     conn.onclose((e) => {
       console.log("Mất kết nối server.");
-      setTimeout(() => {
+      AppSettimeout(() => {
         connectServer();
-      }, 300);
+      }, 300, objectRestart);
 
       setDisSignal(true);
     });
@@ -560,9 +583,12 @@ const App = (props) => {
     RNCallKeep.addEventListener('endCall', endCall);
 
     return () => {
-
+      conn.off('IncomingCallAsterisk');
+      conn.off('callEnded');
       RNCallKeep.removeEventListener('answerCall', answerCall);
       RNCallKeep.removeEventListener('endCall', endCall);
+      if(objectRestart.id) BackgroundTimer.clearTimeout(objectRestart.id);
+      if(objectStart.id) BackgroundTimer.clearTimeout(objectStart.id);
       BackgroundTimer.stop();
       subscription.remove();
       AppState.removeEventListener('change', _handleAppStateChange);

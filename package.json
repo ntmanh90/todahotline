@@ -18,6 +18,7 @@
     "@react-native-community/netinfo": "^6.0.0",
     "@react-native-community/push-notification-ios": "1.8.0",
     "@react-native-firebase/app": "^12.1.0",
+    "@react-native-firebase/crashlytics": "12.1.0",
     "@react-native-firebase/messaging": "^12.1.0",
     "@react-navigation/bottom-tabs": "^5.11.11",
     "@react-navigation/drawer": "^5.12.5",

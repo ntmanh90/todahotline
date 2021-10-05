@@ -3,6 +3,7 @@ import App from './App';
 import messaging from '@react-native-firebase/messaging';
 import { name as appName } from './app.json';
 import BackgroundTimer from 'react-native-background-timer';
+import RNCallKeep from 'react-native-callkeep';
 import storeData from './app/hooks/storeData';
 import keyStoreData from './app/utils/keyStoreData';
 import DeviceInfo from 'react-native-device-info';
@@ -19,19 +20,17 @@ var conn = getHubAndReconnect();
 // BackgroundTimer.start();
 
 conn.off('IncomingCallAsterisk');
-conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
+conn.on('IncomingCallAsterisk', async (callid, number, displayname, data, id) => {
     conn.invoke("ConfirmEvent", "IncomingCallAsterisk", callid).catch((error) => console.log(error));
+    RNCallKeep.backToForeground();
     logData.writeLogData('[[on] | IncomingCallAsterisk], index: ' + number);
     let sdt_incoming = number;
-    storeData.getStoreDataValue(keyStoreData.Prefix).then((prefix) => {
-        sdt_incoming = number.replace(prefix, "");
-        storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
-    });
-
+    let prefix = await storeData.getStoreDataValue(keyStoreData.Prefix);
+    sdt_incoming = number.replace(prefix, "");
+    storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
     var signal = JSON.parse(data);
     storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
     storeData.setStoreDataValue(keyStoreData.callid, callid);
-
     DeviceEventEmitter.emit('displayIncomingCallEvent');
 });
 
@@ -145,10 +144,8 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
 
             AppApi.RequestPOST(url, params, (err, json) => {
                 if (!err) {
-                    if (json.data.status) {
-                        logData.writeLogData('[CallAPI: redirect]: Result' + JSON.stringify(json.data.status))
-                    } else {
-                    }
+                    if (json.data.status)
+                        logData.writeLogData('[CallAPI: redirect]: Result' + JSON.stringify(json.data.status));
                 }
             });
         });
