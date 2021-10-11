@@ -6,6 +6,7 @@ import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
 import com.zxcpoiu.incallmanager.InCallManagerPackage;
 import com.zxcpoiu.incallmanager.InCallManagerPackage;
+import com.zxcpoiu.incallmanager.InCallManagerPackage;
 import io.wazo.callkeep.RNCallKeepPackage;
 import io.wazo.callkeep.RNCallKeepPackage;
 import io.wazo.callkeep.RNCallKeepPackage;

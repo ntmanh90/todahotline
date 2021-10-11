@@ -102,6 +102,17 @@ function BanPhim({navigation}) {
     });
   };
 
+  const onClickSDTDanhBa = (sdt, hoten) => {
+    storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, sdt);
+    storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, hoten);
+    storeData.setStoreDataValue(
+      keyStoreData.typeCall,
+      typeCallEnum.outgoingCall,
+    );
+
+    navigation.navigate('CuocGoi');
+  };
+
   const handleKeypadPressed = value => {
     let tmp = soDienThoai;
     tmp = tmp + value.trim();
@@ -370,7 +381,7 @@ function BanPhim({navigation}) {
             // below is for the status bar of react navigation bar
             topAdjustment={0}>
             <TouchableOpacity
-              style={[{width: 300, height: 30, marginTop: 20}, styles.button]}
+              style={[{width: 300, height: 40, marginTop: 10}, styles.button]}
               onPress={showTipCopy}>
               <Text style={{fontSize: 24, textAlign: 'center'}}>
                 {soDienThoai}
@@ -385,20 +396,25 @@ function BanPhim({navigation}) {
             data={listSearhDanhBa || []}
             renderItem={({item, index}) => {
               return (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    borderBottomColor: '#dfdfdf',
-                    borderBottomWidth: 1,
-                    paddingVertical: 4,
-                    marginHorizontal: 15,
-                  }}>
-                  <Text style={styles.text_tenNguoiGoi}>{item.ho_ten}</Text>
-                  <Text style={styles.text_soDienThoaiNguoiGoi}>
-                    {item.so_dien_thoai}
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  onPress={() =>
+                    onClickSDTDanhBa(item.so_dien_thoai, item.ho_ten)
+                  }>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      borderBottomColor: '#dfdfdf',
+                      borderBottomWidth: 1,
+                      paddingVertical: 4,
+                      marginHorizontal: 15,
+                    }}>
+                    <Text style={styles.text_tenNguoiGoi}>{item.ho_ten}</Text>
+                    <Text style={styles.text_soDienThoaiNguoiGoi}>
+                      {item.so_dien_thoai}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               );
             }}
             keyExtractor={(item, index) => index.toString()}></FlatList>

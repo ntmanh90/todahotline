@@ -23,7 +23,6 @@ import logSignalR from '../../utils/customLogSignalR';
 import logData from '../../utils/logData';
 import CuocgoiDB from '../../database/CuocGoiDB';
 import RNCallKeep from 'react-native-callkeep';
-import AudioSession from 'react-native-audio-session';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
 import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
@@ -112,7 +111,7 @@ function CuocGoi({route}) {
       setTypeCall(0);
       coutTinHieuYeu = 0;
       setCallName('');
-      setStatusCall(statusCallEnum.DangKetNoi);
+      setStatusCall(statusCallEnum.DaKetThuc);
       setIsMute(false);
       setIsSpeaker(false);
       setIsCuocGoiTransfer(false);
@@ -131,29 +130,19 @@ function CuocGoi({route}) {
       storeData.setStoreDataValue(keyStoreData.soDienThoai, '');
       if (connectionCheckBitRate) connectionCheckBitRate.close();
       connectionCheckBitRate = null;
-      RNCallKeep.endAllCalls();
 
       if (isIOS) {
-        try {
-          let allCalls = [];
-          allCalls = await RNCallKeep.getCalls();
-          if (allCalls.length > 0) {
-            console.log('allCalls + ' + allCalls.length);
-            logData.writeLogData('allCalls + ' + allCalls.length);
-            allCalls.map(item => {
-              RNCallKeep.endCall(item.callUUID);
-            });
-          } else {
-            RNCallKeep.endAllCalls();
-          }
-        } catch {
+        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+        if (callUID) {
+          RNCallKeep.endCall(callUID);
+        } else {
           RNCallKeep.endAllCalls();
         }
-        navigation.navigate('BanPhim');
-      } else {
-        navigation.navigate('BanPhim');
       }
-    }, 500);
+
+      navigation.navigate('BanPhim');
+    }, 1000);
   };
 
   const onStartCall = async (so_dien_thoai, ho_ten) => {
@@ -174,7 +163,7 @@ function CuocGoi({route}) {
   const onAnswerCall = async number => {
     InCallManager.setSpeakerphoneOn(false);
 
-    console.log('[tra loi cuoc goi]');
+    console.log('[xử ký tra loi cuoc goi]');
     logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
     let signalData = await storeData.getStoreDataObject(
       keyStoreData.signalWebRTC,
@@ -307,7 +296,7 @@ function CuocGoi({route}) {
   const getTinHieu = async () => {
     if (connectionCheckBitRate) {
       connectionCheckBitRate.getStats(null).then(stats => {
-        stats.forEach(report => {
+        stats.forEach(async report => {
           if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
             const bitrate = parseFloat(report.bytesReceived);
             //console.log('[bitrate]', report);
@@ -328,7 +317,7 @@ function CuocGoi({route}) {
                 onUpdateCall();
               }
 
-              if (coutTinHieuYeu >= 45) {
+              if (coutTinHieuYeu >= 25) {
                 //InCallManager.stopRingback();
                 handleEndCallTinHieuYeu();
               }
@@ -343,21 +332,6 @@ function CuocGoi({route}) {
               if (coutTinHieuYeu > 0) {
                 //InCallManager.stopRingback();
                 InCallManager.setSpeakerphoneOn(isSpeaker);
-
-                conn.off('callEnded');
-                conn.on('callEnded', (callid, code, reason, id) => {
-                  console.log('CallID :' + _callID);
-                  if (_callID == callid) {
-                    conn
-                      .invoke('ConfirmEvent', 'callEnded', callid)
-                      .catch(error => console.log(error));
-                    logData.writeLogData('Server call client: callEnded');
-                    logSignalR.serverCallClient('callEnded');
-                    setStatusCall(statusCallEnum.DaKetThuc);
-                    resetState();
-                    Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
-                  }
-                });
               }
               coutTinHieuYeu = 0;
               setBitrate('Tín hiệu tốt');
@@ -437,6 +411,7 @@ function CuocGoi({route}) {
       } catch {
         logData.writeLogData('Error invoke Hold');
       }
+      InCallManager.stopRingtone();
     } else {
       if (isclick == 1) {
         try {
@@ -457,6 +432,8 @@ function CuocGoi({route}) {
           }
         }
       }
+
+      InCallManager.startRingtone();
     }
 
     return;
@@ -495,6 +472,17 @@ function CuocGoi({route}) {
         keyStoreData.SessionCallId,
       );
       console.log('hangUp');
+
+      if (isIOS) {
+        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+        if (callUID) {
+          RNCallKeep.endCall(callUID);
+        } else {
+          RNCallKeep.endAllCalls();
+        }
+      }
+
       conn
         .invoke('hangUp', sessionCallId)
         .then(async () => {
@@ -511,26 +499,10 @@ function CuocGoi({route}) {
         );
       }
 
-      if (isIOS) {
-        try {
-          console.log('[hang up]');
-          let allCalls = [];
-          allCalls = await RNCallKeep.getCalls();
-          if (allCalls.length > 0) {
-            console.log('allCalls + ' + allCalls.length);
-            logData.writeLogData('allCalls + ' + allCalls.length);
-            allCalls.map(item => {
-              RNCallKeep.endCall(item.callUUID);
-            });
-          } else {
-            RNCallKeep.endAllCalls();
-          }
-          // or user hangup
-          InCallManager.stopRingtone();
-        } catch {
-          RNCallKeep.endAllCalls();
-        }
-      }
+      // if (isIOS) {
+      //   let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+      //   RNCallKeep.endCall(callUIID);
+      // }
 
       setTimeout(() => {
         setStatusCall(statusCallEnum.DaKetThuc);
@@ -539,7 +511,7 @@ function CuocGoi({route}) {
         resetState();
       }, 1000);
     } catch {
-      //resetState();
+      resetState();
     }
   };
 
@@ -577,37 +549,27 @@ function CuocGoi({route}) {
   };
 
   const onHoldCall = check => {
-    NetInfo.fetch().then(state => {
-      if (state.isConnected) {
-        if (connectionCheckBitRate) {
-          console.log('[OnHold Call] : ' + check.toString());
+    if (connectionCheckBitRate) {
+      console.log('[OnHold Call] : ' + check.toString());
+      connectionCheckBitRate
+        .createOffer({iceRestart: true, offerToReceiveAudio: check})
+        .then(offer => {
           connectionCheckBitRate
-            .createOffer({iceRestart: true, offerToReceiveAudio: check})
-            .then(offer => {
-              connectionCheckBitRate
-                .setLocalDescription(offer)
-                .then(() => {
-                  conn.invoke(
-                    'UpdateOffer',
-                    connectionCheckBitRate.localDescription.sdp,
-                    sessionID,
-                  );
-                })
-                .catch();
+            .setLocalDescription(offer)
+            .then(() => {
+              conn.invoke(
+                'UpdateOffer',
+                connectionCheckBitRate.localDescription.sdp,
+                sessionID,
+              );
             })
             .catch();
+        })
+        .catch();
 
-          connectionCheckBitRate.onicecandidate = evt =>
-            callbackIceCandidateJanus(evt, sessionID);
-        }
-      } else {
-        Toast.showWithGravity(
-          'Mất kết nối Internet. Vui lòng kiểm tra lại đường truyền và thử lại.',
-          Toast.LONG,
-          Toast.BOTTOM,
-        );
-      }
-    });
+      connectionCheckBitRate.onicecandidate = evt =>
+        callbackIceCandidateJanus(evt, sessionID);
+    }
   };
 
   /// end xử lý nút bấm UI ///
@@ -722,6 +684,7 @@ function CuocGoi({route}) {
 
   useFocusEffect(
     React.useCallback(() => {
+      setStatusCall(statusCallEnum.DangKetNoi);
       InCallManager.setSpeakerphoneOn(isSpeaker);
 
       conn.off('Calling');
@@ -799,26 +762,7 @@ function CuocGoi({route}) {
         logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
         setStatusCall(statusCallEnum.DaKetThuc);
-        if (isIOS) {
-          try {
-            console.log('[callDeclined cuoc goi]');
-            let allCalls = [];
-            allCalls = await RNCallKeep.getCalls();
-            if (allCalls.length > 0) {
-              console.log('allCalls + ' + allCalls.length);
-              logData.writeLogData('allCalls + ' + allCalls.length);
-              allCalls.map(item => {
-                RNCallKeep.endCall(item.callUUID);
-              });
-            } else {
-              RNCallKeep.endAllCalls();
-            }
-            // or user hangup
-            InCallManager.stopRingtone();
-          } catch {
-            RNCallKeep.endAllCalls();
-          }
-        }
+
         resetState();
         Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
       });
@@ -827,33 +771,25 @@ function CuocGoi({route}) {
       conn.on('callEnded', async (callid, code, reason, id) => {
         console.log('CallID :' + _callID);
         if (_callID == callid) {
-          if (isIOS) {
-            try {
-              console.log('[callDeclined cuoc goi]');
-              let allCalls = [];
-              allCalls = await RNCallKeep.getCalls();
-              if (allCalls.length > 0) {
-                console.log('allCalls + ' + allCalls.length);
-                logData.writeLogData('allCalls + ' + allCalls.length);
-                allCalls.map(item => {
-                  RNCallKeep.endCall(item.callUUID);
-                });
-              } else {
-                RNCallKeep.endAllCalls();
-              }
-              // or user hangup
-              InCallManager.stopRingtone();
-            } catch {
-              RNCallKeep.endAllCalls();
-            }
-          }
-
           conn
             .invoke('ConfirmEvent', 'callEnded', callid)
             .catch(error => console.log(error));
           logData.writeLogData('Server call client: callEnded');
           logSignalR.serverCallClient('callEnded');
           setStatusCall(statusCallEnum.DaKetThuc);
+
+          if (isIOS) {
+            let callUID = await storeData.getStoreDataValue(
+              keyStoreData.callUUID,
+            );
+
+            if (callUID) {
+              RNCallKeep.endCall(callUID);
+            } else {
+              RNCallKeep.endAllCalls();
+            }
+          }
+
           resetState();
           Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
         }

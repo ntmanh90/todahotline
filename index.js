@@ -105,57 +105,59 @@ const sendLog = async () => {
 // Register background handler
 messaging().setBackgroundMessageHandler(async remoteMessage => {
   console.log('[remoteMessage index]', remoteMessage);
+  conn = getHubAndReconnect();
   if (!isIOS) {
     if (remoteMessage.data.type == 'wakeup') {
-      conn = getHubAndReconnect();
-      logData.writeLogData('[Wakeup]');
-      let paramNotiData = {
-        uniqueid: remoteMessage.data.uniqueid,
-        channel: remoteMessage.data.channel,
-        thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
-      };
-      storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-
-      let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
-      var url = http + 'redirect';
-      console.log(url);
-
-      NetInfo.fetch().then(async state => {
-        let idct = await storeData.getStoreDataValue(keyStoreData.idct);
-        let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
-        let idnhanvien = await storeData.getStoreDataValue(
-          keyStoreData.idnhanvien,
-        );
-        let ext = await storeData.getStoreDataValue(keyStoreData.somayle);
-        let deviceName = await DeviceInfo.getDeviceName();
-        var params = {
-          mact: mact,
-          ext: ext,
-          channel: remoteMessage.data.channel,
+      if (!isIOS) {
+        logData.writeLogData('[Wakeup]');
+        let paramNotiData = {
           uniqueid: remoteMessage.data.uniqueid,
-          internet: state.type,
-          idct: idct,
-          idnhanvien: idnhanvien,
-          ver: BaseURL.VERSION,
-          os: Platform.OS == 'ios' ? 1 : 2,
-          dongmay: DeviceInfo.getBrand(),
-          imei: DeviceInfo.getUniqueId(),
-          devicename: deviceName,
-          osversion: DeviceInfo.getSystemVersion(),
+          channel: remoteMessage.data.channel,
+          thoiGianCuocGoiDen: moment(new Date()).format('YYYY-MM-DD HH:mm:ss'),
         };
+        storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
 
-        AppApi.RequestPOST(url, params, (err, json) => {
-          if (!err) {
-            if (json.data.status) {
-              logData.writeLogData(
-                '[CallAPI: redirect]: Result' +
-                  JSON.stringify(json.data.status),
-              );
-            } else {
+        let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
+        var url = http + 'redirect';
+        console.log(url);
+
+        NetInfo.fetch().then(async state => {
+          let idct = await storeData.getStoreDataValue(keyStoreData.idct);
+          let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
+          let idnhanvien = await storeData.getStoreDataValue(
+            keyStoreData.idnhanvien,
+          );
+          let ext = await storeData.getStoreDataValue(keyStoreData.somayle);
+          let deviceName = await DeviceInfo.getDeviceName();
+          var params = {
+            mact: mact,
+            ext: ext,
+            channel: remoteMessage.data.channel,
+            uniqueid: remoteMessage.data.uniqueid,
+            internet: state.type,
+            idct: idct,
+            idnhanvien: idnhanvien,
+            ver: BaseURL.VERSION,
+            os: Platform.OS == 'ios' ? 1 : 2,
+            dongmay: DeviceInfo.getBrand(),
+            imei: DeviceInfo.getUniqueId(),
+            devicename: deviceName,
+            osversion: DeviceInfo.getSystemVersion(),
+          };
+
+          AppApi.RequestPOST(url, params, (err, json) => {
+            if (!err) {
+              if (json.data.status) {
+                logData.writeLogData(
+                  '[CallAPI: redirect]: Result' +
+                    JSON.stringify(json.data.status),
+                );
+              } else {
+              }
             }
-          }
+          });
         });
-      });
+      }
     }
   }
 

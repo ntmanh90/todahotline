@@ -11,7 +11,6 @@ import BackgroundTimer from 'react-native-background-timer';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import PushNotification from 'react-native-push-notification';
 import VoipPushNotification from 'react-native-voip-push-notification';
-import AudioSession from 'react-native-audio-session';
 import messaging from '@react-native-firebase/messaging';
 import AppNavigation from './app/navigation/AppNavigation';
 import * as RootNavigation from './app/navigation/RootNavigation';
@@ -95,6 +94,7 @@ const App = props => {
 
   const handleEndCall = async () => {
     storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
+    storeData.setStoreDataValue(keyStoreData.callUUID, '');
     soDienThoaiDen = '';
     checkIos = false;
   };
@@ -214,8 +214,6 @@ const App = props => {
     console.log('[AnswerCall - Click]');
     logData.writeLogData('[AnswerCall]');
 
-    storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
-
     if (!isIOS) {
       RNCallKeep.setCurrentCallActive(callUUID);
       RNCallKeep.backToForeground();
@@ -224,14 +222,18 @@ const App = props => {
       }, 150);
     }
 
+    storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
     storeData.setStoreDataValue(keyStoreData.callUUID, callUUID.toString());
 
     if (isIOS) {
       if (soDienThoaiDen == '') {
+        let timeOut = 0;
+        logData.writeLogData('Da vao khong co so dien thoai');
         let timeInterval = setInterval(() => {
           timeOut = timeOut + 100;
           if (soDienThoaiDen != '') {
             clearInterval(timeInterval);
+            logData.writeLogData('Interval da co sdt');
             RootNavigation.navigate('CuocGoi');
           }
           if (timeOut > 3000) {
@@ -239,6 +241,7 @@ const App = props => {
           }
         }, 100);
       } else {
+        logData.writeLogData('Da vao cuoc goi');
         RootNavigation.navigate('CuocGoi');
       }
     } else {
@@ -287,22 +290,12 @@ const App = props => {
       Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
     }
 
-    if (!isIOS) {
-      RNCallKeep.endCall(callUUID);
-    } else {
-      try {
-        let allCalls = [];
-        allCalls = await RNCallKeep.getCalls();
-        if (allCalls.length > 0) {
-          console.log('allCalls + ' + allCalls.length);
-          logData.writeLogData('allCalls + ' + allCalls.length);
-          allCalls.map(item => {
-            RNCallKeep.endCall(item.callUUID);
-          });
-        } else {
-          RNCallKeep.endAllCalls();
-        }
-      } catch {
+    if (isIOS) {
+      let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+      if (callUID) {
+        RNCallKeep.endCall(callUID);
+      } else {
         RNCallKeep.endAllCalls();
       }
     }
@@ -402,35 +395,41 @@ const App = props => {
     }, 500);
   });
 
-  conn.off('IncomingCallAsterisk');
-  conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-    conn
-      .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
-      .catch(error => console.log(error));
-    console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
-    logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
-    var signal = JSON.parse(data);
-    storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
-    storeData.setStoreDataValue(keyStoreData.callid, callid);
-    _callID = callid;
+  if (!isIOS) {
+    conn.off('IncomingCallAsterisk');
+    conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
+      conn
+        .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
+        .catch(error => console.log(error));
+      console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+      logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+      var signal = JSON.parse(data);
+      storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
+      storeData.setStoreDataValue(keyStoreData.callid, callid);
+      _callID = callid;
 
-    let sdt_incoming = number;
-    storeData.getStoreDataValue(keyStoreData.Prefix).then(prefix => {
-      sdt_incoming = number.replace(prefix, '');
-      soDienThoaiDen = sdt_incoming;
-      storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
-      storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDen, sdt_incoming);
-      storeData.setStoreDataValue(
-        keyStoreData.typeCall,
-        typeCallEnum.IncomingCall,
-      );
-      if (!isIOS) displayIncomingCall();
+      let sdt_incoming = number;
+      storeData.getStoreDataValue(keyStoreData.Prefix).then(prefix => {
+        sdt_incoming = number.replace(prefix, '');
+        soDienThoaiDen = sdt_incoming;
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, sdt_incoming);
+        storeData.setStoreDataValue(
+          keyStoreData.hoTenDienThoaiDen,
+          sdt_incoming,
+        );
+        storeData.setStoreDataValue(
+          keyStoreData.typeCall,
+          typeCallEnum.IncomingCall,
+        );
+        if (!isIOS) displayIncomingCall();
+      });
     });
-  });
+  }
 
   conn.off('callEnded');
   conn.on('callEnded', async (callid, code, reason, id) => {
     if (_callID == callid) {
+      let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
       logData.writeLogData('[CallEnded server]');
       storeData
         .getStoreDataValue(keyStoreData.isAnswerCall)
@@ -441,33 +440,21 @@ const App = props => {
           }
         });
 
-      if (!isIOS) {
-        conn
-          .invoke('ConfirmEvent', 'callEnded', callid)
-          .catch(error => console.log(error));
-        RNCallKeep.endCall(callUUID);
-      } else {
-        try {
-          let allCalls = [];
-          allCalls = await RNCallKeep.getCalls();
-          if (allCalls.length > 0) {
-            // console.log('allCalls + ' + allCalls.length);
-            // logData.writeLogData('allCalls + ' + allCalls.length);
+      conn
+        .invoke('ConfirmEvent', 'callEnded', callid)
+        .catch(error => console.log(error));
 
-            allCalls.map(item => {
-              RNCallKeep.endCall(item.callUUID);
-            });
-          } else {
-            RNCallKeep.endAllCalls();
-          }
-        } catch {
+      if (isIOS) {
+        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+        if (callUID) {
+          RNCallKeep.endCall(callUID);
+        } else {
           RNCallKeep.endAllCalls();
         }
-
-        conn
-          .invoke('ConfirmEvent', 'callEnded', callid)
-          .catch(error => console.log(error));
       }
+
+      handleEndCall();
 
       Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
     }
@@ -505,18 +492,23 @@ const App = props => {
         console.log('[NOTIFICATION 1]:', notification);
 
         if (notification.data.type == 'wakeup') {
-          logData.writeLogData('[Wakeup]');
-          setTimeout(() => {
-            let paramNotiData = {
-              uniqueid: notification.data.uniqueid,
-              channel: notification.data.channel,
-              thoiGianCuocGoiDen: moment(new Date()).format(
-                'YYYY-MM-DD HH:mm:ss',
-              ),
-            };
-            console.log('[paramNotiData]', paramNotiData);
-            storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-          }, 200);
+          if (!isIOS) {
+            logData.writeLogData('[Wakeup]');
+            setTimeout(() => {
+              let paramNotiData = {
+                uniqueid: notification.data.uniqueid,
+                channel: notification.data.channel,
+                thoiGianCuocGoiDen: moment(new Date()).format(
+                  'YYYY-MM-DD HH:mm:ss',
+                ),
+              };
+              console.log('[paramNotiData]', paramNotiData);
+              storeData.setStoreDataObject(
+                keyStoreData.paramNoti,
+                paramNotiData,
+              );
+            }, 200);
+          }
         }
         if (notification.data.type == 'DangXuat') {
           logData.writeLogData('Firebase Dang Xuat');
@@ -525,8 +517,6 @@ const App = props => {
           storeData.setStoreDataValue('tennhanvien', '');
           storeData.setStoreDataValue('isLogin', false);
 
-          //conn.invoke('SignOut').catch();
-          conn.stop();
           RootNavigation.navigate('Login');
         }
         if (notification.data.type == 'log') {
@@ -640,8 +630,45 @@ const App = props => {
       VoipPushNotification.addEventListener('notification', notification => {
         // --- when receive remote voip push, register your VoIP client, show local notification ... etc
         console.log('[Voip putkit notification]', notification);
-
         logData.writeLogData('[notification putkit]');
+
+        conn = getHubAndReconnect();
+
+        conn.off('IncomingCallAsterisk');
+        conn.on(
+          'IncomingCallAsterisk',
+          (callid, number, displayname, data, id) => {
+            conn
+              .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
+              .catch(error => console.log(error));
+            console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+            logData.writeLogData(
+              '[[On]] IncomingCallAsterisk App] SDT: ' + number,
+            );
+            var signal = JSON.parse(data);
+            storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
+            storeData.setStoreDataValue(keyStoreData.callid, callid);
+            _callID = callid;
+
+            let sdt_incoming = number;
+            storeData.getStoreDataValue(keyStoreData.Prefix).then(prefix => {
+              sdt_incoming = number.replace(prefix, '');
+              soDienThoaiDen = sdt_incoming;
+              storeData.setStoreDataValue(
+                keyStoreData.soDienThoaiDen,
+                sdt_incoming,
+              );
+              storeData.setStoreDataValue(
+                keyStoreData.hoTenDienThoaiDen,
+                sdt_incoming,
+              );
+              storeData.setStoreDataValue(
+                keyStoreData.typeCall,
+                typeCallEnum.IncomingCall,
+              );
+            });
+          },
+        );
 
         setTimeout(() => {
           let paramNotiData = {

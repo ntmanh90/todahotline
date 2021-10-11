@@ -15,7 +15,7 @@ export default function DrawerContent({ navigation }) {
     // }, [])
 
     return (
-        <ScrollView style={{ backgroundColor: colors.background }}>
+        <ScrollView style={{ backgroundColor: 'white' }}>
 
             {/* <FlatList
                 style={styles.rowMenu}
