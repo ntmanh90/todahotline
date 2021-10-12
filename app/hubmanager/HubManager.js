@@ -80,7 +80,6 @@ function reconnectServer() {
   console.log('client call ReJoin to Server');
   try {
     storeData.getStoreDataObject('sip_user').then(sipUser => {
-      if (!sipUser) return;
       console.log('sip_user: ', sipUser);
       if (!sipUser) return;
       // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);

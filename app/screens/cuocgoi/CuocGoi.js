@@ -50,8 +50,8 @@ var bitratePrew = 0;
 var coutTinHieuYeu = 0;
 var connectionCheckBitRate = null;
 var _callID = '';
+var object = {timeoutID: null, intervalBitrate: null, temp: 1};
 var sessionID = '';
-var timeoutID;
 var stremRTC = null;
 var isconnectionHold = false;
 
@@ -70,6 +70,67 @@ const configuration = {
 var Januscandidates = new Array();
 const webrtcConstraints = {audio: true, video: false};
 
+const AppSettimeout = (cb, timeout, obj) => {
+  if (isIOS) {
+    if (obj && obj.timeoutID) {
+      clearTimeout(obj.timeoutID);
+    } else if (obj) {
+      obj.timeoutID = setTimeout(() => {
+        cb();
+      }, timeout);
+    } else {
+      setTimeout(() => {
+        cb();
+      }, timeout);
+    }
+  } else {
+    if (obj && obj.timeoutID) {
+      BackgroundTimer.clearTimeout(obj.timeoutID);
+    } else if (obj) {
+      obj.timeoutID = BackgroundTimer.setTimeout(() => {
+        cb();
+      }, timeout);
+    } else {
+      BackgroundTimer.setTimeout(() => {
+        cb();
+      }, timeout);
+    }
+  }
+};
+
+const AppCleartimeout = obj => {
+  if (isIOS) {
+    if (obj.timeoutID) clearTimeout(obj.timeoutID);
+  } else {
+    if (obj.timeoutID) BackgroundTimer.clearTimeout(obj.timeoutID);
+  }
+  obj.timeoutID = null;
+};
+
+const AppSetinterval = (cb, interval, obj) => {
+  if (isIOS) {
+    if (obj && obj.intervalBitrate) clearInterval(obj.intervalBitrate);
+    obj.intervalBitrate = setInterval(() => {
+      cb();
+    }, interval);
+  } else {
+    if (obj && obj.intervalBitrate)
+      BackgroundTimer.clearInterval(obj.intervalBitrate);
+    obj.intervalBitrate = BackgroundTimer.setInterval(() => {
+      cb();
+    }, interval);
+  }
+};
+
+const AppClearinterval = obj => {
+  if (isIOS) {
+    if (obj.intervalBitrate) clearInterval(obj.intervalBitrate);
+  } else {
+    if (obj.intervalBitrate) BackgroundTimer.clearInterval(obj.intervalBitrate);
+  }
+  obj.intervalBitrate = null;
+};
+
 function CuocGoi({route}) {
   const [isTransfer, setIsTransfer] = useState(false);
   const [isDTMF, setIsDTMF] = useState(false);
@@ -84,7 +145,6 @@ function CuocGoi({route}) {
   const [bitrate, setBitrate] = useState('');
   const [isMute, setIsMute] = useState(false);
   const [isSpeaker, setIsSpeaker] = useState(false);
-  const [interValBitRate, setInterValBitRate] = useState(0);
   const [showUI, setShowUI] = useState(1);
   const [isCuocGoiTransfer, setIsCuocGoiTransfer] = useState(false);
   const [visibleModel, setVisibleModel] = useState(true);
@@ -94,8 +154,8 @@ function CuocGoi({route}) {
 
   const resetState = () => {
     console.log('[resetState Cuoc Goi]');
-    setTimeout(async () => {
-      if (interValBitRate != 0) clearInterval(interValBitRate);
+    AppSettimeout(async () => {
+      AppClearinterval(object);
 
       let paramNotiData = {
         uniqueid: '',
@@ -109,7 +169,7 @@ function CuocGoi({route}) {
       setTypeCall(0);
       coutTinHieuYeu = 0;
       setCallName('');
-      setStatusCall(statusCallEnum.DaKetThuc);
+      setStatusCall(statusCallEnum.DangKetNoi);
       setIsMute(false);
       setIsSpeaker(false);
       setIsCuocGoiTransfer(false);
@@ -128,11 +188,14 @@ function CuocGoi({route}) {
       storeData.setStoreDataValue(keyStoreData.soDienThoai, '');
       if (connectionCheckBitRate) connectionCheckBitRate.close();
       connectionCheckBitRate = null;
+      InCallManager.stopRingback();
+      InCallManager.stop();
 
       if (isIOS) {
-        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-
-        if (callUID) {
+        let _callUUID = await storeData.getStoreDataValue(
+          keyStoreData.callUUID,
+        );
+        if (_callUUID) {
           RNCallKeep.endCall(callUID);
         } else {
           RNCallKeep.endAllCalls();
@@ -148,20 +211,27 @@ function CuocGoi({route}) {
 
     conn = getHubAndReconnect();
     console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
-
-    let sessionCallId = await storeData.getStoreDataValue(
-      keyStoreData.SessionCallId,
+    AppSettimeout(
+      () => {
+        conn = getHubAndReconnect();
+        conn.invoke('hangUp', sessionID).then().catch();
+        resetState();
+      },
+      20 * 1000,
+      object,
     );
-    outgoingCall(so_dien_thoai, sessionCallId);
+
+    outgoingCall(so_dien_thoai, sessionID);
 
     CuocgoiDB.addCuocGoi(so_dien_thoai, CallTypeEnum.OutboundCall);
+
     //Hiển thị màn hình cuộc gọi nhưng chưa đếm giây
   };
 
   const onAnswerCall = async number => {
     InCallManager.setSpeakerphoneOn(false);
 
-    console.log('[xử ký tra loi cuoc goi]');
+    console.log('[tra loi cuoc goi]');
     logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
     let signalData = await storeData.getStoreDataObject(
       keyStoreData.signalWebRTC,
@@ -252,6 +322,7 @@ function CuocGoi({route}) {
   };
 
   const incomingcall = async (sdp, sessionCall) => {
+    InCallManager.stopRingback();
     console.log('[incomingcall cuoc goi]');
 
     conn = getHubAndReconnect();
@@ -293,8 +364,8 @@ function CuocGoi({route}) {
 
   const getTinHieu = async () => {
     if (connectionCheckBitRate) {
-      connectionCheckBitRate.getStats(null).then(stats => {
-        stats.forEach(async report => {
+      connectionCheckBitRate.getStats().then(stats => {
+        stats.forEach(report => {
           if (report.type === 'inbound-rtp' && report.mediaType === 'audio') {
             const bitrate = parseFloat(report.bytesReceived);
             //console.log('[bitrate]', report);
@@ -305,7 +376,7 @@ function CuocGoi({route}) {
               setBitrate('Tín hiệu yếu');
               coutTinHieuYeu += 1;
               if (coutTinHieuYeu == 3) {
-                //InCallManager.startRingback('_BUNDLE_');
+                InCallManager.startRingback('_BUNDLE_');
                 InCallManager.setSpeakerphoneOn(isSpeaker);
               }
 
@@ -316,7 +387,7 @@ function CuocGoi({route}) {
               }
 
               if (coutTinHieuYeu >= 25) {
-                //InCallManager.stopRingback();
+                InCallManager.stopRingback();
                 handleEndCallTinHieuYeu();
               }
             }
@@ -328,8 +399,23 @@ function CuocGoi({route}) {
               // console.log('[Tín hiệu tốt]')
               //kết nối tốt
               if (coutTinHieuYeu > 0) {
-                //InCallManager.stopRingback();
+                InCallManager.stopRingback();
                 InCallManager.setSpeakerphoneOn(isSpeaker);
+
+                conn.off('callEnded');
+                conn.on('callEnded', (callid, code, reason, id) => {
+                  console.log('CallID :' + _callID);
+                  if (_callID == callid) {
+                    conn
+                      .invoke('ConfirmEvent', 'callEnded', callid)
+                      .catch(error => console.log(error));
+                    logData.writeLogData('Server call client: callEnded');
+                    logSignalR.serverCallClient('callEnded');
+                    setStatusCall(statusCallEnum.DaKetThuc);
+                    resetState();
+                    Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+                  }
+                });
               }
               coutTinHieuYeu = 0;
               setBitrate('Tín hiệu tốt');
@@ -403,35 +489,32 @@ function CuocGoi({route}) {
     if (value) {
       try {
         conn = getHubAndReconnect();
-        //conn.invoke("Hold", sessionCallId);
+        conn.invoke('Hold', sessionCallId);
         //setRemoteAudio(false);
-        onHoldCall(false);
+        //onHoldCall(false);
       } catch {
         logData.writeLogData('Error invoke Hold');
       }
-      InCallManager.stopRingtone();
     } else {
       if (isclick == 1) {
         try {
-          //conn.invoke("UnHold", sessionCallId);
+          conn.invoke('UnHold', sessionCallId);
           //setRemoteAudio(true);
-          onHoldCall(true);
+          //onHoldCall(true);
         } catch {
           logData.writeLogData('Error invoke UnHold');
         }
       } else {
         if (isHold == false) {
           try {
-            //conn.invoke("UnHold", sessionCallId);
+            conn.invoke('UnHold', sessionCallId);
             //setRemoteAudio(true);
-            onHoldCall(true);
+            //onHoldCall(true);
           } catch {
             logData.writeLogData('Error invoke UnHold');
           }
         }
       }
-
-      InCallManager.startRingtone();
     }
 
     return;
@@ -497,18 +580,17 @@ function CuocGoi({route}) {
         );
       }
 
-      // if (isIOS) {
-      //   let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-      //   RNCallKeep.endCall(callUIID);
-      // }
-
-      setTimeout(() => {
-        setStatusCall(statusCallEnum.DaKetThuc);
-        Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-        resetState();
-      }, 1000);
+      AppSettimeout(
+        () => {
+          setStatusCall(statusCallEnum.DaKetThuc);
+          Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+          resetState();
+        },
+        1000,
+        object,
+      );
     } catch {
-      resetState();
+      //resetState();
     }
   };
 
@@ -546,27 +628,37 @@ function CuocGoi({route}) {
   };
 
   const onHoldCall = check => {
-    if (connectionCheckBitRate) {
-      console.log('[OnHold Call] : ' + check.toString());
-      connectionCheckBitRate
-        .createOffer({iceRestart: true, offerToReceiveAudio: check})
-        .then(offer => {
+    NetInfo.fetch().then(state => {
+      if (state.isConnected) {
+        if (connectionCheckBitRate) {
+          //console.log("[OnHold Call] : " + check.toString());
           connectionCheckBitRate
-            .setLocalDescription(offer)
-            .then(() => {
-              conn.invoke(
-                'UpdateOffer',
-                connectionCheckBitRate.localDescription.sdp,
-                sessionID,
-              );
+            .createOffer({iceRestart: true, offerToReceiveAudio: check})
+            .then(offer => {
+              connectionCheckBitRate
+                .setLocalDescription(offer)
+                .then(() => {
+                  conn.invoke(
+                    'UpdateOffer',
+                    connectionCheckBitRate.localDescription.sdp,
+                    sessionID,
+                  );
+                })
+                .catch();
             })
             .catch();
-        })
-        .catch();
 
-      connectionCheckBitRate.onicecandidate = evt =>
-        callbackIceCandidateJanus(evt, sessionID);
-    }
+          //connectionCheckBitRate.onicecandidate = (evt) => callbackIceCandidateJanus(evt, sessionID);
+          connectionCheckBitRate.getAudioTracks()[0].enabled = check;
+        }
+      } else {
+        Toast.showWithGravity(
+          'Mất kết nối Internet. Vui lòng kiểm tra lại đường truyền và thử lại.',
+          Toast.LONG,
+          Toast.BOTTOM,
+        );
+      }
+    });
   };
 
   /// end xử lý nút bấm UI ///
@@ -592,7 +684,6 @@ function CuocGoi({route}) {
     } catch (error) {}
 
     Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
-    clearInterval(interValBitRate);
     resetState();
   };
 
@@ -681,7 +772,6 @@ function CuocGoi({route}) {
 
   useFocusEffect(
     React.useCallback(() => {
-      setStatusCall(statusCallEnum.DangKetNoi);
       InCallManager.setSpeakerphoneOn(isSpeaker);
 
       conn.off('Calling');
@@ -704,6 +794,7 @@ function CuocGoi({route}) {
 
       conn.off('receiveSignal');
       conn.on('receiveSignal', (signal, id) => {
+        console.log('[ReceiveSignal]');
         logSignalR.serverCallClient('receiveSignal receiveSignal CuocGoi ');
         logData.writeLogData('server call client: receiveSignal CuocGoi ');
         try {
@@ -713,6 +804,7 @@ function CuocGoi({route}) {
         }
         // Server trả về SDP cấu hình RTCSessionDescription qua sdp này cho người gọi đi
         newSignal(signal);
+        AppCleartimeout(object);
       });
 
       conn.off('ringing');
@@ -731,6 +823,16 @@ function CuocGoi({route}) {
       conn.off('callAccepted');
       conn.on('callAccepted', id => {
         setTimeStart(new Date());
+        console.log('[Goi Get Tin Hieu]');
+
+        AppSetinterval(
+          () => {
+            getTinHieu();
+            console.log('[Interval Get Tin Hieu]');
+          },
+          1000,
+          object,
+        );
 
         logData.writeLogData('Server call client: callAccepted');
         logSignalR.serverCallClient('callAccepted');
@@ -743,15 +845,11 @@ function CuocGoi({route}) {
 
         if (isIOS) {
           InCallManager.stopRingtone();
-          // Set AVAudioSession mode
-          // AudioSession.setMode('VoiceChat')
-          //   .then(() => { console.log('Success!') })
-          //   .catch(error => { console.log('Error!') })
         }
       });
 
       conn.off('callDeclined');
-      conn.on('callDeclined', async (callid, code, reason, id) => {
+      conn.on('callDeclined', (callid, code, reason, id) => {
         conn
           .invoke('ConfirmEvent', 'callDeclined', callid)
           .catch(error => console.log(error));
@@ -759,13 +857,12 @@ function CuocGoi({route}) {
         logData.writeLogData('Server call client: callDeclined');
         logSignalR.serverCallClient('callEnded');
         setStatusCall(statusCallEnum.DaKetThuc);
-
         resetState();
         Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
       });
 
       conn.off('callEnded');
-      conn.on('callEnded', async (callid, code, reason, id) => {
+      conn.on('callEnded', (callid, code, reason, id) => {
         console.log('CallID :' + _callID);
         if (_callID == callid) {
           conn
@@ -824,15 +921,6 @@ function CuocGoi({route}) {
   useEffect(() => {
     CallStatus();
     console.log('[statusCall]: 3', statusCall);
-    if (statusCall == statusCallEnum.DaKetNoi) {
-      if (interValBitRate != 0) clearInterval(interValBitRate);
-
-      let interVal = setInterval(() => {
-        getTinHieu();
-      }, 1000);
-      console.log('[interVal]', interVal);
-      setInterValBitRate(interVal);
-    }
   }, [statusCall]);
 
   useEffect(() => {

@@ -101,15 +101,62 @@ function BanPhim({navigation}) {
     });
   };
 
-  const onClickSDTDanhBa = (sdt, hoten) => {
-    storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, sdt);
-    storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, hoten);
-    storeData.setStoreDataValue(
-      keyStoreData.typeCall,
-      typeCallEnum.outgoingCall,
-    );
+  const cuocGoiDiDanhBa = async sodanhba => {
+    if (sodanhba.length < 3) {
+      alert('Số điện thoại không đúng định dạng');
+      return;
+    } else if (sodanhba.length > 9) {
+      let quyengoiSDT = await storeData.getStoreDataValue(
+        keyStoreData.quyenGoiRa,
+      );
+      if (quyengoiSDT != '1') {
+        alert('Bạn không có quyền gọi ra');
+        return;
+      }
+    }
 
-    navigation.navigate('CuocGoi');
+    NetInfo.fetch().then(state => {
+      if (state.isConnected) {
+        let termHoTen = sodanhba;
+        db.transaction(tx => {
+          tx.executeSql(
+            'SELECT * FROM DanhBa WHERE so_dien_thoai = ?',
+            [sodanhba],
+            (tx, {rows}) => {
+              console.log('getHoTenTheoSoDienThoai', rows);
+              if (rows.length > 0) {
+                termHoTen = rows.item(0).ho_ten;
+              }
+            },
+            (tx, error) => {
+              console.log('Error check tên số điện thoại ', error);
+            },
+          );
+        });
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, sodanhba);
+        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
+        storeData.setStoreDataValue(
+          keyStoreData.typeCall,
+          typeCallEnum.outgoingCall,
+        );
+        let termSDT = sodanhba;
+        setSoDienThoai('');
+        console.log(
+          'Dữ liệu truyền sang màn hình cuộc gọi: ',
+          termSDT,
+          termHoTen,
+          typeCallEnum.outgoingCall,
+        );
+        navigation.navigate('CuocGoi');
+      } else {
+        logData.writeLogData('[Call Internet Error. Show Toast]');
+        Toast.showWithGravity(
+          'Mất kết nối Internet. Vui lòng kiểm tra lại đường truyền.',
+          Toast.LONG,
+          Toast.BOTTOM,
+        );
+      }
+    });
   };
 
   const handleKeypadPressed = value => {
@@ -219,7 +266,7 @@ function BanPhim({navigation}) {
     setCheckDongBoDanhBa(false);
   };
 
-  const DongBoDanhBaDataBase = async () => {
+  const DongBoDanhBaDataBase = () => {
     if (IOS) {
       Contacts.checkPermission().then(permission => {
         console.log('check', permission);
@@ -396,9 +443,9 @@ function BanPhim({navigation}) {
             renderItem={({item, index}) => {
               return (
                 <TouchableOpacity
-                  onPress={() =>
-                    onClickSDTDanhBa(item.so_dien_thoai, item.ho_ten)
-                  }>
+                  onPress={() => {
+                    cuocGoiDiDanhBa(item.so_dien_thoai);
+                  }}>
                   <View
                     style={{
                       flexDirection: 'row',

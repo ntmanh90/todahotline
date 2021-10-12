@@ -15,6 +15,7 @@ import messaging from '@react-native-firebase/messaging';
 import AppNavigation from './app/navigation/AppNavigation';
 import * as RootNavigation from './app/navigation/RootNavigation';
 import RNCallKeep from 'react-native-callkeep';
+import InCallManager from 'react-native-incall-manager';
 import storeData from './app/hooks/storeData';
 import keyStoreData from './app/utils/keyStoreData';
 import {
@@ -44,9 +45,9 @@ var db = openDatabase({name: 'UserDatabase.db'});
 var soDienThoaiDen = '';
 var _callID = '';
 var appState;
-var checkIos = false;
 var answerClick = false;
-var reconnectTimeoutID, startTimeoutID;
+var objectStart = {id: null, mark: 1};
+var objectRestart = {id: null, mark: 1};
 
 BackgroundTimer.start();
 if (isIOS) {
@@ -84,6 +85,25 @@ if (!isIOS) {
   RNCallKeep.setAvailable(true);
 }
 
+const AppSettimeout = (cb, timeout, object) => {
+  if (isIOS) {
+    setTimeout(() => {
+      cb();
+    }, timeout);
+  } else {
+    if (object.id) BackgroundTimer.clearTimeout(object.id);
+    if (object) {
+      object.id = BackgroundTimer.setTimeout(() => {
+        cb();
+      }, timeout);
+    } else {
+      BackgroundTimer.setTimeout(() => {
+        cb();
+      }, timeout);
+    }
+  }
+};
+
 const App = props => {
   const [disSignal, setDisSignal] = useState(true);
   const [isLogin, setIsLogin] = useState('false');
@@ -95,14 +115,22 @@ const App = props => {
     storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
     storeData.setStoreDataValue(keyStoreData.callUUID, '');
     soDienThoaiDen = '';
-    checkIos = false;
+
+    let allCalls = [];
+    allCalls = await RNCallKeep.getCalls();
+    if (allCalls.length > 0) {
+      logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
+      allCalls.map(item => {
+        RNCallKeep.endCall(item.callUUID);
+      });
+    } else {
+      RNCallKeep.endAllCalls();
+    }
   };
 
   const displayIncomingCall = async () => {
-    if (!isIOS) {
-      RNCallKeep.registerPhoneAccount();
-      //RNCallKeep.toggleAudioRouteSpeaker(_callID, false);
-    }
+    RNCallKeep.registerPhoneAccount();
+    //RNCallKeep.toggleAudioRouteSpeaker(_callID, false);
 
     conn = getHubAndReconnect();
     logData.writeLogData('[displayIncomingCall]');
@@ -143,51 +171,19 @@ const App = props => {
     console.log('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
     logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
 
-    let http = await storeData.getStoreDataValue(keyStoreData.urlApi);
-    let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
-    let somayle = await storeData.getStoreDataValue(keyStoreData.somayle);
-    let paramNoti = await storeData.getStoreDataObject(keyStoreData.paramNoti);
-    let prefix = await storeData.getStoreDataObject(keyStoreData.Prefix);
-
-    var params = {
-      mact: mact,
-      sodich: somayle,
-      songuon: _soDienThoaiDen,
-      somayle: somayle,
-      prefix: prefix,
-      uniqueid: paramNoti ? paramNoti.uniqueid ?? '' : '',
-      channel: paramNoti ? paramNoti.channel ?? '' : '',
-    };
-    let url = http + BaseURL.URL_CHECK_INCOMINGCAL;
-    AppApi.RequestPOST(url, params, (err, json) => {
-      logData.writeLogData(
-        '[CallAPI: checkcuocgoi] send | ',
-        JSON.stringify(params),
+    conn
+      .invoke('ConfirmEvent', 'IncomingCallAsterisk', _callID)
+      .catch(error => console.log(error));
+    if (!isIOS) {
+      RNCallKeep.displayIncomingCall(
+        callUUID,
+        _soDienThoaiDen,
+        hoTen,
+        'number',
+        false,
       );
-
-      if (!err) {
-        logData.writeLogData(
-          '[CallAPI: checkcuocgoi] send | result: ' +
-            JSON.stringify(json.data.status),
-        );
-        console.debug(json.data);
-        if (json.data.status) {
-          RNCallKeep.displayIncomingCall(
-            callUUID,
-            _soDienThoaiDen,
-            hoTen,
-            'number',
-            false,
-          );
-          PushNotification.removeAllDeliveredNotifications();
-          //RNCallKeep.backToForeground();
-        }
-      } else {
-        // RNCallKeep.endAllCalls();
-        CuocGoiDB.addCuocGoi(_soDienThoaiDen, CallTypeEnum.MissingCall);
-        return;
-      }
-    });
+      PushNotification.removeAllDeliveredNotifications();
+    }
   };
 
   const _handleAppStateChange = async nextAppState => {
@@ -200,7 +196,7 @@ const App = props => {
       if (isLoginData !== 'true') {
         RootNavigation.navigate('Login');
       } else {
-        setTimeout(
+        AppSettimeout(
           () => {
             connectServer();
           },
@@ -219,26 +215,27 @@ const App = props => {
     console.log('[AnswerCall - Click]');
     logData.writeLogData('[AnswerCall]');
 
+    storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
+
     if (!isIOS) {
       //RNCallKeep.setCurrentCallActive(callUUID);
       RNCallKeep.backToForeground();
       // setTimeout(() => {
       //   RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
       // }, 150);
+    } else {
+      storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
+      storeData.setStoreDataValue(keyStoreData.callUUID, callUUID.toString());
+      InCallManager.start({media: 'audio', ringback: '_BUNDLE_'});
     }
-
-    storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
-    storeData.setStoreDataValue(keyStoreData.callUUID, callUUID.toString());
 
     if (isIOS) {
       if (soDienThoaiDen == '') {
         let timeOut = 0;
-        logData.writeLogData('Da vao khong co so dien thoai');
         let timeInterval = setInterval(() => {
           timeOut = timeOut + 100;
           if (soDienThoaiDen != '') {
             clearInterval(timeInterval);
-            logData.writeLogData('Interval da co sdt');
             RootNavigation.navigate('CuocGoi');
           }
           if (timeOut > 3000) {
@@ -246,7 +243,6 @@ const App = props => {
           }
         }, 100);
       } else {
-        logData.writeLogData('Da vao cuoc goi');
         RootNavigation.navigate('CuocGoi');
       }
     } else {
@@ -256,7 +252,7 @@ const App = props => {
 
   const endCall = async ({callUUID}) => {
     console.log('[Endcall click]', callUUID);
-    logData.writeLogData('[EndCall click]');
+    logData.writeLogData('[EndCall]');
     conn = getHubAndReconnect();
     const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     let sessionCallId = await storeData.getStoreDataValue(
@@ -395,18 +391,16 @@ const App = props => {
   //conn.off('SendMessage');
   conn.on('SendMessage', (sentUser, message) => {
     console.log('[Message server trả về]');
-    setTimeout(() => {
+    AppSettimeout(() => {
       Toast.showWithGravity(message, Toast.LONG, Toast.BOTTOM);
-    }, 500);
+    }, 1000);
   });
 
   if (!isIOS) {
     conn.off('IncomingCallAsterisk');
     conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
-      conn
-        .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
-        .catch(error => console.log(error));
       console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+      RNCallKeep.backToForeground();
       logData.writeLogData('[[On]] IncomingCallAsterisk App] SDT: ' + number);
       var signal = JSON.parse(data);
       storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
@@ -426,30 +420,32 @@ const App = props => {
           keyStoreData.typeCall,
           typeCallEnum.IncomingCall,
         );
-        if (!isIOS) displayIncomingCall();
+        displayIncomingCall();
       });
     });
   }
 
   conn.off('callEnded');
-  conn.on('callEnded', async (callid, code, reason, id) => {
+  conn.on('callEnded', (callid, code, reason, id) => {
     if (_callID == callid) {
-      let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-      logData.writeLogData('[CallEnded server]');
       storeData
         .getStoreDataValue(keyStoreData.isAnswerCall)
         .then(isAnswerCall => {
+          if (!isAnswerCall) return;
           if (isAnswerCall == 'false') {
             console.log('[sendMissCallToServer] APP');
             storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
           }
         });
+      if (!isIOS) {
+        console.log('[CallEnded server Android]');
+        conn
+          .invoke('ConfirmEvent', 'callEnded', callid)
+          .catch(error => console.log(error));
+        RNCallKeep.endAllCalls();
+      } else {
+        InCallManager.stop({busytone: '_DEFAULT_'});
 
-      conn
-        .invoke('ConfirmEvent', 'callEnded', callid)
-        .catch(error => console.log(error));
-
-      if (isIOS) {
         let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
 
         if (callUID) {
@@ -457,9 +453,11 @@ const App = props => {
         } else {
           RNCallKeep.endAllCalls();
         }
-      }
 
-      handleEndCall();
+        conn
+          .invoke('ConfirmEvent', 'callEnded', callid)
+          .catch(error => console.log(error));
+      }
 
       Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
     }
@@ -516,12 +514,14 @@ const App = props => {
           }
         }
         if (notification.data.type == 'DangXuat') {
-          logData.writeLogData('Firebase Dang Xuat');
+          console.log('[App Dang Xuat]');
           storeData.setStoreDataValue(keyStoreData.isLogin, false);
           storeData.setStoreDataObject('sip_user', {});
           storeData.setStoreDataValue('tennhanvien', '');
           storeData.setStoreDataValue('isLogin', false);
 
+          //conn.invoke('SignOut').catch();
+          conn.stop();
           RootNavigation.navigate('Login');
         }
         if (notification.data.type == 'log') {
@@ -572,13 +572,13 @@ const App = props => {
     AppSettimeout(
       () => {
         onConnected(() => {
-          console.log('OnConnected setDisSignal.');
+          //console.log("OnConnected setDisSignal.");
           setDisSignal(false);
         });
 
         var checkIsLogin = storeData.getStoreDataObject(keyStoreData.isLogin);
         if (checkIsLogin) {
-          console.log('Reconnect Server nè.');
+          //console.log("Reconnect Server nè.")
           connectServer();
         }
       },
@@ -588,7 +588,7 @@ const App = props => {
 
     conn.onclose(e => {
       console.log('Mất kết nối server.');
-      setTimeout(
+      AppSettimeout(
         () => {
           connectServer();
         },
@@ -610,6 +610,8 @@ const App = props => {
     RNCallKeep.addEventListener('endCall', endCall);
 
     return () => {
+      conn.off('IncomingCallAsterisk');
+      conn.off('callEnded');
       RNCallKeep.removeEventListener('answerCall', answerCall);
       RNCallKeep.removeEventListener('endCall', endCall);
       if (objectRestart.id) BackgroundTimer.clearTimeout(objectRestart.id);
@@ -625,6 +627,7 @@ const App = props => {
 
   useEffect(() => {
     if (isIOS) {
+      console.log('[vao cau hinh push kit]');
       // --- anywhere which is most comfortable and appropriate for you,
       // --- usually ASAP, ex: in your app.js or at some global scope.
 
@@ -644,8 +647,9 @@ const App = props => {
       // --- this.onVoipPushNotificationiReceived
       VoipPushNotification.addEventListener('notification', notification => {
         // --- when receive remote voip push, register your VoIP client, show local notification ... etc
-        console.log('[Voip putkit notification]', notification);
-        logData.writeLogData('[notification putkit]');
+        console.log('[Voip putkit gửi về]', notification);
+
+        logData.writeLogData('[Wakeup putkit]');
 
         conn = getHubAndReconnect();
 
@@ -704,7 +708,7 @@ const App = props => {
       VoipPushNotification.addEventListener('didLoadWithEvents', events => {
         // --- this will fire when there are events occured before js bridge initialized
         // --- use this event to execute your event handler manually by event type
-        console.log('[putkit didLoadWithEvents]');
+        console.log('[putkit gửi về 2]');
 
         if (!events || !Array.isArray(events) || events.length < 1) {
           return;
