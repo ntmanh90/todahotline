@@ -320,7 +320,7 @@ PODS:
     - Toast (~> 4.0.0)
   - react-native-sqlite-storage (5.0.0):
     - React
-  - react-native-webrtc (1.92.1):
+  - react-native-webrtc (1.92.2):
     - React-Core
   - React-perflogger (0.64.2)
   - React-RCTActionSheet (0.64.2):
@@ -693,7 +693,7 @@ SPEC CHECKSUMS:
   react-native-safe-area-context: f0906bf8bc9835ac9a9d3f97e8bde2a997d8da79
   react-native-simple-toast: bf002828cf816775a6809f7a9ec3907509bce11f
   react-native-sqlite-storage: 418ef4afc5e6df6ce3574c4617e5f0b65cffde55
-  react-native-webrtc: 77b969fe6bc5b7c93b455f93a13698812fb8bb4e
+  react-native-webrtc: 41526e4060dac373c18676f866962d4180ee47b9
   React-perflogger: 25373e382fed75ce768a443822f07098a15ab737
   React-RCTActionSheet: af7796ba49ffe4ca92e7277a5d992d37203f7da5
   React-RCTAnimation: 6a2e76ab50c6f25b428d81b76a5a45351c4d77aa
