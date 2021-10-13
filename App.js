@@ -426,7 +426,7 @@ const App = props => {
   }
 
   conn.off('callEnded');
-  conn.on('callEnded', (callid, code, reason, id) => {
+  conn.on('callEnded', async (callid, code, reason, id) => {
     if (_callID == callid) {
       storeData
         .getStoreDataValue(keyStoreData.isAnswerCall)
@@ -448,8 +448,19 @@ const App = props => {
 
         let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
 
-        if (callUID) {
-          RNCallKeep.endCall(callUID);
+        // if (callUID) {
+        //   RNCallKeep.endCall(callUID);
+        // } else {
+        //   RNCallKeep.endAllCalls();
+        // }
+
+        let allCalls = [];
+        allCalls = await RNCallKeep.getCalls();
+        if (allCalls.length > 0) {
+          logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
+          allCalls.map(item => {
+            RNCallKeep.endCall(item.callUUID);
+          });
         } else {
           RNCallKeep.endAllCalls();
         }

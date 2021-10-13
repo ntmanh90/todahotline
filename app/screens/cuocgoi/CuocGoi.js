@@ -192,11 +192,13 @@ function CuocGoi({route}) {
       InCallManager.stop();
 
       if (isIOS) {
-        let _callUUID = await storeData.getStoreDataValue(
-          keyStoreData.callUUID,
-        );
-        if (_callUUID) {
-          RNCallKeep.endCall(callUID);
+        let allCalls = [];
+        allCalls = await RNCallKeep.getCalls();
+        if (allCalls.length > 0) {
+          logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
+          allCalls.map(item => {
+            RNCallKeep.endCall(item.callUUID);
+          });
         } else {
           RNCallKeep.endAllCalls();
         }
@@ -862,7 +864,7 @@ function CuocGoi({route}) {
       });
 
       conn.off('callEnded');
-      conn.on('callEnded', (callid, code, reason, id) => {
+      conn.on('callEnded', async (callid, code, reason, id) => {
         console.log('CallID :' + _callID);
         if (_callID == callid) {
           conn
@@ -873,12 +875,25 @@ function CuocGoi({route}) {
           setStatusCall(statusCallEnum.DaKetThuc);
 
           if (isIOS) {
-            let callUID = await storeData.getStoreDataValue(
-              keyStoreData.callUUID,
-            );
+            // let callUID = await storeData.getStoreDataValue(
+            //   keyStoreData.callUUID,
+            // );
 
-            if (callUID) {
-              RNCallKeep.endCall(callUID);
+            // if (callUID) {
+            //   RNCallKeep.endCall(callUID);
+            // } else {
+            //   RNCallKeep.endAllCalls();
+            // }
+
+            let allCalls = [];
+            allCalls = await RNCallKeep.getCalls();
+            if (allCalls.length > 0) {
+              logData.writeLogData(
+                'handleEndCall: allCalls  + ' + allCalls.length,
+              );
+              allCalls.map(item => {
+                RNCallKeep.endCall(item.callUUID);
+              });
             } else {
               RNCallKeep.endAllCalls();
             }

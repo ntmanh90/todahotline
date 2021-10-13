@@ -14,6 +14,7 @@ import AppApi from './app/api/Client';
 import {openDatabase} from 'react-native-sqlite-storage';
 import moment from 'moment';
 
+const isIOS = Platform.OS === 'ios';
 var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
 // BackgroundTimer.start();
