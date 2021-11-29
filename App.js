@@ -215,8 +215,8 @@ const App = props => {
     logData.writeLogData('[AnswerCall]');
 
     if (!isIOS) {
-      RNCallKeep.setCurrentCallActive(callUUID);
       RNCallKeep.backToForeground();
+      RNCallKeep.setCurrentCallActive(callUUID);
       setTimeout(() => {
         RNCallKeep.toggleAudioRouteSpeaker(callUUID, false);
       }, 150);
@@ -429,30 +429,41 @@ const App = props => {
   conn.off('callEnded');
   conn.on('callEnded', async (callid, code, reason, id) => {
     if (_callID == callid) {
+      //RNCallKeep.endAllCalls();
       let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
       logData.writeLogData('[CallEnded server]');
-      storeData
-        .getStoreDataValue(keyStoreData.isAnswerCall)
-        .then(isAnswerCall => {
-          if (isAnswerCall == 'false') {
-            console.log('[sendMissCallToServer] APP');
-            storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
-          }
-        });
+      console.log('[CallEnded server]');
+      console.log(callUIID);
+     
+      if (callUIID) {
+        //let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
 
-      conn
-        .invoke('ConfirmEvent', 'callEnded', callid)
-        .catch(error => console.log(error));
-
-      if (isIOS) {
-        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-
-        if (callUID) {
+        if (isIOS) {
           RNCallKeep.endCall(callUID);
+          console.log('[CallEnded server End Single Call]');
         } else {
-          RNCallKeep.endAllCalls();
+          RNCallKeep.endAllCalls('[CallEnded server End All Call]');
+          console.log('[CallEnded server End Single Call]');
         }
       }
+      else
+      {
+        RNCallKeep.endAllCalls();
+      }
+
+      storeData
+      .getStoreDataValue(keyStoreData.isAnswerCall)
+      .then(isAnswerCall => {
+        if (isAnswerCall == 'false') {
+          console.log('[sendMissCallToServer] APP');
+          storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
+        }
+      });
+
+    conn
+      .invoke('ConfirmEvent', 'callEnded', callid)
+      .catch(error => console.log(error));
+
 
       handleEndCall();
 
@@ -638,6 +649,7 @@ const App = props => {
         conn.on(
           'IncomingCallAsterisk',
           (callid, number, displayname, data, id) => {
+            RNCallKeep.backToForeground();
             conn
               .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
               .catch(error => console.log(error));

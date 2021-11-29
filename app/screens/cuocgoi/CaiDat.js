@@ -55,7 +55,7 @@ export default function Caidat({ navigation }) {
             let somayle = await storeData.getStoreDataValue('somayle');
             let idnhanvien = await storeData.getStoreDataValue('idnhanvien');
             let imei = deviceInfoModule.getUniqueId();
-
+            
             var params = {
                 imei: imei,
                 prefix: prefix,
@@ -65,6 +65,11 @@ export default function Caidat({ navigation }) {
                 idnhanvien: idnhanvien,
                 token: '',
             };
+
+            console.log("[Logout1]");
+            console.log(url);
+            console.log(params);
+
             fetch(url, {
                 method: 'POST',
                 headers: {
@@ -73,6 +78,8 @@ export default function Caidat({ navigation }) {
                 },
                 body: JSON.stringify(params)
             }).then((responce) => {
+                console.log("[Logout2]: Response");
+                console.log(responce);
                 setShowProcess(false);
                 var conn = getHubAndReconnect();
                 conn.invoke('SignOut').catch(); 
@@ -92,6 +99,8 @@ export default function Caidat({ navigation }) {
                     // conn.stop();
                 }
             })
+
+            console.log("[Logout3]");
             setShowProcess(false);
         } catch (error) {
             setShowProcess(false);
