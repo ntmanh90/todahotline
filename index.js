@@ -14,9 +14,19 @@ import AppApi from './app/api/Client';
 import {openDatabase} from 'react-native-sqlite-storage';
 import moment from 'moment';
 import {isIOS} from 'react-native-elements/dist/helpers';
+import RNCallKeep from 'react-native-callkeep';
 
 var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
+
+RNCallKeep.setup({
+  ios: {
+    appName: "Toda phone",
+  },
+  }).then((accepted) => {
+    mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
+    });
+});
 // BackgroundTimer.start();
 
 if (!isIOS) {
