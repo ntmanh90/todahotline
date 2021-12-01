@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
+  BackHandler
 } from 'react-native';
 import BackgroundTimer from 'react-native-background-timer';
 import {Icon} from 'react-native-elements';
@@ -154,9 +155,9 @@ function CuocGoi({route}) {
     let sessionCallId = await storeData.getStoreDataValue(
       keyStoreData.SessionCallId,
     );
-    outgoingCall(so_dien_thoai, sessionCallId);
+    outgoingCall(so_dien_thoai.replace(/\s/g,''), sessionCallId);
 
-    CuocgoiDB.addCuocGoi(so_dien_thoai, CallTypeEnum.OutboundCall);
+    CuocgoiDB.addCuocGoi(so_dien_thoai.replace(/\s/g,''), CallTypeEnum.OutboundCall);
     //Hiển thị màn hình cuộc gọi nhưng chưa đếm giây
   };
 
@@ -173,7 +174,7 @@ function CuocGoi({route}) {
     );
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
 
-    CuocgoiDB.addCuocGoi(number, CallTypeEnum.IncomingCall);
+    CuocgoiDB.addCuocGoi(number.replace(/\s/g,''), CallTypeEnum.IncomingCall);
     setTimeStart(new Date());
     //Hiển thị màn hình cuộc gọi và bắt đầu đếm số
 
@@ -238,17 +239,17 @@ function CuocGoi({route}) {
       conn
         .invoke(
           'CallAsterisk',
-          number,
-          connection.localDescription.sdp,
+          number.replace(/\s/g,'') ,
+          connection.localDescription.sdp ,
           sessionCall,
         )
         .then(() => {
-          logData.writeLogData('invoke: CallAsterisk cuộc gọi đi ' + number);
+          logData.writeLogData('invoke: CallAsterisk cuộc gọi đi ' + number.replace(/\s/g,''));
         });
       connectionCheckBitRate = connection;
       setStatusCall(statusCallEnum.DangKetNoi);
       // setconsole.log('----connection', connection);
-    } catch {
+    } catch(err) {
       console.log('----CallAsterisk Error call out');
     }
   };
@@ -633,7 +634,7 @@ function CuocGoi({route}) {
       sessionID = (
         await storeData.getStoreDataValue(keyStoreData.SessionCallId)
       ).toString();
-      setPhonenumber(_soDienThoaiDi);
+      setPhonenumber(_soDienThoaiDi.replace(/\s/g,''));
       setCallName(_hoTenDienThoaiDi);
 
       if (_soDienThoaiDi == '' || _soDienThoaiDi == null) {
@@ -686,6 +687,12 @@ function CuocGoi({route}) {
     React.useCallback(() => {
       setStatusCall(statusCallEnum.DangKetNoi);
       InCallManager.setSpeakerphoneOn(isSpeaker);
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          console.log(["Back nè"]);
+        }
+      );
 
       conn.off('Calling');
       conn.on('Calling', (callid, msg, id) => {
@@ -733,6 +740,7 @@ function CuocGoi({route}) {
 
       conn.off('callAccepted');
       conn.on('callAccepted', id => {
+        if(isHold) return;
         setTimeStart(new Date());
 
         logData.writeLogData('Server call client: callAccepted');
@@ -803,6 +811,7 @@ function CuocGoi({route}) {
         conn.off('callDeclined');
         conn.off('callEnded');
         InCallManager.stopRingback();
+        backHandler.remove();
       };
     }, []),
   );
@@ -852,8 +861,8 @@ function CuocGoi({route}) {
       visible={visibleModel}
       onRequestClose={() => {
         console.log('[visibleModel]', visibleModel);
-        setVisibleModel(false);
-        alert('[visibleModel]');
+        //setVisibleModel(false);
+        //alert('[visibleModel]');
       }}>
       {isTransfer === true && (
         <View style={{flex: 1}}>

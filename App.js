@@ -116,7 +116,7 @@ const App = props => {
     try {
       db.transaction(tx => {
         tx.executeSql(
-          'SELECT * FROM DanhBa WHERE so_dien_thoai = ?',
+          "SELECT * FROM DanhBa WHERE REPLACE(so_dien_thoai, ' ', '') = ?",
           [_soDienThoaiDen],
           (tx, {rows}) => {
             console.log('getHoTenTheoSoDienThoai', rows);
