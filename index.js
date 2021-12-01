@@ -19,14 +19,15 @@ import RNCallKeep from 'react-native-callkeep';
 var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
 
-RNCallKeep.setup({
-  ios: {
-    appName: "Toda phone",
-  },
-  }).then((accepted) => {
-    mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
-    });
-});
+if (isIOS) {
+  RNCallKeep.setup({
+    ios: {
+      appName: 'Toda phone',
+    },
+  }).then(accepted => {
+    mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {});
+  });
+}
 // BackgroundTimer.start();
 
 if (!isIOS) {

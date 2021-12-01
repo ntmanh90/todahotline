@@ -387,6 +387,8 @@ function CuocGoi({route}) {
       setTxtStatusCall(' Đang kết nối...');
     } else if (statusCall == statusCallEnum.DoChuong) {
       setTxtStatusCall(' Đang đổ chuông...');
+    } else if( statusCall == statusCallEnum.DangGoi ) {
+      setTxtStatusCall(' Đang gọi...');
     } else {
       setTxtStatusCall(' Cuộc gọi kết thúc');
     }
@@ -434,7 +436,7 @@ function CuocGoi({route}) {
         }
       }
 
-      InCallManager.startRingtone();
+      //InCallManager.startRingtone();
     }
 
     return;
@@ -522,7 +524,7 @@ function CuocGoi({route}) {
       connectionCheckBitRate
         .sendDtmfTone(dialString)
         .then(json => {
-          console.log('onDTMF: ', json);
+          console.log('onDTMF: ', dialString);
         })
         .catch();
     }
@@ -685,8 +687,11 @@ function CuocGoi({route}) {
 
   useFocusEffect(
     React.useCallback(() => {
-      setStatusCall(statusCallEnum.DangKetNoi);
-      InCallManager.setSpeakerphoneOn(isSpeaker);
+      if(!isconnectionHold)
+      {
+        setStatusCall(statusCallEnum.DangKetNoi);
+        InCallManager.setSpeakerphoneOn(isSpeaker);
+      }
       const backHandler = BackHandler.addEventListener(
         "hardwareBackPress",
         () => {
@@ -709,6 +714,7 @@ function CuocGoi({route}) {
             logSignalR.clientCallServerError('Calling', error);
           }
           console.log('Calling Home: ', callid);
+          setStatusCall(statusCallEnum.DangGoi);
         }
       });
 
@@ -740,7 +746,7 @@ function CuocGoi({route}) {
 
       conn.off('callAccepted');
       conn.on('callAccepted', id => {
-        if(isHold) return;
+        if(isconnectionHold) return;
         setTimeStart(new Date());
 
         logData.writeLogData('Server call client: callAccepted');
@@ -819,7 +825,7 @@ function CuocGoi({route}) {
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       storeData.getStoreDataValue(keyStoreData.isHold).then(isHoldData => {
-        if (isHoldData != 'true') {
+        if (!isconnectionHold) {
           loadParams();
         } else {
           setVisibleModel(true);

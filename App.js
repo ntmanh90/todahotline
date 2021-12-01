@@ -49,15 +49,9 @@ var answerClick = false;
 var reconnectTimeoutID, startTimeoutID;
 
 BackgroundTimer.start();
-if (isIOS) {
-  RNCallKeep.setup({
-    ios: {
-      appName: 'Toda phone',
-    },
-  }).then(accepted => {
-    mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {});
-  });
-} else {
+
+if (!isIOS) {
+  console.log('Là Android đã vào mục này');
   RNCallKeep.setup({
     android: {
       alertTitle: 'Permissions required',
@@ -75,10 +69,6 @@ if (isIOS) {
       },
     },
   });
-}
-
-if (!isIOS) {
-  console.log('Là Android đã vào mục này');
   RNCallKeep.backToForeground();
   RNCallKeep.registerPhoneAccount();
   RNCallKeep.registerAndroidEvents();
