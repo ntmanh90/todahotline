@@ -714,7 +714,8 @@ function CuocGoi({route}) {
             logSignalR.clientCallServerError('Calling', error);
           }
           console.log('Calling Home: ', callid);
-          setStatusCall(statusCallEnum.DangGoi);
+          if(statusCall == statusCallEnum.DangKetNoi);
+            setStatusCall(statusCallEnum.DangGoi);
         }
       });
 

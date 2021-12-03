@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
   package="com.todahotline">
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -41,7 +42,8 @@
         android:launchMode="singleTask"
         android:screenOrientation="portrait"
         android:windowSoftInputMode="adjustResize"
-          android:showOnLockScreen="true"  >
+        tools:targetApi="28"
+        tools:ignore="GoogleAppIndexingWarning">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

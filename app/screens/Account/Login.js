@@ -44,9 +44,11 @@ function Login({navigation}) {
     idpush = await messaging().getToken();
     console.log('idpush', idpush);
     let idpushkit = '';
-    if (Platform.OS == 'ios') {
-      idpushkit = (await storeData.getStoreDataValue('tokenPuskit')) ?? '';
+    if (isIOS) {
+      idpushkit = (await storeData.getStoreDataValue('tokenPuskit')) || '';
+      console.log(idpushkit);
     }
+    
     let deviceName = await DeviceInfo.getDeviceName();
 
     var params = {
