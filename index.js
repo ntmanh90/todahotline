@@ -1,4 +1,4 @@
-import {AppRegistry, DeviceEventEmitter, Platform} from 'react-native';
+import {AppRegistry, DeviceEventEmitter, PermissionsAndroid, Platform} from 'react-native';
 import App from './App';
 import messaging from '@react-native-firebase/messaging';
 import {name as appName} from './app.json';
@@ -27,6 +27,29 @@ if (isIOS) {
   }).then(accepted => {
     mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {});
   });
+}
+else {
+  RNCallKeep.setup({
+    android: {
+      alertTitle: 'Permissions required',
+      alertDescription: 'This application needs to access your phone accounts',
+      cancelButton: 'Cancel',
+      okButton: 'ok',
+      //selfManaged: true,
+      //Add bổ xung giống bản của mr khánh
+      additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
+      foregroundService: {
+        channelId: 'com.lachong.toda',
+        channelName: 'Foreground service for my app',
+        notificationTitle: 'My app is running on background',
+        notificationIcon: 'Path to the resource icon of the notification',
+      },
+    },
+  });
+
+  RNCallKeep.registerPhoneAccount();
+  RNCallKeep.registerAndroidEvents();
+  RNCallKeep.setAvailable(true);
 }
 // BackgroundTimer.start();
 

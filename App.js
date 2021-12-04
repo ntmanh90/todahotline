@@ -5,6 +5,7 @@ import {
   View,
   PermissionsAndroid,
   AppState,
+  SafeAreaView
 } from 'react-native';
 import uuid from 'react-native-uuid';
 import BackgroundTimer from 'react-native-background-timer';
@@ -52,27 +53,7 @@ BackgroundTimer.start();
 
 if (!isIOS) {
   console.log('Là Android đã vào mục này');
-  RNCallKeep.setup({
-    android: {
-      alertTitle: 'Permissions required',
-      alertDescription: 'This application needs to access your phone accounts',
-      cancelButton: 'Cancel',
-      okButton: 'ok',
-      //selfManaged: true,
-      //Add bổ xung giống bản của mr khánh
-      additionalPermissions: [PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE],
-      foregroundService: {
-        channelId: 'com.lachong.toda',
-        channelName: 'Foreground service for my app',
-        notificationTitle: 'My app is running on background',
-        notificationIcon: 'Path to the resource icon of the notification',
-      },
-    },
-  });
   RNCallKeep.backToForeground();
-  RNCallKeep.registerPhoneAccount();
-  RNCallKeep.registerAndroidEvents();
-  RNCallKeep.setAvailable(true);
 }
 
 const App = props => {
@@ -161,6 +142,7 @@ const App = props => {
         );
         console.debug(json.data);
         if (json.data.status) {
+          RNCallKeep.backToForeground();
           RNCallKeep.displayIncomingCall(
             callUUID,
             _soDienThoaiDen,
@@ -169,7 +151,6 @@ const App = props => {
             false,
           );
           PushNotification.removeAllDeliveredNotifications();
-          //RNCallKeep.backToForeground();
         }
       } else {
         // RNCallKeep.endAllCalls();

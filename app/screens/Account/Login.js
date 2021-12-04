@@ -71,7 +71,7 @@ function Login({navigation}) {
     var url = http + BaseUrl.URL_LOGIN;
 
     AppApi.RequestPOST(url, params, (err, json) => {
-      setRenderProcess(true);
+      //setRenderProcess(true);
       console.log('Error login: ', err);
       if (!err) {
         if (json.data.status) {
@@ -90,7 +90,7 @@ function Login({navigation}) {
           );
           storeData.setStoreDataValue('somayle', json.data.data.somayle);
           storeData.setStoreDataValue(
-            'tendangnhap',
+            keyStoreData.tendangnhap,
             json.data.data.tendangnhap,
           );
           storeData.setStoreDataValue(
@@ -130,6 +130,7 @@ function Login({navigation}) {
             Toast.LONG,
             Toast.TOP,
           );
+          setRenderProcess(false);
           return false;
         }
       } else {
@@ -143,7 +144,7 @@ function Login({navigation}) {
   const LoginApi = async () => {
     createTableDatabase();
     setRenderProcess(true);
-    storeData.setStoreDataValue('tenct', maCongTy);
+    storeData.setStoreDataValue(keyStoreData.tenct, maCongTy);
     storeData.setStoreDataValue('UserName', tenDangNhap);
     storeData.setStoreDataValue('PassWord', matKhau);
 
