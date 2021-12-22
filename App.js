@@ -47,7 +47,7 @@ var _callID = '';
 var appState;
 var checkIos = false;
 var answerClick = false;
-var reconnectTimeoutID, startTimeoutID;
+var reconnectTimeoutID, startTimeoutID, incomingTimeout;
 
 BackgroundTimer.start();
 
@@ -68,7 +68,36 @@ const App = props => {
     storeData.setStoreDataValue(keyStoreData.callUUID, '');
     soDienThoaiDen = '';
     checkIos = false;
+    stopIncomingTimeout();
   };
+
+  const startIncomingTimeout = async () => {
+    if(incomingTimeout) clearTimeout(incomingTimeout);
+    incomingTimeout = setTimeout(async () => {
+      let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+      logData.writeLogData('[CallEnded timeout]');
+     
+      if (callUIID) {
+        //let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+        if (isIOS) {
+          RNCallKeep.endCall(callUID);
+          console.log('[CallEnded server End Single Call]');
+        } else {
+          RNCallKeep.endAllCalls('[CallEnded server End All Call]');
+          console.log('[CallEnded server End Single Call]');
+        }
+      }
+      else
+      {
+        RNCallKeep.endAllCalls();
+      }
+    }, 30000);
+  }
+
+  const stopIncomingTimeout = async () => {
+    if(incomingTimeout) clearTimeout(incomingTimeout);
+  }
 
   const displayIncomingCall = async () => {
     if (!isIOS) {
@@ -143,13 +172,16 @@ const App = props => {
         console.debug(json.data);
         if (json.data.status) {
           RNCallKeep.backToForeground();
-          RNCallKeep.displayIncomingCall(
-            callUUID,
-            _soDienThoaiDen,
-            hoTen,
-            'number',
-            false,
-          );
+          setTimeout(() => {
+            RNCallKeep.displayIncomingCall(
+              callUUID,
+              _soDienThoaiDen,
+              hoTen,
+              'number',
+              false,
+            );
+            startIncomingTimeout();
+          }, 500);
           PushNotification.removeAllDeliveredNotifications();
         }
       } else {
@@ -577,6 +609,7 @@ const App = props => {
 
     RNCallKeep.addEventListener('answerCall', answerCall);
     RNCallKeep.addEventListener('endCall', endCall);
+    RNCallKeep.checkAlertWindow();
 
     return () => {
       RNCallKeep.removeEventListener('answerCall', answerCall);

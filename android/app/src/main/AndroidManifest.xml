@@ -2,11 +2,14 @@
     xmlns:tools="http://schemas.android.com/tools"
   package="com.todahotline">
 
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        android:protectionLevel="signature|preinstalled|appop|pre23|development"/>
+    <permission android:name="android.permission.GRANT_RUNTIME_PERMISSIONS"
+        android:protectionLevel="signature|installer|verifier"/>
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.REORDER_TASKS"/>
-
 
     <uses-permission android:name="android.permission.BIND_TELECOM_CONNECTION_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -23,7 +26,6 @@
     <!-- <uses-permission android:name="android.permission.CAMERA" /> -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application

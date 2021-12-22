@@ -67,8 +67,9 @@ function Login({navigation}) {
     };
 
     let http = await storeData.getStoreDataValue('urlApi');
-    console.log('http', http);
     var url = http + BaseUrl.URL_LOGIN;
+    console.log('http', http);
+    console.log('params', params);
 
     AppApi.RequestPOST(url, params, (err, json) => {
       //setRenderProcess(true);
@@ -105,7 +106,7 @@ function Login({navigation}) {
             String(json.data.data.ChoPhepGoiRa),
           );
           storeData.setStoreDataValue('Prefix', json.data.data.Prefix);
-          storeData.setStoreDataValue('isLogin', true);
+          storeData.setStoreDataValue(keyStoreData.isLogin, true);
           // DefaultPreference.set('Prefix', JSON.stringify({ data: json.data.data.Prefix })).then((value) => { console.log("DefaultPreference Contacts: ", value) })
           AppApi.RequestGET(
             'https://signaltest.ksmart.vn/api/Token/' + json.data.data.somayle,
