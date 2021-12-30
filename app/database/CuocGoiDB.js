@@ -41,7 +41,7 @@ const addCuocGoi = (sdt, type) => {
   console.log('dateNow', dateNow);
   db.transaction(tx => {
     tx.executeSql(
-      'SELECT * FROM DanhBa WHERE so_dien_thoai = ?',
+      "SELECT * FROM DanhBa WHERE REPLACE(so_dien_thoai, ' ', '') = ?",
       [sdt],
       (tx, {rows}) => {
         //console.log('SQLlite list DanhBa: ', rows);

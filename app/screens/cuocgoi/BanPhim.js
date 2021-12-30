@@ -62,34 +62,35 @@ function BanPhim({navigation}) {
         let termHoTen = soDienThoai;
         db.transaction(tx => {
           tx.executeSql(
-            'SELECT * FROM DanhBa WHERE so_dien_thoai = ?',
+            "SELECT * FROM DanhBa WHERE REPLACE(so_dien_thoai, ' ', '') = ?",
             [soDienThoai],
             (tx, {rows}) => {
               console.log('getHoTenTheoSoDienThoai', rows);
               if (rows.length > 0) {
                 termHoTen = rows.item(0).ho_ten;
               }
+
+              storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
+              storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
+              storeData.setStoreDataValue(
+                keyStoreData.typeCall,
+                typeCallEnum.outgoingCall,
+              );
+              let termSDT = soDienThoai;
+              setSoDienThoai('');
+              console.log(
+                'Dữ liệu truyền sang màn hình cuộc gọi: ',
+                termSDT,
+                termHoTen,
+                typeCallEnum.outgoingCall,
+              );
+              navigation.navigate('CuocGoi');
             },
             (tx, error) => {
               console.log('Error check tên số điện thoại ', error);
             },
           );
         });
-        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, soDienThoai);
-        storeData.setStoreDataValue(keyStoreData.hoTenDienThoaiDi, termHoTen);
-        storeData.setStoreDataValue(
-          keyStoreData.typeCall,
-          typeCallEnum.outgoingCall,
-        );
-        let termSDT = soDienThoai;
-        setSoDienThoai('');
-        console.log(
-          'Dữ liệu truyền sang màn hình cuộc gọi: ',
-          termSDT,
-          termHoTen,
-          typeCallEnum.outgoingCall,
-        );
-        navigation.navigate('CuocGoi');
       } else {
         logData.writeLogData('[Call Internet Error. Show Toast]');
         Toast.showWithGravity(
@@ -159,14 +160,37 @@ function BanPhim({navigation}) {
     });
   };
 
+  const handleDeletePressed = value => {
+    if (value.length > 0) {
+      db.transaction(tx => {
+        tx.executeSql(
+          "SELECT * FROM DanhBa WHERE REPLACE(so_dien_thoai, ' ', '') LIKE '%" +
+          value +
+            "%' ORDER BY ho_ten",
+          [],
+          (tx, {rows}) => {
+            let temp = [];
+            for (let i = 0; i < rows.length; i++) {
+              temp.push(rows.item(i));
+            }
+            setListSearhDanhBa(temp);
+          },
+          tx => {
+            console.log('Error list cuoc goi: ', tx);
+          },
+        );
+      });
+    }
+  };
+
   const handleKeypadPressed = value => {
-    let tmp = soDienThoai;
+    let tmp = soDienThoai | '';
     tmp = tmp + value.trim();
     setSoDienThoai(tmp);
     if (soDienThoai.length > 0) {
       db.transaction(tx => {
         tx.executeSql(
-          "SELECT * FROM DanhBa WHERE so_dien_thoai LIKE '%" +
+          "SELECT * FROM DanhBa WHERE REPLACE(so_dien_thoai, ' ', '') LIKE '%" +
             tmp +
             "%' ORDER BY ho_ten",
           [],
@@ -188,6 +212,7 @@ function BanPhim({navigation}) {
   const deleteNumber = () => {
     var tmp = soDienThoai;
     tmp = tmp.substr(0, tmp.length - 1);
+    handleDeletePressed(tmp);
     setSoDienThoai(tmp);
   };
 

@@ -48,6 +48,7 @@ var appState;
 var answerClick = false;
 var objectStart = {id: null, mark: 1};
 var objectRestart = {id: null, mark: 1};
+var incomingTimeout;
 
 BackgroundTimer.start();
 if (isIOS) {
@@ -115,6 +116,7 @@ const App = props => {
     storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
     storeData.setStoreDataValue(keyStoreData.callUUID, '');
     soDienThoaiDen = '';
+    stopIncomingTimeout();
 
     let allCalls = [];
     allCalls = await RNCallKeep.getCalls();
@@ -175,16 +177,49 @@ const App = props => {
       .invoke('ConfirmEvent', 'IncomingCallAsterisk', _callID)
       .catch(error => console.log(error));
     if (!isIOS) {
-      RNCallKeep.displayIncomingCall(
-        callUUID,
-        _soDienThoaiDen,
-        hoTen,
-        'number',
-        false,
-      );
-      PushNotification.removeAllDeliveredNotifications();
+      RNCallKeep.backToForeground();
+          setTimeout(() => {
+            RNCallKeep.displayIncomingCall(
+              callUUID,
+              _soDienThoaiDen,
+              hoTen,
+              'number',
+              false,
+            );
+            startIncomingTimeout();
+          }, 500);
+          PushNotification.removeAllDeliveredNotifications();
     }
   };
+
+  const startIncomingTimeout = async () => {
+    if(incomingTimeout) clearTimeout(incomingTimeout);
+    incomingTimeout = setTimeout(async () => {
+      let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+      logData.writeLogData('[CallEnded timeout]');
+     
+      if (callUIID) {
+        //let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+        if (isIOS) {
+          RNCallKeep.endCall(callUIID);
+          console.log('[CallEnded server End Single Call]');
+        } else {
+          RNCallKeep.endAllCalls('[CallEnded server End All Call]');
+          console.log('[CallEnded server End all Call]');
+        }
+      }
+      else
+      {
+        RNCallKeep.endAllCalls();
+        console.log('[CallEnded uiid null End all Call]');
+      }
+    }, 30000);
+  }
+
+  const stopIncomingTimeout = async () => {
+    if(incomingTimeout) clearTimeout(incomingTimeout);
+  }
 
   const _handleAppStateChange = async nextAppState => {
     if (

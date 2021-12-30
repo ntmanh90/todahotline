@@ -4,9 +4,11 @@ import {
   View,
   SafeAreaView,
   StyleSheet,
+  TouchableOpacity,
   Text,
   Image,
   Alert,
+  Dimensions
 } from 'react-native';
 import {Input, Button} from 'react-native-elements';
 import md5 from 'md5';
@@ -20,8 +22,12 @@ import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
 import keyStoreData from '../../utils/keyStoreData';
 import useLogout from '../../hooks/useLogout';
+import { getHubAndReconnect } from '../../hubmanager/HubManager';
+import deviceInfoModule from 'react-native-device-info';
+import {useFocusEffect} from '@react-navigation/native';
 
 const IOS = Platform.OS === 'ios';
+const DEVICE_WIDTH = Dimensions.get('window').width;
 
 BackgroundTimer.start();
 
@@ -33,12 +39,72 @@ function DoiMatKhau({navigation}) {
 
   const useLogoutHook = useLogout();
 
-  const handleLogout = () => {
-    useLogoutHook.logOut().then(() => {
-      console.log('đã xử lý xong vấn đề logout');
+  const removeDataLogin = () => {
+      storeData.setStoreDataObject(keyStoreData.sip_user, {});
+      storeData.setStoreDataValue(keyStoreData.tennhanvien, '');
+      storeData.setStoreDataValue(keyStoreData.isLogin, false);
+      setRenderProcess(false);
+            Toast.showWithGravity(
+              'Đổi mật khẩu thành công.',
+              Toast.LONG,
+              Toast.TOP,
+            );
       navigation.navigate('Login');
-    });
   };
+
+  const handleLogout = async () => {
+    try {
+        console.log("[Đã vào Handle Logout 1]");
+        let http = await storeData.getStoreDataValue('urlApi');
+        var url = http + BaseURL.URL_LOGOUT;
+        let mact = await storeData.getStoreDataValue('tenct');
+        let prefix = await storeData.getStoreDataValue('Prefix');
+        let somayle = await storeData.getStoreDataValue('somayle');
+        let idnhanvien = await storeData.getStoreDataValue('idnhanvien');
+        let imei = deviceInfoModule.getUniqueId();
+        
+        console.log("[Đã vào Handle Logout 2]");
+        var params = {
+            imei: imei,
+            prefix: prefix,
+            mact: mact,
+            somayle: somayle,
+            hinhthucdangxuat: '0',
+            idnhanvien: idnhanvien,
+            token: '',
+        };
+
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params)
+        }).then((responce) => {
+            var conn = getHubAndReconnect();
+            //conn.invoke('SignOut').catch(); 
+            if (responce.status) {
+                BackgroundTimer.setTimeout(() => {
+                    try {
+                        conn.invoke('SignOut').catch();
+                        conn.stop();
+                        removeDataLogin();
+                    }
+                    catch (err) {
+                        removeDataLogin();
+                    }
+                }, 1000);
+                // conn.stop();
+            }
+        })
+    } catch (error) {
+        setRenderProcess(false);
+    }
+}
+
+
   const handleDoiMatKhau = async () => {
     if (matKhauCu == '' || matKhauMoi == '' || nhapLaiMatKhauMoi == '') {
       Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin');
@@ -53,6 +119,8 @@ function DoiMatKhau({navigation}) {
     setRenderProcess(true);
     let urlApi = await storeData.getStoreDataValue(keyStoreData.urlApi);
     let idnv = await storeData.getStoreDataValue(keyStoreData.idnhanvien);
+    let mact = await storeData.getStoreDataValue(keyStoreData.tenct);
+    let username = await storeData.getStoreDataValue(keyStoreData.tendangnhap);
 
     var url = urlApi + BaseURL.URL_CHANGE_PASSWORD;
     var params = {
@@ -60,9 +128,13 @@ function DoiMatKhau({navigation}) {
       matkhaucu: md5(matKhauCu),
       idnhanvien: idnv,
       token: '',
+      macongty: mact,
+      tendangnhap: username
     };
+
+    console.log("[URL đổi mật khẩu]: " + url);
+
     AppApi.RequestPOST(url, params, (err, json) => {
-      setRenderProcess(false);
       console.log('[err json]', err, json);
       if (json.data.status == true) {
         handleLogout();
@@ -75,24 +147,31 @@ function DoiMatKhau({navigation}) {
   };
 
   //Xin quyền gọi
+  useFocusEffect(
+    React.useCallback(() => {
+      setMatKhauCu("");
+      setMatKhauMoi("");
+      setNhapLaiMatKhauMoi("");
+
+      return () => {
+        
+      };
+    }, []),
+  );
 
   React.useEffect(() => {}, [renderProcess]);
 
   return (
-    <>
-      <View style={styles.container}>
-        <Header
-          leftComponent={
-            <Icon
-              name="arrow-back"
-              color="#fff"
-              size={22}
-              onPress={() => navigation.goBack()}
-            />
-          }
-          centerComponent={{text: 'Đổi mật khẩu', style: {color: '#fff'}}}
-        />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.tieude}>
+        <TouchableOpacity onPress={() => { navigation.goBack() }} style={{ marginLeft: 10 }}>
+          <Icon type="feather" name="arrow-left" size={24} color={"#fff"} />
+        </TouchableOpacity>
+        <Text style={styles.text_tieude}>Đổi mật khẩu</Text>
+        <View style={{ width: 24, marginRight: 10 }}></View>
+      </View>
 
+      <View style={styles.container}>
         <View
           style={{
             marginTop: '10%',
@@ -147,14 +226,30 @@ function DoiMatKhau({navigation}) {
         />
       </View>
       {renderProcess === true ? <ProgressApp /> : null}
-    </>
+    </SafeAreaView>
   );
 }
 
 var styles = StyleSheet.create({
+  tieude: {
+    flexDirection: 'row',
+    backgroundColor: '#1976d2',
+    width: DEVICE_WIDTH,
+    height: 45,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  text_tieude: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    width: DEVICE_WIDTH
   },
   borderButton: {
     marginTop: 30,

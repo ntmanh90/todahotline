@@ -223,9 +223,9 @@ function CuocGoi({route}) {
       object,
     );
 
-    outgoingCall(so_dien_thoai, sessionID);
+    outgoingCall(so_dien_thoai.replace(/\s/g,''), sessionID);
 
-    CuocgoiDB.addCuocGoi(so_dien_thoai, CallTypeEnum.OutboundCall);
+    CuocgoiDB.addCuocGoi(so_dien_thoai.replace(/\s/g,''), CallTypeEnum.OutboundCall);
 
     //Hiển thị màn hình cuộc gọi nhưng chưa đếm giây
   };
