@@ -301,7 +301,7 @@ function CuocGoi({route}) {
     connection.oniceconnectionstatechange = evt =>
       callbackIceCandidateJanusState(evt);
     connection.addStream(stream);
-    let offer = await connection.createOffer();
+    let offer = await connection.createOffer({offerToReceiveAudio: true});
     let descriptionType = await connection.setLocalDescription(offer);
 
     try {
@@ -775,6 +775,7 @@ function CuocGoi({route}) {
   useFocusEffect(
     React.useCallback(() => {
       InCallManager.setSpeakerphoneOn(isSpeaker);
+      InCallManager.stopRingback();
 
       conn.off('Calling');
       conn.on('Calling', (callid, msg, id) => {

@@ -13,11 +13,23 @@ import logData from './app/utils/logData';
 import AppApi from './app/api/Client';
 import {openDatabase} from 'react-native-sqlite-storage';
 import moment from 'moment';
+import {
+  mediaDevices
+} from 'react-native-webrtc';
 
 const isIOS = Platform.OS === 'ios';
 var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
 // BackgroundTimer.start();
+if(isIOS) {
+  RNCallKeep.setup({
+    ios: {
+      appName: 'Toda phone',
+    },
+  }).then(accepted => {
+    mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {});
+  });
+}
 
 if (!isIOS) {
   conn.off('IncomingCallAsterisk');

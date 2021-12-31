@@ -51,15 +51,7 @@ var objectRestart = {id: null, mark: 1};
 var incomingTimeout;
 
 BackgroundTimer.start();
-if (isIOS) {
-  RNCallKeep.setup({
-    ios: {
-      appName: 'Toda phone',
-    },
-  }).then(accepted => {
-    mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {});
-  });
-} else {
+if (!isIOS) {
   RNCallKeep.setup({
     android: {
       alertTitle: 'Permissions required',
