@@ -110,15 +110,20 @@ const App = props => {
     soDienThoaiDen = '';
     stopIncomingTimeout();
 
-    let allCalls = [];
-    allCalls = await RNCallKeep.getCalls();
-    if (allCalls.length > 0) {
-      logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
-      allCalls.map(item => {
-        RNCallKeep.endCall(item.callUUID);
-      });
-    } else {
-      RNCallKeep.endAllCalls();
+    if(isIOS) {
+      VoipPushNotification.removeEventListener('notification');
+      let allCalls = [];
+      let count = 0;
+      allCalls = await RNCallKeep.getCalls();
+      while(allCalls.length > 0 || count <= 50) {
+        count ++;
+        logData.writeLogData('handleStuckCall: allCalls  + ' + allCalls.length);
+        allCalls.map(item => {
+          RNCallKeep.reportEndCallWithUUID(item.callUUID, 1);
+        });
+        allCalls = await RNCallKeep.getCalls();
+      }
+      VoipAddListenNotification();
     }
   };
 
@@ -194,7 +199,7 @@ const App = props => {
         //let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
 
         if (isIOS) {
-          RNCallKeep.endCall(callUIID);
+          RNCallKeep.reportEndCallWithUUID(callUIID, 3);
           console.log('[CallEnded server End Single Call]');
         } else {
           RNCallKeep.endAllCalls('[CallEnded server End All Call]');
@@ -279,7 +284,7 @@ const App = props => {
 
   const endCall = async ({callUUID}) => {
     console.log('[Endcall click]', callUUID);
-    logData.writeLogData('[EndCall]');
+    logData.writeLogData('[EndCall click]');
     conn = getHubAndReconnect();
     const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     let sessionCallId = await storeData.getStoreDataValue(
@@ -663,6 +668,67 @@ const App = props => {
     };
   }, []);
 
+  const VoipAddListenNotification = function() {
+    VoipPushNotification.addEventListener('notification', notification => {
+      // --- when receive remote voip push, register your VoIP client, show local notification ... etc
+      console.log('[Voip putkit gửi về]', notification);
+
+      logData.writeLogData('[Wakeup putkit]');
+
+      conn = getHubAndReconnect();
+
+      conn.off('IncomingCallAsterisk');
+      conn.on(
+        'IncomingCallAsterisk',
+        (callid, number, displayname, data, id) => {
+          conn
+            .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
+            .catch(error => console.log(error));
+          console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+          logData.writeLogData(
+            '[[On]] IncomingCallAsterisk App] SDT: ' + number,
+          );
+          var signal = JSON.parse(data);
+          storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
+          storeData.setStoreDataValue(keyStoreData.callid, callid);
+          _callID = callid;
+
+          let sdt_incoming = number;
+          storeData.getStoreDataValue(keyStoreData.Prefix).then(prefix => {
+            sdt_incoming = number.replace(prefix, '');
+            soDienThoaiDen = sdt_incoming;
+            storeData.setStoreDataValue(
+              keyStoreData.soDienThoaiDen,
+              sdt_incoming,
+            );
+            storeData.setStoreDataValue(
+              keyStoreData.hoTenDienThoaiDen,
+              sdt_incoming,
+            );
+            storeData.setStoreDataValue(
+              keyStoreData.typeCall,
+              typeCallEnum.IncomingCall,
+            );
+          });
+        },
+      );
+
+      setTimeout(() => {
+        let paramNotiData = {
+          uniqueid: notification.uniqueid,
+          channel: notification.uuid,
+          thoiGianCuocGoiDen: moment(new Date()).format(
+            'YYYY-MM-DD HH:mm:ss',
+          ),
+        };
+        console.log('[paramNotiData]', paramNotiData);
+        storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+      }, 200);
+      // --- optionally, if you `addCompletionHandler` from the native side, once you have done the js jobs to initiate a call, call `completion()`
+      VoipPushNotification.onVoipNotificationCompleted(notification.uuid);
+    });
+  }
+
   useEffect(() => {
     if (isIOS) {
       console.log('[vao cau hinh push kit]');
@@ -683,64 +749,7 @@ const App = props => {
 
       // ===== Step 2: subscribe `notification` event =====
       // --- this.onVoipPushNotificationiReceived
-      VoipPushNotification.addEventListener('notification', notification => {
-        // --- when receive remote voip push, register your VoIP client, show local notification ... etc
-        console.log('[Voip putkit gửi về]', notification);
-
-        logData.writeLogData('[Wakeup putkit]');
-
-        conn = getHubAndReconnect();
-
-        conn.off('IncomingCallAsterisk');
-        conn.on(
-          'IncomingCallAsterisk',
-          (callid, number, displayname, data, id) => {
-            conn
-              .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
-              .catch(error => console.log(error));
-            console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
-            logData.writeLogData(
-              '[[On]] IncomingCallAsterisk App] SDT: ' + number,
-            );
-            var signal = JSON.parse(data);
-            storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
-            storeData.setStoreDataValue(keyStoreData.callid, callid);
-            _callID = callid;
-
-            let sdt_incoming = number;
-            storeData.getStoreDataValue(keyStoreData.Prefix).then(prefix => {
-              sdt_incoming = number.replace(prefix, '');
-              soDienThoaiDen = sdt_incoming;
-              storeData.setStoreDataValue(
-                keyStoreData.soDienThoaiDen,
-                sdt_incoming,
-              );
-              storeData.setStoreDataValue(
-                keyStoreData.hoTenDienThoaiDen,
-                sdt_incoming,
-              );
-              storeData.setStoreDataValue(
-                keyStoreData.typeCall,
-                typeCallEnum.IncomingCall,
-              );
-            });
-          },
-        );
-
-        setTimeout(() => {
-          let paramNotiData = {
-            uniqueid: notification.uniqueid,
-            channel: notification.uuid,
-            thoiGianCuocGoiDen: moment(new Date()).format(
-              'YYYY-MM-DD HH:mm:ss',
-            ),
-          };
-          console.log('[paramNotiData]', paramNotiData);
-          storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-        }, 200);
-        // --- optionally, if you `addCompletionHandler` from the native side, once you have done the js jobs to initiate a call, call `completion()`
-        VoipPushNotification.onVoipNotificationCompleted(notification.uuid);
-      });
+      VoipAddListenNotification();
 
       // ===== Step 3: subscribe `didLoadWithEvents` event =====
       VoipPushNotification.addEventListener('didLoadWithEvents', events => {

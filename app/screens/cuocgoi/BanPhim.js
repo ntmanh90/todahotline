@@ -184,7 +184,7 @@ function BanPhim({navigation}) {
   };
 
   const handleKeypadPressed = value => {
-    let tmp = soDienThoai | '';
+    let tmp = soDienThoai || '';
     tmp = tmp + value.trim();
     setSoDienThoai(tmp);
     if (soDienThoai.length > 0) {

@@ -22,7 +22,7 @@ import {getHubAndReconnect} from '../../hubmanager/HubManager';
 import logSignalR from '../../utils/customLogSignalR';
 import logData from '../../utils/logData';
 import CuocgoiDB from '../../database/CuocGoiDB';
-import RNCallKeep from 'react-native-callkeep';
+import {CONSTANTS , RNCallKeep} from 'react-native-callkeep';
 import CallTypeEnum from '../../hubmanager/CallTypeEnum';
 import BaseURL from '../../utils/BaseURL';
 import ProgressApp from '../../components/ProgressApp';
@@ -197,7 +197,7 @@ function CuocGoi({route}) {
         if (allCalls.length > 0) {
           logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
           allCalls.map(item => {
-            RNCallKeep.endCall(item.callUUID);
+            RNCallKeep.reportEndCallWithUUID(item.callUUID, 2);
           });
         } else {
           RNCallKeep.endAllCalls();
@@ -556,22 +556,22 @@ function CuocGoi({route}) {
       );
       console.log('hangUp');
 
-      if (isIOS) {
-        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-
-        if (callUID) {
-          RNCallKeep.endCall(callUID);
-        } else {
-          RNCallKeep.endAllCalls();
-        }
-      }
-
       conn
         .invoke('hangUp', sessionCallId)
         .then(async () => {
           logData.writeLogData(
             'Invoke: hangUp | App, số điện thoại đến: ' + phonenumber,
           );
+
+          if (isIOS) {
+            let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+    
+            if (callUID) {
+              RNCallKeep.endCall(callUID);
+            } else {
+              RNCallKeep.endAllCalls();
+            }
+          }
         })
         .catch();
 
@@ -893,7 +893,8 @@ function CuocGoi({route}) {
                 'handleEndCall: allCalls  + ' + allCalls.length,
               );
               allCalls.map(item => {
-                RNCallKeep.endCall(item.callUUID);
+                //RNCallKeep.endCall(item.callUUID);
+                RNCallKeep.reportEndCallWithUUID(item.callUUID, 2);
               });
             } else {
               RNCallKeep.endAllCalls();
