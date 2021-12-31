@@ -111,21 +111,28 @@ const App = props => {
     stopIncomingTimeout();
 
     if(isIOS) {
-      VoipPushNotification.removeEventListener('notification');
-      let allCalls = [];
-      let count = 0;
-      allCalls = await RNCallKeep.getCalls();
-      while(allCalls.length > 0 || count <= 50) {
-        count ++;
-        logData.writeLogData('handleStuckCall: allCalls  + ' + allCalls.length);
-        allCalls.map(item => {
-          RNCallKeep.reportEndCallWithUUID(item.callUUID, 1);
-        });
-        allCalls = await RNCallKeep.getCalls();
-      }
-      VoipAddListenNotification();
+      setTimeout(() => {
+        endstuckcall(0);
+      }, 100);
     }
   };
+
+  const endstuckcall = async function(count) {
+    let allCalls = [];
+    allCalls = await RNCallKeep.getCalls();
+    if(allCalls.length > 0 && count <= 10) {
+      count ++;
+      allCalls.map(item => {
+        logData.writeLogData('handleStuckCall: uuid  + ' + item.callUUID);
+        RNCallKeep.endCall(item.callUUID);
+        RNCallKeep.reportEndCallWithUUID(item.callUUID, 1);
+      });
+
+      setTimeout(() => {
+        endstuckcall(count);
+      }, 100);
+    }
+  }
 
   const displayIncomingCall = async () => {
     RNCallKeep.registerPhoneAccount();
@@ -199,6 +206,7 @@ const App = props => {
         //let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
 
         if (isIOS) {
+          RNCallKeep.endCall(callUIID);
           RNCallKeep.reportEndCallWithUUID(callUIID, 3);
           console.log('[CallEnded server End Single Call]');
         } else {
@@ -492,6 +500,7 @@ const App = props => {
           logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
           allCalls.map(item => {
             RNCallKeep.endCall(item.callUUID);
+            RNCallKeep.reportEndCallWithUUID(item.callUUID, 2);
           });
         } else {
           RNCallKeep.endAllCalls();

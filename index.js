@@ -21,15 +21,16 @@ const isIOS = Platform.OS === 'ios';
 var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
 // BackgroundTimer.start();
-if(isIOS) {
+setTimeout(()=>{
   RNCallKeep.setup({
     ios: {
-      appName: 'Toda phone',
+      appName: "Toda phone",
     },
-  }).then(accepted => {
-    mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {});
+    }).then((accepted) => {
+      mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
+      });
   });
-}
+},500)
 
 if (!isIOS) {
   conn.off('IncomingCallAsterisk');
