@@ -159,55 +159,60 @@ function CuocGoi({route}) {
   const resetState = () => {
     console.log('[resetState Cuoc Goi]');
     AppSettimeout(async () => {
-      AppClearinterval(object);
+      try {
+        AppClearinterval(object);
+        let paramNotiData = {
+          uniqueid: '',
+          channel: '',
+        };
+        storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
+        storeData.setStoreDataValue(keyStoreData.isHold, false);
+        setPhonenumber('');
+        setIsHold(false);
+        setBitrate('');
+        setTypeCall(0);
+        setCallName('');
+        setStatusCall(statusCallEnum.DangKetNoi);
+        setIsMute(false);
+        setIsSpeaker(false);
+        setIsCuocGoiTransfer(false);
+        setTxtStatusCall('');
+        setTimeStart(new Date());
+        handleShowUI();
+        setVisibleModel(false);
+        storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, '');
+        storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, '');
+        storeData.setStoreDataValue(keyStoreData.soDienThoai, '');
+        if (connectionCheckBitRate) connectionCheckBitRate.close();
+        connectionCheckBitRate = null;
+        InCallManager.stopRingback();
+        InCallManager.stop();
 
-      let paramNotiData = {
-        uniqueid: '',
-        channel: '',
-      };
-
-      if (isIOS && !isHangup) {
-        let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-
-        if (callUID) {
-          RNCallKeep.endCall(callUID);
+        if (isIOS && !isHangup) {
+          if (_uuid) {
+            RNCallKeep.endCall(_uuid);
+          }
+          else {
+            RNCallKeep.endAllCalls();
+          }
         }
+
+        _uuid = null
+        isHangup = false;
+        type = 0;
+        coutTinHieuYeu = 0;
+        stremRTC = null;
+        sessionID = '';
+        _callID = '';
+        isconnectionHold = false;
       }
-
-      isHangup = false;
-      type = 0;
-
-      storeData.setStoreDataObject(keyStoreData.paramNoti, paramNotiData);
-      storeData.setStoreDataValue(keyStoreData.isHold, false);
-      setPhonenumber('');
-      setIsHold(false);
-      setBitrate('');
-      setTypeCall(0);
-      coutTinHieuYeu = 0;
-      setCallName('');
-      setStatusCall(statusCallEnum.DangKetNoi);
-      setIsMute(false);
-      setIsSpeaker(false);
-      setIsCuocGoiTransfer(false);
-      setTxtStatusCall('');
-      stremRTC = null;
-      sessionID = '';
-      _callID = '';
-      isconnectionHold = false;
-
-      setTimeStart(new Date());
-      handleShowUI();
-      setVisibleModel(false);
-      storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
-      storeData.setStoreDataValue(keyStoreData.soDienThoaiDi, '');
-      storeData.setStoreDataValue(keyStoreData.soDienThoaiDen, '');
-      storeData.setStoreDataValue(keyStoreData.soDienThoai, '');
-      if (connectionCheckBitRate) connectionCheckBitRate.close();
-      connectionCheckBitRate = null;
-      InCallManager.stopRingback();
-      InCallManager.stop();
-
-      navigation.navigate('BanPhim');
+      catch (exception) {
+        logData.writeLogData('[ResetState Error]: ' + exception.message);
+      }
+      finally {
+        navigation.navigate('BanPhim');
+      }
     }, 1000);
   };
 
@@ -215,10 +220,11 @@ function CuocGoi({route}) {
     InCallManager.setSpeakerphoneOn(false);
     type = 0;
 
-    // if(isIOS) {
-    //   _uuid = await UUIDGenerator.getRandomUUID();
-    //   RNCallKeep.startCall(_uuid, so_dien_thoai, ho_ten);
-    // }
+    if(isIOS) {
+      _uuid = await UUIDGenerator.getRandomUUID();
+      storeData.setStoreDataObject(keyStoreData.callUUID);
+      RNCallKeep.startCall(_uuid, so_dien_thoai, ho_ten);
+    }
     
     conn = getHubAndReconnect();
     console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
@@ -242,10 +248,11 @@ function CuocGoi({route}) {
   const onAnswerCall = async (number, name) => {
     InCallManager.setSpeakerphoneOn(false);
     type = 1;
-    // if(isIOS) {
-    //   _uuid = await UUIDGenerator.getRandomUUID();
-    //   RNCallKeep.startCall(_uuid, number, name);
-    // }
+    if(isIOS) {
+      _uuid = await UUIDGenerator.getRandomUUID();
+      storeData.setStoreDataObject(keyStoreData.callUUID);
+      RNCallKeep.startCall(_uuid, number, name);
+    }
     console.log('[tra loi cuoc goi]');
     logData.writeLogData('Đã nhấn trả lời cuộc gọi đến : ' + number);
     let signalData = await storeData.getStoreDataObject(
@@ -583,8 +590,11 @@ function CuocGoi({route}) {
               RNCallKeep.endAllCalls();
             }
             else {
-              if (callUID) {
-                RNCallKeep.endCall(callUID);
+              if (_uuid) {
+                RNCallKeep.endCall(_uuid);
+              }
+              else {
+                RNCallKeep.endAllCalls();
               }
             }
           }
@@ -729,6 +739,7 @@ function CuocGoi({route}) {
   const loadParams = async () => {
     let _type = await storeData.getStoreDataValue(keyStoreData.typeCall);
     isHangup = false;
+    _uuid = null;
     if (_type == typeCallEnum.outgoingCall) {
       console.log('[Outcomming call]');
       let _soDienThoaiDi = await storeData.getStoreDataValue(
@@ -960,10 +971,6 @@ function CuocGoi({route}) {
   useEffect(() => {
     handleShowUI();
   }, [showUI]);
-
-  useEffect(() => {
-    RNCallKeep.addEventListener('endCall', this.onEndCallAction);
-  }, []);
   
 
   useEffect(() => {}, [visibleModel]);

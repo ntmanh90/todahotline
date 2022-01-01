@@ -110,11 +110,11 @@ const App = props => {
     soDienThoaiDen = '';
     stopIncomingTimeout();
 
-    if(isIOS) {
-      setTimeout(() => {
-        endstuckcall(0);
-      }, 100);
-    }
+    // if(isIOS) {
+    //   setTimeout(async () => {
+    //     endstuckcall(0);
+    //   }, 100);
+    // }
   };
 
   const endstuckcall = async function(count) {
@@ -128,7 +128,7 @@ const App = props => {
         RNCallKeep.reportEndCallWithUUID(item.callUUID, 1);
       });
 
-      setTimeout(() => {
+      setTimeout(async () => {
         endstuckcall(count);
       }, 100);
     }
@@ -143,16 +143,16 @@ const App = props => {
     const callUUID = uuid.v4().toLowerCase();
     console.log('[CallUUIDHienTai]', callUUIDHienTai.toString());
     setCallUUIDHienTai(callUUID);
-    let _soDienThoaiDen = await storeData.getStoreDataValue(
+    soDienThoaiDen = await storeData.getStoreDataValue(
       keyStoreData.soDienThoaiDen,
     );
-    let hoTen = _soDienThoaiDen;
+    let hoTen = soDienThoaiDen;
 
     try {
       db.transaction(tx => {
         tx.executeSql(
           'SELECT * FROM DanhBa WHERE so_dien_thoai = ?',
-          [_soDienThoaiDen],
+          [soDienThoaiDen],
           (tx, {rows}) => {
             console.log('getHoTenTheoSoDienThoai', rows);
             if (rows.length > 0) {
@@ -174,8 +174,8 @@ const App = props => {
       console.log(err);
     }
 
-    console.log('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
-    logData.writeLogData('[displayIncomingCall], SDT: ' + _soDienThoaiDen);
+    console.log('[displayIncomingCall], SDT: ' + soDienThoaiDen);
+    logData.writeLogData('[displayIncomingCall], SDT: ' + soDienThoaiDen);
 
     conn
       .invoke('ConfirmEvent', 'IncomingCallAsterisk', _callID)
@@ -185,7 +185,7 @@ const App = props => {
           setTimeout(() => {
             RNCallKeep.displayIncomingCall(
               callUUID,
-              _soDienThoaiDen,
+              soDienThoaiDen,
               hoTen,
               'number',
               false,
@@ -251,10 +251,13 @@ const App = props => {
     appState = nextAppState;
   };
 
+  const audioSessionActivated = async (data) => { 
+    logData.writeLogData('[audioSessionActivated]');
+  };
+
   const answerCall = async ({callUUID}) => {
     console.log('[AnswerCall - Click]');
     logData.writeLogData('[AnswerCall]');
-
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
 
     if (!isIOS) {
@@ -272,8 +275,11 @@ const App = props => {
     if (isIOS) {
       if (soDienThoaiDen == '') {
         let timeOut = 0;
-        let timeInterval = setInterval(() => {
+        let timeInterval = setInterval(async () => {
           timeOut = timeOut + 100;
+          soDienThoaiDen = await storeData.getStoreDataValue(
+            keyStoreData.soDienThoaiDen,
+          );
           if (soDienThoaiDen != '') {
             clearInterval(timeInterval);
             RootNavigation.navigate('CuocGoi');
@@ -332,10 +338,8 @@ const App = props => {
     }
 
     if (isIOS) {
-      let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
-
-      if (callUID) {
-        RNCallKeep.endCall(callUID);
+      if (callUUID) {
+        RNCallKeep.endCall(callUUID);
       } else {
         RNCallKeep.endAllCalls();
       }
@@ -660,18 +664,19 @@ const App = props => {
 
     RNCallKeep.addEventListener('answerCall', answerCall);
     RNCallKeep.addEventListener('endCall', endCall);
+    RNCallKeep.addEventListener('didActivateAudioSession', audioSessionActivated);
 
     return () => {
       conn.off('IncomingCallAsterisk');
       conn.off('callEnded');
-      RNCallKeep.removeEventListener('answerCall', answerCall);
-      RNCallKeep.removeEventListener('endCall', endCall);
+      RNCallKeep.removeEventListener('answerCall');
+      RNCallKeep.removeEventListener('endCall');
+      RNCallKeep.removeEventListener('didActivateAudioSession');
       if (objectRestart.id) BackgroundTimer.clearTimeout(objectRestart.id);
       if (objectStart.id) BackgroundTimer.clearTimeout(objectStart.id);
       BackgroundTimer.stop();
       subscription.remove();
       AppState.removeEventListener('change', _handleAppStateChange);
-
       // Unsubscribe
       //unsubscribe_NetInfo();
     };
