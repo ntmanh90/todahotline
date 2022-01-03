@@ -257,8 +257,11 @@ const App = props => {
 
   const answerCall = async ({callUUID}) => {
     console.log('[AnswerCall - Click]');
-    logData.writeLogData('[AnswerCall]');
+    logData.writeLogData('[AnswerCall - Click]');
     storeData.setStoreDataValue(keyStoreData.isAnswerCall, true);
+    let sdt = soDienThoaiDen = await storeData.getStoreDataValue(
+      keyStoreData.soDienThoaiDen
+    );
 
     if (!isIOS) {
       //RNCallKeep.setCurrentCallActive(callUUID);
@@ -273,22 +276,26 @@ const App = props => {
     }
 
     if (isIOS) {
-      if (soDienThoaiDen == '') {
+      if (!sdt || sdt == '') {
         let timeOut = 0;
         let timeInterval = setInterval(async () => {
           timeOut = timeOut + 100;
-          soDienThoaiDen = await storeData.getStoreDataValue(
-            keyStoreData.soDienThoaiDen,
+          sdt = await storeData.getStoreDataValue(
+            keyStoreData.soDienThoaiDen
           );
-          if (soDienThoaiDen != '') {
+          
+          if (sdt && sdt != '') {
             clearInterval(timeInterval);
+            logData.writeLogData('[[Interval] | answerCall], So dien thoai den: ' + sdt);
             RootNavigation.navigate('CuocGoi');
           }
+
           if (timeOut > 3000) {
             clearInterval(timeInterval);
           }
         }, 100);
       } else {
+        logData.writeLogData('[On answerCall], So dien thoai den: ' + sdt);
         RootNavigation.navigate('CuocGoi');
       }
     } else {
