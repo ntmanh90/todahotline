@@ -3,7 +3,7 @@ export default {
 
     status: false,
     URL: "",
-    VERSION: "1.8.6",
+    VERSION: "1.8.8",
     DATA_USER: {},
     TYPE: 0,
     TOKEN: "",

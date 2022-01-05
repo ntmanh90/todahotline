@@ -98,6 +98,8 @@ const AppSettimeout = (cb, timeout, object) => {
 };
 
 const App = props => {
+  console.log('App render');
+
   const [disSignal, setDisSignal] = useState(true);
   const [isLogin, setIsLogin] = useState('false');
   const [callUUIDHienTai, setCallUUIDHienTai] = useState('');
@@ -110,27 +112,26 @@ const App = props => {
     soDienThoaiDen = '';
     stopIncomingTimeout();
 
-    // if(isIOS) {
-    //   setTimeout(async () => {
-    //     endstuckcall(0);
-    //   }, 100);
-    // }
+    if(isIOS) {
+      setTimeout(async () => {
+        endstuckcall(0);
+      }, 50);
+    }
   };
 
   const endstuckcall = async function(count) {
     let allCalls = [];
     allCalls = await RNCallKeep.getCalls();
-    if(allCalls.length > 0 && count <= 10) {
+    if(allCalls.length > 0 && count <= 20) {
       count ++;
       allCalls.map(item => {
-        logData.writeLogData('handleStuckCall: uuid  + ' + item.callUUID);
+        //logData.writeLogData('handleStuckCall: uuid  + ' + item.callUUID);
         RNCallKeep.endCall(item.callUUID);
-        RNCallKeep.reportEndCallWithUUID(item.callUUID, 1);
       });
 
       setTimeout(async () => {
         endstuckcall(count);
-      }, 100);
+      }, 50);
     }
   }
 
@@ -249,10 +250,6 @@ const App = props => {
     }
 
     appState = nextAppState;
-  };
-
-  const audioSessionActivated = async (data) => { 
-    logData.writeLogData('[audioSessionActivated]');
   };
 
   const answerCall = async ({callUUID}) => {
@@ -475,9 +472,47 @@ const App = props => {
       });
     });
   }
+  else {
+    conn.off('IncomingCallAsterisk');
+    conn.on(
+      'IncomingCallAsterisk',
+      (callid, number, displayname, data, id) => {
+        conn
+          .invoke('ConfirmEvent', 'IncomingCallAsterisk', callid)
+          .catch(error => console.log(error));
+        console.log('[[On]] IncomingCallAsterisk App] SDT: ' + number);
+        logData.writeLogData(
+          '[[On]] IncomingCallAsterisk App] SDT: ' + number,
+        );
+        var signal = JSON.parse(data);
+        storeData.setStoreDataObject(keyStoreData.signalWebRTC, signal);
+        storeData.setStoreDataValue(keyStoreData.callid, callid);
+        _callID = callid;
+
+        let sdt_incoming = number;
+        storeData.getStoreDataValue(keyStoreData.Prefix).then(prefix => {
+          sdt_incoming = number.replace(prefix, '');
+          soDienThoaiDen = sdt_incoming;
+          storeData.setStoreDataValue(
+            keyStoreData.soDienThoaiDen,
+            sdt_incoming,
+          );
+          storeData.setStoreDataValue(
+            keyStoreData.hoTenDienThoaiDen,
+            sdt_incoming,
+          );
+          storeData.setStoreDataValue(
+            keyStoreData.typeCall,
+            typeCallEnum.IncomingCall,
+          );
+        });
+      },
+    );
+  }
 
   conn.off('callEnded');
   conn.on('callEnded', async (callid, code, reason, id) => {
+    logData.writeLogData('[callEnded App] current callid: ' + _callID);
     if (_callID == callid) {
       storeData
         .getStoreDataValue(keyStoreData.isAnswerCall)
@@ -671,14 +706,12 @@ const App = props => {
 
     RNCallKeep.addEventListener('answerCall', answerCall);
     RNCallKeep.addEventListener('endCall', endCall);
-    RNCallKeep.addEventListener('didActivateAudioSession', audioSessionActivated);
 
     return () => {
       conn.off('IncomingCallAsterisk');
       conn.off('callEnded');
       RNCallKeep.removeEventListener('answerCall');
       RNCallKeep.removeEventListener('endCall');
-      RNCallKeep.removeEventListener('didActivateAudioSession');
       if (objectRestart.id) BackgroundTimer.clearTimeout(objectRestart.id);
       if (objectStart.id) BackgroundTimer.clearTimeout(objectStart.id);
       BackgroundTimer.stop();

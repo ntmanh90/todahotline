@@ -45,7 +45,7 @@ function Login({navigation}) {
     console.log('idpush', idpush);
     let idpushkit = '';
     if (Platform.OS == 'ios') {
-      idpushkit = (await storeData.getStoreDataValue('tokenPuskit')) ?? '';
+      idpushkit = (await storeData.getStoreDataValue('tokenPuskit')) || '';
     }
     let deviceName = await DeviceInfo.getDeviceName();
 
@@ -64,12 +64,14 @@ function Login({navigation}) {
       token: '',
     };
 
+    console.log(params);
+
     let http = await storeData.getStoreDataValue('urlApi');
     console.log('http', http);
     var url = http + BaseUrl.URL_LOGIN;
 
     AppApi.RequestPOST(url, params, (err, json) => {
-      setRenderProcess(true);
+      //setRenderProcess(true);
       console.log('Error login: ', err);
       if (!err) {
         if (json.data.status) {
