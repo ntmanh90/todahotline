@@ -80,7 +80,6 @@ const sendLog = async () => {
           }
 
           dataLog = JSON.stringify(term);
-          //console.log('[dataLog]', dataLog);
 
           var params = {
             mact: tenct,
