@@ -16,11 +16,12 @@ import moment from 'moment';
 import {
   mediaDevices
 } from 'react-native-webrtc';
+import { createContext } from 'react';
 
 const isIOS = Platform.OS === 'ios';
 var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
-// BackgroundTimer.start();
+// BackgroundTimer.start();ta
 setTimeout(()=>{
   if(isIOS) {
     RNCallKeep.setup({
@@ -172,10 +173,11 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
     }
   }
   if (remoteMessage.data.type == 'DangXuat') {
-    storeData.setStoreDataValue(keyStoreData.isLogin, false);
-    storeData.setStoreDataObject('sip_user', {});
-    storeData.setStoreDataValue('tennhanvien', '');
-    storeData.setStoreDataValue('isLogin', false);
+    try {
+      DeviceEventEmitter.emit('logout');
+    } catch (error) {
+      console.log(error);
+    }
   }
   if (remoteMessage.data.type == 'log') {
     sendLog();

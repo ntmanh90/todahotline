@@ -81,7 +81,7 @@ function reconnectServer() {
   try {
     storeData.getStoreDataObject('sip_user').then(sipUser => {
       console.log('sip_user: ', sipUser);
-      if (!sipUser) return;
+      if (!sipUser || sipUser == '') return;
       // logData.writeLogData('[ReJoin server]:' + sipUser.user + ", " + sipUser.mact);
       try {
         hub.invoke('ReJoin', sipUser.user, sipUser.mact, 2).catch();

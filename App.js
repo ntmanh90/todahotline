@@ -135,6 +135,15 @@ const App = props => {
     }
   }
 
+  const LogoutUser = async () => {
+        logData.writeLogData('Firebase Dang Xuat');
+        storeData.setStoreDataValue(keyStoreData.isLogin, false);
+        storeData.setStoreDataObject('sip_user', '');
+        storeData.setStoreDataValue('tennhanvien', '');
+        storeData.setStoreDataValue('isLogin', false);
+        RootNavigation.navigate('Login');
+  }
+
   const displayIncomingCall = async () => {
     RNCallKeep.registerPhoneAccount();
     //RNCallKeep.toggleAudioRouteSpeaker(_callID, false);
@@ -584,13 +593,8 @@ const App = props => {
 
     const mess = messaging().onMessage(async message => {
       if (message.data.type == 'DangXuat') {
-        logData.writeLogData('Firebase Dang Xuat');
-        storeData.setStoreDataValue(keyStoreData.isLogin, false);
-        storeData.setStoreDataObject('sip_user', {});
-        storeData.setStoreDataValue('tennhanvien', '');
-        storeData.setStoreDataValue('isLogin', false);
-
-        RootNavigation.navigate('Login');
+        console.log('yolo');
+        DeviceEventEmitter.emit('logout');
       }
     });
 
@@ -626,15 +630,7 @@ const App = props => {
           }
         }
         if (notification.data.type == 'DangXuat') {
-          console.log('[App Dang Xuat]');
-          storeData.setStoreDataValue(keyStoreData.isLogin, false);
-          storeData.setStoreDataObject('sip_user', {});
-          storeData.setStoreDataValue('tennhanvien', '');
-          storeData.setStoreDataValue('isLogin', false);
-
-          //conn.invoke('SignOut').catch();
-          conn.stop();
-          RootNavigation.navigate('Login');
+          DeviceEventEmitter.emit('logout');
         }
         if (notification.data.type == 'log') {
           sendLog();
@@ -718,10 +714,16 @@ const App = props => {
       displayIncomingCall,
     );
 
+    let logout = DeviceEventEmitter.addListener(
+      'logout',
+      LogoutUser,
+    );
+
     RNCallKeep.addEventListener('answerCall', answerCall);
     RNCallKeep.addEventListener('endCall', endCall);
 
     return () => {
+      mess = null;
       conn.off('IncomingCallAsterisk');
       conn.off('callEnded');
       RNCallKeep.removeEventListener('answerCall');
@@ -730,6 +732,7 @@ const App = props => {
       if (objectStart.id) BackgroundTimer.clearTimeout(objectStart.id);
       BackgroundTimer.stop();
       subscription.remove();
+      logout.remove();
       AppState.removeEventListener('change', _handleAppStateChange);
       // Unsubscribe
       //unsubscribe_NetInfo();
