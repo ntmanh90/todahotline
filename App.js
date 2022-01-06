@@ -582,6 +582,18 @@ const App = props => {
     //RNCallKeep.endAllCalls();
     requestUserPermission();
 
+    const mess = messaging().onMessage(async message => {
+      if (message.data.type == 'DangXuat') {
+        logData.writeLogData('Firebase Dang Xuat');
+        storeData.setStoreDataValue(keyStoreData.isLogin, false);
+        storeData.setStoreDataObject('sip_user', {});
+        storeData.setStoreDataValue('tennhanvien', '');
+        storeData.setStoreDataValue('isLogin', false);
+
+        RootNavigation.navigate('Login');
+      }
+    });
+
     PushNotification.configure({
       // (optional) Called when Token is generated (iOS and Android)
       onRegister: function (token) {

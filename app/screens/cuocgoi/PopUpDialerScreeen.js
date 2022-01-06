@@ -25,7 +25,7 @@ function PopUpDialerScreeen({ hideDialer, dtmf }) {
         console.log('value ', value);
         var tmp = phoneNumber + value;
         setPhoneNumber(tmp);
-        dtmf(tmp);
+        dtmf(value);
     }
 
     const fetchCopiedText = async () => {

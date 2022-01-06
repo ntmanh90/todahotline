@@ -621,27 +621,27 @@ function CuocGoi({route}) {
     if (value) {
       try {
         conn = getHubAndReconnect();
-        conn.invoke('Hold', sessionCallId);
+        //conn.invoke('Hold', sessionCallId);
         //setRemoteAudio(false);
-        //onHoldCall(false);
+        onHoldCall(false);
       } catch {
         logData.writeLogData('Error invoke Hold');
       }
     } else {
       if (isclick == 1) {
         try {
-          conn.invoke('UnHold', sessionCallId);
+          //conn.invoke('UnHold', sessionCallId);
           //setRemoteAudio(true);
-          //onHoldCall(true);
+          onHoldCall(true);
         } catch {
           logData.writeLogData('Error invoke UnHold');
         }
       } else {
         if (isHold == false) {
           try {
-            conn.invoke('UnHold', sessionCallId);
+            //conn.invoke('UnHold', sessionCallId);
             //setRemoteAudio(true);
-            //onHoldCall(true);
+            onHoldCall(true);
           } catch {
             logData.writeLogData('Error invoke UnHold');
           }

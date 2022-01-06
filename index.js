@@ -22,14 +22,16 @@ var db = openDatabase({name: 'UserDatabase.db'});
 var conn = getHubAndReconnect();
 // BackgroundTimer.start();
 setTimeout(()=>{
-  RNCallKeep.setup({
-    ios: {
-      appName: "Toda phone",
-    },
-    }).then((accepted) => {
-      mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
-      });
-  });
+  if(isIOS) {
+    RNCallKeep.setup({
+      ios: {
+        appName: "Toda phone",
+      },
+      }).then((accepted) => {
+        mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
+        });
+    });
+  }
 },500)
 
 if (!isIOS) {
