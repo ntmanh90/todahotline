@@ -289,6 +289,8 @@ const App = props => {
 
           if (timeOut > 3000) {
             clearInterval(timeInterval);
+            endCall();
+            Toast.showWithGravity('Cuộc gọi bị gián đoạn', Toast.LONG, Toast.BOTTOM);
           }
         }, 100);
       } else {
@@ -338,7 +340,7 @@ const App = props => {
       } else {
         sendMissCallHook.request(sdt, statusMissCallType.DTVKetThuc);
       }
-      Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
+      //Toast.showWithGravity('Kết thúc cuộc gọi.', Toast.LONG, Toast.BOTTOM);
     }
 
     if (isIOS) {
