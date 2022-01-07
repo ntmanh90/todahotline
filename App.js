@@ -136,7 +136,7 @@ const App = props => {
   }
 
   const LogoutUser = async () => {
-        logData.writeLogData('Firebase Dang Xuat');
+        console.log("Event Emiter");
         storeData.setStoreDataValue(keyStoreData.isLogin, false);
         storeData.setStoreDataObject('sip_user', '');
         storeData.setStoreDataValue('tennhanvien', '');
@@ -298,7 +298,7 @@ const App = props => {
 
           if (timeOut > 3000) {
             clearInterval(timeInterval);
-            endCall();
+            endCall({callUUID: callUUID});
             Toast.showWithGravity('Cuộc gọi bị gián đoạn', Toast.LONG, Toast.BOTTOM);
           }
         }, 100);
@@ -593,7 +593,6 @@ const App = props => {
 
     const mess = messaging().onMessage(async message => {
       if (message.data.type == 'DangXuat') {
-        console.log('yolo');
         DeviceEventEmitter.emit('logout');
       }
     });

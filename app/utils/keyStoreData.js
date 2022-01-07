@@ -38,4 +38,5 @@ export default {
     isHold: 'isHold',
     isJoin: 'isJoin',
     callUUID:'callUUID',
+    isAudioActivated: false
 }

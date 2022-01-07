@@ -16,7 +16,6 @@ import moment from 'moment';
 import {
   mediaDevices
 } from 'react-native-webrtc';
-import { createContext } from 'react';
 
 const isIOS = Platform.OS === 'ios';
 var db = openDatabase({name: 'UserDatabase.db'});
@@ -174,7 +173,10 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
   }
   if (remoteMessage.data.type == 'DangXuat') {
     try {
-      DeviceEventEmitter.emit('logout');
+      storeData.setStoreDataValue(keyStoreData.isLogin, false);
+      storeData.setStoreDataObject('sip_user', '');
+      storeData.setStoreDataValue('tennhanvien', '');
+      storeData.setStoreDataValue('isLogin', false);
     } catch (error) {
       console.log(error);
     }

@@ -2,8 +2,10 @@ package com.todahotline;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.app.role.RoleManager;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.WindowManager;
@@ -21,6 +23,7 @@ public class MainActivity extends ReactActivity {
 
     AlarmManager alarmManager;
     PendingIntent gcmKeepAlivePendingIntent;
+    final int ROLE_REQUEST_CODE = 11;
 
     /**
      * Returns the name of the main component registered from JavaScript. This is
@@ -54,6 +57,15 @@ public class MainActivity extends ReactActivity {
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+            RoleManager roleManager = (RoleManager)getSystemService(Context.ROLE_SERVICE);
+            if(!roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
+                Intent intentRole = roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING);
+                startActivityForResult(intentRole, ROLE_REQUEST_CODE);
+            }
+        }
+
     }
 
 }
