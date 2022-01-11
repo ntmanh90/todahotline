@@ -38,6 +38,7 @@ import Toast from 'react-native-simple-toast';
 import moment from 'moment';
 import statusMissCallType from './app/utils/statusMissCallType';
 import useSendMissCall from './app/hooks/useSendMissCall';
+//import BackgroundFetch, { BackgroundFetchStatus } from 'react-native-background-fetch';
 
 const isIOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
@@ -49,6 +50,8 @@ var answerClick = false;
 var objectStart = {id: null, mark: 1};
 var objectRestart = {id: null, mark: 1};
 var incomingTimeout;
+
+
 
 BackgroundTimer.start();
 if (!isIOS) {
@@ -97,6 +100,21 @@ const AppSettimeout = (cb, timeout, object) => {
   }
 };
 
+// export const scheduleTask = async (name) => {
+//   try {
+//     await BackgroundFetch.scheduleTask({
+//       taskId: name,
+//       stopOnTerminate: false,
+//       enableHeadless: true,
+//       delay: 5000,               // milliseconds (5s)
+//       forceAlarmManager: true,   // more precise timing with AlarmManager vs default JobScheduler
+//       periodic: false            // Fire once only.
+//     });
+//   } catch (e) {
+//     console.warn('[BackgroundFetch] scheduleTask fail', e);
+//   }
+// }
+
 const App = props => {
   console.log('App render');
 
@@ -105,6 +123,36 @@ const App = props => {
   const [callUUIDHienTai, setCallUUIDHienTai] = useState('');
 
   const sendMissCallHook = useSendMissCall();
+
+  /*const initBackgroundFetch = async () => {
+    let status = await BackgroundFetch.configure({
+      minimumFetchInterval: 15,      // <-- minutes (15 is minimum allowed)
+      // Android options
+      forceAlarmManager: false,      // <-- Set true to bypass JobScheduler.
+      stopOnTerminate: false,
+      enableHeadless: true,
+      startOnBoot: true,
+      requiredNetworkType: BackgroundFetch.NETWORK_TYPE_NONE, // Default
+      requiresCharging: false,       // Default
+      requiresDeviceIdle: false,     // Default
+      requiresBatteryNotLow: false,  // Default
+      requiresStorageNotLow: false,  // Default
+    }, onBackgroundFetchEvent, onBackgroundFetchTimeout);
+    console.log('[BackgroundFetch] configure status: ', status);
+  }
+  
+  const onBackgroundFetchEvent = async (taskId) => {
+    console.log("BackgroundFetchEvent");
+
+    BackgroundFetch.finish(taskId);
+
+  }
+
+  const onBackgroundFetchTimeout = async (taskId) => {
+    console.log('[BackgroundFetch] TIMEOUT taskId: ', taskId);
+
+    BackgroundFetch.finish(taskId);
+  }*/
 
   const handleEndCall = async () => {
     storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
@@ -136,12 +184,14 @@ const App = props => {
   }
 
   const LogoutUser = async () => {
-        console.log("Event Emiter");
         storeData.setStoreDataValue(keyStoreData.isLogin, false);
         storeData.setStoreDataObject('sip_user', '');
         storeData.setStoreDataValue('tennhanvien', '');
         storeData.setStoreDataValue('isLogin', false);
-        RootNavigation.navigate('Login');
+        if(appState == 'active') {
+          RootNavigation.navigate('Login');
+        }
+        //RootNavigation.navigate('Login');
   }
 
   const displayIncomingCall = async () => {
@@ -588,6 +638,10 @@ const App = props => {
   useEffect(() => {
     var objCallid = storeData.getStoreDataValue(keyStoreData.callid);
     if (objCallid) _callID = objCallid.toString();
+    // if(isIOS) {
+    //   initBackgroundFetch();
+    // }
+
     //RNCallKeep.endAllCalls();
     requestUserPermission();
 

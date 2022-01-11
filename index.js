@@ -172,14 +172,8 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
     }
   }
   if (remoteMessage.data.type == 'DangXuat') {
-    try {
-      storeData.setStoreDataValue(keyStoreData.isLogin, false);
-      storeData.setStoreDataObject('sip_user', '');
-      storeData.setStoreDataValue('tennhanvien', '');
-      storeData.setStoreDataValue('isLogin', false);
-    } catch (error) {
-      console.log(error);
-    }
+      logData.writeLogData("logout index");
+      DeviceEventEmitter.emit('logout');
   }
   if (remoteMessage.data.type == 'log') {
     sendLog();
