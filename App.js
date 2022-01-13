@@ -38,7 +38,7 @@ import Toast from 'react-native-simple-toast';
 import moment from 'moment';
 import statusMissCallType from './app/utils/statusMissCallType';
 import useSendMissCall from './app/hooks/useSendMissCall';
-//import BackgroundFetch, { BackgroundFetchStatus } from 'react-native-background-fetch';
+import BackgroundFetch, { BackgroundFetchStatus } from 'react-native-background-fetch';
 
 const isIOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
@@ -100,21 +100,6 @@ const AppSettimeout = (cb, timeout, object) => {
   }
 };
 
-// export const scheduleTask = async (name) => {
-//   try {
-//     await BackgroundFetch.scheduleTask({
-//       taskId: name,
-//       stopOnTerminate: false,
-//       enableHeadless: true,
-//       delay: 5000,               // milliseconds (5s)
-//       forceAlarmManager: true,   // more precise timing with AlarmManager vs default JobScheduler
-//       periodic: false            // Fire once only.
-//     });
-//   } catch (e) {
-//     console.warn('[BackgroundFetch] scheduleTask fail', e);
-//   }
-// }
-
 const App = props => {
   console.log('App render');
 
@@ -124,7 +109,7 @@ const App = props => {
 
   const sendMissCallHook = useSendMissCall();
 
-  /*const initBackgroundFetch = async () => {
+  const initBackgroundFetch = async () => {
     let status = await BackgroundFetch.configure({
       minimumFetchInterval: 15,      // <-- minutes (15 is minimum allowed)
       // Android options
@@ -139,6 +124,11 @@ const App = props => {
       requiresStorageNotLow: false,  // Default
     }, onBackgroundFetchEvent, onBackgroundFetchTimeout);
     console.log('[BackgroundFetch] configure status: ', status);
+    BackgroundFetch.scheduleTask({
+      taskId: "com.transistorsoft.customtask",
+      delay: 5000,
+      periodic: false   // <-- milliseconds
+    });
   }
   
   const onBackgroundFetchEvent = async (taskId) => {
@@ -152,7 +142,7 @@ const App = props => {
     console.log('[BackgroundFetch] TIMEOUT taskId: ', taskId);
 
     BackgroundFetch.finish(taskId);
-  }*/
+  }
 
   const handleEndCall = async () => {
     storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
@@ -348,6 +338,7 @@ const App = props => {
 
           if (timeOut > 3000) {
             clearInterval(timeInterval);
+            storeData.setStoreDataValue(keyStoreData.isAnswerCall, false);
             endCall({callUUID: callUUID});
             Toast.showWithGravity('Cuộc gọi bị gián đoạn', Toast.LONG, Toast.BOTTOM);
           }
@@ -505,6 +496,13 @@ const App = props => {
     }, 1000);
   });
 
+  if(isIOS) {
+    conn.on('SignOut', (code) => {
+      console.log("logout signal");
+      DeviceEventEmitter.emit('logout');
+    });
+  }
+
   if (!isIOS) {
     conn.off('IncomingCallAsterisk');
     conn.on('IncomingCallAsterisk', (callid, number, displayname, data, id) => {
@@ -638,9 +636,9 @@ const App = props => {
   useEffect(() => {
     var objCallid = storeData.getStoreDataValue(keyStoreData.callid);
     if (objCallid) _callID = objCallid.toString();
-    // if(isIOS) {
-    //   initBackgroundFetch();
-    // }
+    if(isIOS) {
+      initBackgroundFetch();
+    }
 
     //RNCallKeep.endAllCalls();
     requestUserPermission();
