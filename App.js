@@ -149,7 +149,6 @@ const App = props => {
     storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, false);
     storeData.setStoreDataValue(keyStoreData.callUUID, '');
     soDienThoaiDen = '';
-    stopIncomingTimeout();
 
     if(isIOS) {
       setTimeout(async () => {
@@ -333,6 +332,7 @@ const App = props => {
           
           if (sdt && sdt != '') {
             clearInterval(timeInterval);
+            stopIncomingTimeout();
             logData.writeLogData('[[Interval] | answerCall], So dien thoai den: ' + sdt);
             RootNavigation.navigate('CuocGoi');
           }
@@ -354,8 +354,8 @@ const App = props => {
   };
 
   const endCall = async ({callUUID}) => {
-    console.log('[Endcall click]', callUUID);
     logData.writeLogData('[EndCall click]');
+    stopIncomingTimeout();
     conn = getHubAndReconnect();
     const sdt = await storeData.getStoreDataValue(keyStoreData.soDienThoaiDen);
     let sessionCallId = await storeData.getStoreDataValue(
@@ -845,6 +845,57 @@ const App = props => {
           startIncomingTimeout();
         },
       );
+
+      conn.off('callEnded');
+      conn.on('callEnded', async (callid, code, reason, id) => {
+        logData.writeLogData('[callEnded App] current callid: ' + _callID);
+        if (_callID == callid) {
+          storeData
+            .getStoreDataValue(keyStoreData.isAnswerCall)
+            .then(isAnswerCall => {
+              if (!isAnswerCall) return;
+              if (isAnswerCall == 'false') {
+                console.log('[sendMissCallToServer] APP');
+                storeData.setStoreDataValue(keyStoreData.nguoiGoiTuHangUp, true);
+              }
+            });
+          if (!isIOS) {
+            console.log('[CallEnded server Android]');
+            conn
+              .invoke('ConfirmEvent', 'callEnded', callid)
+              .catch(error => console.log(error));
+            RNCallKeep.endAllCalls();
+          } else {
+            InCallManager.stop({busytone: '_DEFAULT_'});
+
+            let callUID = await storeData.getStoreDataValue(keyStoreData.callUUID);
+
+            // if (callUID) {
+            //   RNCallKeep.endCall(callUID);
+            // } else {
+            //   RNCallKeep.endAllCalls();
+            // }
+
+            let allCalls = [];
+            allCalls = await RNCallKeep.getCalls();
+            if (allCalls.length > 0) {
+              logData.writeLogData('handleEndCall: allCalls  + ' + allCalls.length);
+              allCalls.map(item => {
+                RNCallKeep.endCall(item.callUUID);
+                RNCallKeep.reportEndCallWithUUID(item.callUUID, 2);
+              });
+            } else {
+              RNCallKeep.endAllCalls();
+            }
+
+            conn
+              .invoke('ConfirmEvent', 'callEnded', callid)
+              .catch(error => console.log(error));
+          }
+
+          Toast.showWithGravity(reason, Toast.LONG, Toast.BOTTOM);
+        }
+      });
 
       setTimeout(() => {
         let paramNotiData = {
