@@ -248,9 +248,9 @@ export default function Caidat({ navigation }) {
                             </View>
                         </TouchableOpacity>
 
-                        <View style={{ marginTop: 40 }}>
+                        {/* <View style={{ marginTop: 40 }}>
                             <Button onPress={() => navigation.navigate('LogScreen')} title='Show Log' />
-                        </View>
+                        </View> */}
                     </View>
                 </View>
 

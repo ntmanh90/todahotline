@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   DeviceEventEmitter,
   Platform,
@@ -50,7 +50,6 @@ var appState;
 var answerClick = false;
 var objectStart = {id: null, mark: 1};
 var objectRestart = {id: null, mark: 1};
-var incomingTimeout;
 
 
 
@@ -107,7 +106,7 @@ const App = props => {
   const [disSignal, setDisSignal] = useState(true);
   const [isLogin, setIsLogin] = useState('false');
   const [callUUIDHienTai, setCallUUIDHienTai] = useState('');
-
+  const incomingTimeout = useRef(null);
   const sendMissCallHook = useSendMissCall();
 
   const initBackgroundFetch = async () => {
@@ -247,8 +246,8 @@ const App = props => {
   };
 
   const startIncomingTimeout = async () => {
-    if(incomingTimeout) clearTimeout(incomingTimeout);
-    incomingTimeout = setTimeout(async () => {
+    if(incomingTimeout.current) clearTimeout(incomingTimeout.current);
+    incomingTimeout.current = setTimeout(async () => {
       let callUIID = await storeData.getStoreDataValue(keyStoreData.callUUID);
       logData.writeLogData('[CallEnded timeout]');
      
@@ -273,7 +272,7 @@ const App = props => {
   }
 
   const stopIncomingTimeout = async () => {
-    if(incomingTimeout) clearTimeout(incomingTimeout);
+    if(incomingTimeout.current) clearTimeout(incomingTimeout.current);
   }
 
   const _handleAppStateChange = async nextAppState => {
@@ -489,7 +488,7 @@ const App = props => {
     });
   };
 
-  //conn.off('SendMessage');
+  conn.off('SendMessage');
   conn.on('SendMessage', (sentUser, message) => {
     console.log('[Message server trả về]');
     AppSettimeout(() => {
@@ -497,15 +496,10 @@ const App = props => {
     }, 1000);
   });
 
+  conn.off('SignOut');
   conn.on('SignOut', (code) => {
-    console.log("logout signal");
-    if(code == 2) {
-      AppSettimeout(() => {
-        Toast.showWithGravity("Lỗi phiên đăng nhập. Vui lòng đăng nhập lại.");
-        DeviceEventEmitter.emit('logout');
-      }, 1000);
-    }
-    else {
+    logData.writeLogData("SignOut server. Code: " + code);
+    if(code == 1) {
       DeviceEventEmitter.emit('logout');
     }
   });

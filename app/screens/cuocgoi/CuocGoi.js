@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import {
+  DeviceEventEmitter,
   ImageBackground,
   Platform,
   StyleSheet,
@@ -226,9 +227,6 @@ function CuocGoi({route}) {
           _uuid = uuid;
           storeData.setStoreDataObject(keyStoreData.callUUID, _uuid);
           RNCallKeep.startCall(_uuid, so_dien_thoai, ho_ten);
-          // setTimeout(async () => {
-          //   endstuckcall(0);
-          // }, 50);
 
           console.log('đã vào đến phần này: 11 ', ho_ten, so_dien_thoai);
           AppSettimeout(
@@ -937,6 +935,17 @@ function CuocGoi({route}) {
       InCallManager.setSpeakerphoneOn(isSpeaker);
       InCallManager.stopRingback();
 
+      conn.off('SignOut');
+      conn.on('SignOut', (code) => {
+        logData.writeLogData("SignOut server. Code: " + code);
+        if(code == 2) {
+          setTimeout(() => {
+            Toast.showWithGravity("Lỗi phiên đăng nhập. Vui lòng đăng nhập lại.");
+            DeviceEventEmitter.emit('logout');
+          }, 1000);
+        }
+      });
+
       conn.off('Calling');
       conn.on('Calling', (callid, msg, id) => {
           _callID = callid;
@@ -1023,6 +1032,7 @@ function CuocGoi({route}) {
       });
 
       return () => {
+        conn.off('SignOut');
         conn.off('Calling');
         conn.off('receiveSignal');
         conn.off('ringing');
