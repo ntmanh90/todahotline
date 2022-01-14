@@ -26,6 +26,7 @@ import keyStoreData from '../../utils/keyStoreData';
 import CuocGoiDB from '../../database/CuocGoiDB';
 import useCheckPermistion from '../../hooks/useCheckPermistion';
 import InCallManager from 'react-native-incall-manager';
+import logData from '../../utils/logData';
 
 const isIOS = Platform.OS === 'ios';
 
@@ -40,15 +41,36 @@ function Login({navigation}) {
 
   const handleLogin = async () => {
     console.log('[handleLogin]');
+    let idpushkit = '';
+    if (isIOS) {
+      let timeOut = 0;
+      let timeInterval = setInterval(async () => {
+        timeOut = timeOut + 100;
+        idpushkit = (await storeData.getStoreDataValue('tokenPuskit')) || '';
+        if (idpushkit && idpushkit != '') {
+          handleLogin2(idpushkit);
+          clearInterval(timeInterval);
+          return;
+        }
+
+        if (timeOut > 2000) {
+          clearInterval(timeInterval);
+          setRenderProcess(false);
+          Toast.showWithGravity('Đăng nhập thất bại. Vui lòng thử lại.', Toast.LONG, Toast.BOTTOM);
+        }
+      }, 100);  
+    }
+    else {
+      handleLogin2(idpushkit);
+    }
+    
+  };
+
+  const handleLogin2 = async (idpushkit) => {
     let idpush = '';
     idpush = await messaging().getToken();
-    console.log('idpush', idpush);
-    let idpushkit = '';
-    if (Platform.OS == 'ios') {
-      idpushkit = (await storeData.getStoreDataValue('tokenPuskit')) || '';
-    }
     let deviceName = await DeviceInfo.getDeviceName();
-
+    logData.writeLogData('Bắt đầu gọi API login. Idpushkit: ' + idpushkit);
     var params = {
       idct: maCongTy,
       taikhoan: tenDangNhap,
@@ -64,8 +86,6 @@ function Login({navigation}) {
       token: '',
     };
 
-    console.log(params);
-
     let http = await storeData.getStoreDataValue('urlApi');
     console.log('http', http);
     var url = http + BaseUrl.URL_LOGIN;
@@ -75,7 +95,7 @@ function Login({navigation}) {
       console.log('Error login: ', err);
       if (!err) {
         if (json.data.status) {
-          console.log('đã trả về data');
+          logData.writeLogData('[API đăng nhập thành công]');
           var keyUser = json.data.data.usertoda;
           var daonguocma = keyUser.split('').reverse().join('');
           var decodedUser = jwt_decode(daonguocma);
@@ -138,7 +158,7 @@ function Login({navigation}) {
         return false;
       }
     });
-  };
+  }
 
   const LoginApi = async () => {
     createTableDatabase();

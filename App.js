@@ -497,12 +497,18 @@ const App = props => {
     }, 1000);
   });
 
-  if(isIOS) {
-    conn.on('SignOut', (code) => {
-      console.log("logout signal");
+  conn.on('SignOut', (code) => {
+    console.log("logout signal");
+    if(code == 2) {
+      AppSettimeout(() => {
+        Toast.showWithGravity("Lỗi phiên đăng nhập. Vui lòng đăng nhập lại.");
+        DeviceEventEmitter.emit('logout');
+      }, 1000);
+    }
+    else {
       DeviceEventEmitter.emit('logout');
-    });
-  }
+    }
+  });
 
   if (!isIOS) {
     conn.off('IncomingCallAsterisk');
