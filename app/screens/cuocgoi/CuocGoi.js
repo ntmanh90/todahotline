@@ -300,7 +300,7 @@ function CuocGoi({route}) {
           var count = 0;
           var candidateInterval = setInterval(() => {
               count ++;
-              if(isAudioSessionActivated || count > 30) {
+              if(isAudioSessionActivated || count > 15) {
                 logData.writeLogData('[onAnswercall wait audio success]');
                 incomingcall(new RTCSessionDescription(signalData.sdp), SessionCallId);
 

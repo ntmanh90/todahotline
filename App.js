@@ -39,6 +39,7 @@ import moment from 'moment';
 import statusMissCallType from './app/utils/statusMissCallType';
 import useSendMissCall from './app/hooks/useSendMissCall';
 import BackgroundFetch, { BackgroundFetchStatus } from 'react-native-background-fetch';
+import { startClock } from 'react-native-reanimated';
 
 const isIOS = Platform.OS === 'ios';
 var conn = getHubAndReconnect();
@@ -269,7 +270,7 @@ const App = props => {
         RNCallKeep.endAllCalls();
         console.log('[CallEnded uiid null End all Call]');
       }
-    }, 30000);
+    }, 20000);
   }
 
   const stopIncomingTimeout = async () => {
@@ -565,6 +566,8 @@ const App = props => {
             typeCallEnum.IncomingCall,
           );
         });
+
+        startIncomingTimeout();
       },
     );
   }
@@ -832,6 +835,8 @@ const App = props => {
               typeCallEnum.IncomingCall,
             );
           });
+
+          startIncomingTimeout();
         },
       );
 
