@@ -1,4 +1,4 @@
-package com.todahotline;
+package vn.lachong.todaphone;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;

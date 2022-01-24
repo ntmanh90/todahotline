@@ -4,14 +4,14 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "com.todahotline",
+  "applicationId": "vn.lachong.todaphone",
   "variantName": "processReleaseResources",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
-      "versionCode": 1,
-      "versionName": "1.0",
+      "versionCode": 45,
+      "versionName": "1.9.0",
       "outputFile": "app-release.apk"
     }
   ]

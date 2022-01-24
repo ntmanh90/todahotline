@@ -1,4 +1,4 @@
-package com.todahotline;
+package vn.lachong.todaphone;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -7,17 +7,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 import com.facebook.react.ReactActivity;
 // Add these import lines
 import io.wazo.callkeep.RNCallKeepModule;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
-import java.util.List;
 
 public class MainActivity extends ReactActivity {
 
@@ -57,15 +52,6 @@ public class MainActivity extends ReactActivity {
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
-            RoleManager roleManager = (RoleManager)getSystemService(Context.ROLE_SERVICE);
-            if(!roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
-                Intent intentRole = roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING);
-                startActivityForResult(intentRole, ROLE_REQUEST_CODE);
-            }
-        }
-
     }
 
 }
