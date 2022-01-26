@@ -181,6 +181,10 @@ android {
 
         }
     }
+
+    dataBinding {
+        enabled = true
+    }
 }
 
 dependencies {
@@ -218,6 +222,7 @@ dependencies {
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation 'com.google.firebase:firebase-analytics'
     // implementation 'com.yanzhenjie.permission:x:2.0.1'
+    implementation 'com.android.databinding:compiler:3.5.1'
 
     //react-native-callkeep
     compile project(':react-native-callkeep')

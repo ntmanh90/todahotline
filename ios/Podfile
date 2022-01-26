@@ -29,6 +29,8 @@ target 'todahotline' do
 
   pod 'react-native-uuid-generator', :path => '../node_modules/react-native-uuid-generator'
 
+  pod 'RNBackgroundFetch', :path => '../node_modules/react-native-background-fetch'
+
   target 'todahotlineTests' do
     inherit! :complete
     # Pods for testing
