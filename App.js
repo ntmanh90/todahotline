@@ -184,7 +184,7 @@ const App = props => {
   }
 
   const displayIncomingCall = async () => {
-    RNCallKeep.registerPhoneAccount();
+    console.log("displayincoming");
     //RNCallKeep.toggleAudioRouteSpeaker(_callID, false);
 
     conn = getHubAndReconnect();
@@ -231,17 +231,18 @@ const App = props => {
       .catch(error => console.log(error));
     if (!isIOS) {
       RNCallKeep.backToForeground();
-          setTimeout(() => {
-            RNCallKeep.displayIncomingCall(
-              callUUID,
-              soDienThoaiDen,
-              hoTen,
-              'number',
-              false,
-            );
-            startIncomingTimeout();
-          }, 500);
-          PushNotification.removeAllDeliveredNotifications();
+      BackgroundTimer.setTimeout(() => {
+        RNCallKeep.displayIncomingCall(
+          callUUID,
+          soDienThoaiDen,
+          hoTen,
+          'number',
+          false,
+        );
+        startIncomingTimeout();
+      }, 500);
+      
+      PushNotification.removeAllDeliveredNotifications();
     }
   };
 

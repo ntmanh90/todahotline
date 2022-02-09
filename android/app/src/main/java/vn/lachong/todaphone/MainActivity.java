@@ -48,10 +48,6 @@ public class MainActivity extends ReactActivity {
         Intent intent = new Intent(this, GcmKeepAliveBroadcastReceiver.class);
         gcmKeepAlivePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 1000, 2 * 60 * 1000, gcmKeepAlivePendingIntent  );
-        this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-        this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
-        this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
-
 }

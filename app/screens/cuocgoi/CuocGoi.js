@@ -864,6 +864,9 @@ function CuocGoi({route}) {
     isHangup = false;
     _uuid = null;
     isAudioSessionActivated = false;
+    if(!isIOS) {
+      RNCallKeep.requestDismissKeyguard();
+    }
     if (_type == typeCallEnum.outgoingCall) {
       console.log('[Outcomming call]');
       let _soDienThoaiDi = await storeData.getStoreDataValue(

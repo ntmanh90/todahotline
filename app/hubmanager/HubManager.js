@@ -11,7 +11,7 @@ import logData from '../utils/logData';
 import NetInfo from '@react-native-community/netinfo';
 
 let hub = new HubConnectionBuilder()
-  .withUrl(https_url, { accessTokenFactory: () => this.loginToken })
+  .withUrl(https_url)
   //.withAutomaticReconnect([0, 1000, 5000, 10000, 20000])
   // .configureLogging(LogLevel.Information)
   .build();
